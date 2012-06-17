@@ -54,7 +54,8 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 		sysclk = 12288000;
 
 	else if (machine_is_davinci_da830_evm() ||
-				machine_is_davinci_da850_evm())
+				machine_is_davinci_da850_evm() ||
+				machine_is_omapl138_trikboard())
 		sysclk = 24576000;
 
 	else
@@ -239,6 +240,18 @@ static struct snd_soc_dai_link da850_evm_dai = {
 	.ops = &evm_ops,
 };
 
+
+static struct snd_soc_dai_link da850_trik_dai = {
+	.name = "TLV320AIC3X",
+	.stream_name = "AIC3X",
+	.cpu_dai_name= "davinci-mcasp.0",
+	.codec_dai_name = "tlv320aic3x-hifi",
+	.codec_name = "tlv320aic3x-codec.2-0018",
+	.platform_name = "davinci-pcm-audio",
+	.init = evm_aic3x_init,
+	.ops = &evm_ops,
+};
+
 /* davinci dm6446 evm audio machine driver */
 static struct snd_soc_card dm6446_snd_soc_card_evm = {
 	.name = "DaVinci DM6446 EVM",
@@ -285,6 +298,12 @@ static struct snd_soc_card da850_snd_soc_card = {
 	.num_links = 1,
 };
 
+static struct snd_soc_card da850_snd_soc_card_trik = {
+	.name = "DA850/OMAP-L138 TRIK",
+	.dai_link = &da850_trik_dai,
+	.num_links = 1,
+};
+
 static struct platform_device *evm_snd_device;
 
 static int __init evm_init(void)
@@ -310,6 +329,9 @@ static int __init evm_init(void)
 		index = 1;
 	} else if (machine_is_davinci_da850_evm()) {
 		evm_snd_dev_data = &da850_snd_soc_card;
+		index = 0;
+	} else if (machine_is_omapl138_trikboard()) {
+		evm_snd_dev_data = &da850_snd_soc_card_trik;
 		index = 0;
 	} else
 		return -EINVAL;

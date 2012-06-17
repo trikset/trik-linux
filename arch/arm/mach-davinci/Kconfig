@@ -190,7 +190,7 @@ endchoice
 
 config DA850_WL12XX
 	bool "AM18x wl1271 daughter board"
-	depends on MACH_DAVINCI_DA850_EVM
+	depends on MACH_DAVINCI_DA850_EVM || MACH_OMAPL138_TRIKBOARD
 	help
 	  The wl1271 daughter card for AM18x EVMs is a combo wireless
 	  connectivity add-on card, based on the LS Research TiWi module with
@@ -228,6 +228,12 @@ config MACH_OMAPL138_HAWKBOARD
 	  Say Y here to select the TI AM1808 / OMAPL-138 Hawkboard platform .
 	  Information of this board may be found at
 	  http://www.hawkboard.org/
+
+config MACH_OMAPL138_TRIKBOARD
+	bool "TI AM1808 / OMAPL-138 Trikboard platform"
+	depends on ARCH_DAVINCI_DA850
+	help
+	  Say Y here to select the TI AM1808 / OMAPL-138 Trikboard.
 
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"
