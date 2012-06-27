@@ -409,6 +409,8 @@ static struct clk_lookup da850_clks[] = {
  */
 static const struct mux_config da850_pins[] = {
 #ifdef CONFIG_DAVINCI_MUX
+	/* CLKOUT function */
+	MUX_CFG(DA850, CLKOUT0,		13,	4,	15,	1,	false)
 	/* UART0 function */
 	MUX_CFG(DA850, NUART0_CTS,	3,	24,	15,	2,	false)
 	MUX_CFG(DA850, NUART0_RTS,	3,	28,	15,	2,	false)
@@ -494,6 +496,7 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, LCD_D_9,		18,	0,	15,	2,	false)
 	MUX_CFG(DA850, LCD_D_8,		18,	4,	15,	2,	false)
 	MUX_CFG(DA850, LCD_PCLK,	18,	24,	15,	2,	false)
+	MUX_CFG(DA850, LCD_MCLK,	18,	28,	15,	2,	false)
 	MUX_CFG(DA850, LCD_HSYNC,	19,	0,	15,	2,	false)
 	MUX_CFG(DA850, LCD_VSYNC,	19,	4,	15,	2,	false)
 	MUX_CFG(DA850, NLCD_AC_ENB_CS,	19,	24,	15,	2,	false)
@@ -561,17 +564,33 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, EMA_WAIT_1,	6,	24,	15,	1,	false)
 	MUX_CFG(DA850, NEMA_CS_2,	7,	0,	15,	1,	false)
 	/* GPIO function */
+	MUX_CFG(DA850, GPIO0_13,	0,	8,	15,	8,	false)
+	MUX_CFG(DA850, GPIO1_1,		4,	24,	15,	8,	false)
+	MUX_CFG(DA850, GPIO1_9,		2,	24,	15,	4,	false)
+	MUX_CFG(DA850, GPIO2_0,		6,	28,	15,	8,	false)
 	MUX_CFG(DA850, GPIO2_4,		6,	12,	15,	8,	false)
 	MUX_CFG(DA850, GPIO2_6,		6,	4,	15,	8,	false)
 	MUX_CFG(DA850, GPIO2_8,		5,	28,	15,	8,	false)
 	MUX_CFG(DA850, GPIO2_15,	5,	0,	15,	8,	false)
+	MUX_CFG(DA850, GPIO3_4,		8,	12,	15,	8,	false)
 	MUX_CFG(DA850, GPIO3_12,	7,	12,	15,	8,	false)
 	MUX_CFG(DA850, GPIO3_13,	7,	8,	15,	8,	false)
+	MUX_CFG(DA850, GPIO3_14,	7,	4,	15,	8,	false)
+	MUX_CFG(DA850, GPIO3_15,	7,	0,	15,	8,	false)
 	MUX_CFG(DA850, GPIO4_0,		10,	28,	15,	8,	false)
 	MUX_CFG(DA850, GPIO4_1,		10,	24,	15,	8,	false)
+	MUX_CFG(DA850, GPIO5_5,		12,	8,	15,	8,	false)
+	MUX_CFG(DA850, GPIO5_7,		12,	0,	15,	8,	false)
+	MUX_CFG(DA850, GPIO5_10,	11,	20,	15,	8,	false)
+	MUX_CFG(DA850, GPIO5_11,	11,	16,	15,	8,	false)
+	MUX_CFG(DA850, GPIO5_12,	11,	12,	15,	8,	false)
+	MUX_CFG(DA850, GPIO5_13,	11,	8,	15,	8,	false)
+	MUX_CFG(DA850, GPIO5_15,	11,	0,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_9,		13,	24,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_10,	13,	20,	15,	8,	false)
+	MUX_CFG(DA850, GPIO6_12,	13,	12,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_13,	13,	8,	15,	8,	false)
+	MUX_CFG(DA850, GPIO6_15,	13,	0,	15,	8,	false)
 	MUX_CFG(DA850, RTC_ALARM,	0,	28,	15,	2,	false)
 #endif
 };
