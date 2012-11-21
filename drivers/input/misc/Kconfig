@@ -600,4 +600,10 @@ config INPUT_XEN_KBDDEV_FRONTEND
 	  To compile this driver as a module, choose M here: the
 	  module will be called xen-kbdfront.
 
+config INPUT_MMA7660FC
+	tristate "MMA7660FC Accelerometer input driver support"
+	depends on I2C
+	help
+	  MMA7660FC Accelerometer Driver.
+
 endif
