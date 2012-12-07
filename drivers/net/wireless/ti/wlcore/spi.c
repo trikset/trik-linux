@@ -355,7 +355,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 
 	/* This is the only SPI value that we need to set here, the rest
 	 * comes from the board-peripherals file */
-	spi->bits_per_word = 32;
+	spi->bits_per_word = 16;
 
 	ret = spi_setup(spi);
 	if (ret < 0) {
