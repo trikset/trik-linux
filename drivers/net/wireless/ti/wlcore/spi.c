@@ -310,11 +310,21 @@ static int __must_check wl12xx_spi_raw_write(struct device *child, int addr,
 	return 0;
 }
 
+static int wl12xx_spi_power(struct device *child, bool enable)
+{
+	struct wl1271 *wl = dev_get_drvdata(child);
+	if (wl->set_power)
+		wl->set_power(enable);
+
+	return 0;
+}
+
 static struct wl1271_if_operations spi_ops = {
 	.read		= wl12xx_spi_raw_read,
 	.write		= wl12xx_spi_raw_write,
 	.reset		= wl12xx_spi_reset,
 	.init		= wl12xx_spi_init,
+	.power		= wl12xx_spi_power,
 	.set_block_size = NULL,
 };
 
