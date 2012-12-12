@@ -579,6 +579,7 @@ static int mma7660fc_open(struct input_dev *dev)
 {
 	int ret = 0;
 	struct mma7660fc_data *data = i2c_get_clientdata(this_client);
+	printk(KERN_ERR "mma7660fc_open: opencount %d\n", data->opencount);
 
 	data->opencount++;
 	if (data->opencount > 1)
@@ -763,7 +764,7 @@ mma7660fc_ctrl_ioctl(struct file *file,
 		int_data = (int) data->poll_delay;
 #ifdef DEBUG_IOCTL
 		printk("mma7660fc_ctrl_ioctl: Get polling delay %d\n", int_data);
-#endif
+#aendif
 		if (copy_to_user(argp, &int_data, sizeof(int_data)))
 			return -EFAULT;
 		break;
@@ -850,7 +851,7 @@ static struct file_operations mma7660fc_ctrl_fops = {
 	.owner = THIS_MODULE,
 	.open = mma7660fc_ctrl_open,
 	.release = mma7660fc_ctrl_release,
-	.compat_ioctl = mma7660fc_ctrl_ioctl,
+	.unlocked_ioctl = mma7660fc_ctrl_ioctl,
 };
 
 static struct miscdevice mma7660fc_ctrl_device = {
