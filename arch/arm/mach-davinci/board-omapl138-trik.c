@@ -38,6 +38,9 @@
 #include <linux/wl12xx.h>
 
 
+#define DA850TRIK_POW_CON_REG		DA850_GPIO5_14
+#define DA850TRIK_POW_CON_PIN		GPIO_TO_PIN(5, 14)
+		
 #define DA850TRIK_MMCSD_CD_REG		DA850_GPIO4_1
 #define DA850TRIK_MMCSD_CD_PIN		GPIO_TO_PIN(4, 1)
 #define DA850TRIK_USB20_OC_REG		DA850_GPIO5_15
@@ -60,6 +63,25 @@
 #define DA850TRIK_MSP430_TEST_PIN	GPIO_TO_PIN(5, 5)
 #define DA850TRIK_MSP430_RESET_REG	DA850_GPIO5_13
 #define DA850TRIK_MSP430_RESET_PIN	GPIO_TO_PIN(5, 13)
+
+#if defined(CONFIG_DAVINCI_EHRPWM) || defined(CONFIG_DAVINCI_EHRPWM_MODULE)
+#define HAS_EHRPWM 1
+#else
+#define HAS_EHRPWM 0
+#endif
+
+#if defined(CONFIG_ECAP_PWM) || \
+        defined(CONFIG_ECAP_PWM_MODULE)
+#define HAS_ECAP_PWM 1
+#else
+#define HAS_ECAP_PWM 0
+#endif
+
+#if defined(CONFIG_ECAP_CAP) || defined(CONFIG_ECAP_CAP_MODULE)
+#define HAS_ECAP_CAP 1
+#else
+#define HAS_ECAP_CAP 0
+#endif
 
 
 enum {DA850TRIK_SPI_FLASH, DA850TRIK_SPI_WLAN};
@@ -549,7 +571,89 @@ static irqreturn_t da850trik_usb20_ocic_irq(int irq, void *dev_id)
 	printk(KERN_ERR "%s: over-current situation detected\n", __func__);
 	return IRQ_HANDLED;
 }
+static __init void da850trik_pwm_init(void)
+{
+	int ret;
+	char mask = 0;
+	ret = davinci_cfg_reg(DA850TRIK_POW_CON_REG);
+        if (ret) {
+                pr_err("%s: power connection gpio setup failed: %d\n",
+                        __func__, ret);
+                return;
+       	}
+	ret = gpio_request(DA850TRIK_POW_CON_PIN, "power connection gpio");
+        if (ret < 0) {
+                pr_err("%s: failed to request GPIO for power connection gpio: %d\n",
+                        __func__, ret);
+                return;
+        }
+	gpio_set_value(DA850TRIK_POW_CON_PIN, 1);
 
+        ret = gpio_direction_output(DA850TRIK_POW_CON_PIN, 0);
+	if (ret < 0) {
+                pr_err("%s: failed gpio_direction_output GPIO : %d\n",
+                        __func__, ret);
+                return;
+        }
+
+	ret = gpio_export(DA850TRIK_POW_CON_PIN, 0);
+	if (ret < 0) {
+                pr_err("%s: failed to gpio_export power connection: %d\n",
+                        __func__, ret);
+                return;
+        }
+
+
+	ret = davinci_cfg_reg_list(da850_ehrpwm0_pins);
+	if (ret)
+		pr_warning("da850trik_pwm_init:"
+				" ehrpwm0 mux setup failed: %d\n", ret);
+	else
+		mask |=  BIT(0) | BIT(1);
+	ret = davinci_cfg_reg_list(da850_ehrpwm1_pins);
+	if (ret)
+		pr_warning("da850trik_pwm_init:"
+                                " ehrpwm1 mux setup failed: %d\n", ret);
+        else
+                mask |= BIT(2) | BIT(3);
+	da850_register_ehrpwm(mask);
+}
+static __init void da850trik_cap_init(void)
+{
+	int ret = 0;
+	ret = davinci_cfg_reg(DA850_ECAP0_APWM0);
+	if (ret)
+		pr_warning("da850_evm_init:ecap mux failed:%d\n"
+                                                , ret);
+	else {
+		ret = da850_register_ecap_cap(0);
+		if (ret)
+			pr_warning("da850trik_cap_init: "
+        	                    "eCAP 0 registration failed: %d\n", ret);
+	}
+	ret = davinci_cfg_reg(DA850_ECAP1_APWM1);
+        if (ret)
+                pr_warning("da850_evm_init:ecap mux failed:%d\n"
+                                                , ret);
+        else {
+		ret = da850_register_ecap_cap(1);
+        	if (ret)
+                	pr_warning("da850trik_cap_init:"
+                        	    "eCAP 1 regisration failed: %d\n", ret);
+	}
+	ret = davinci_cfg_reg(DA850_ECAP2_APWM2);
+        if (ret)
+                pr_warning("da850_evm_init:ecap mux failed:%d\n"
+                                                , ret);
+        else {
+		ret = da850_register_ecap_cap(2);
+        	if (ret)
+                	pr_warning("da850trik_cap_init"
+                        	    "eCAP 2 registration failed: %d\n", ret);
+	}
+	
+
+}
 static __init void da850trik_usb_init(void)
 {
 	int ret, irq;
@@ -1238,7 +1342,12 @@ static __init void da850trik_init(void)
 	da850trik_spi0_init();
 	da850trik_lcd_init();
 	da850trik_msp430_init();
-
+	if (HAS_EHRPWM) {
+		da850trik_pwm_init();
+	}
+	if (HAS_ECAP_PWM) {
+		da850trik_cap_init();
+	}
 	platform_device_register(&da850trik_manage_device);
 }
 

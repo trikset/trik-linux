@@ -941,6 +941,7 @@ enum davinci_da850_index {
 	DA850_GPIO5_11,
 	DA850_GPIO5_12,
 	DA850_GPIO5_13,
+	DA850_GPIO5_14,
 	DA850_GPIO5_15,
 	DA850_GPIO6_9,
 	DA850_GPIO6_10,
@@ -948,6 +949,19 @@ enum davinci_da850_index {
 	DA850_GPIO6_13,
 	DA850_GPIO6_15,
 	DA850_RTC_ALARM,
+ 	/* eHRPWM0 function */
+ 	DA850_EHRPWM0_A,
+ 	DA850_EHRPWM0_B,
+ 	DA850_EHRPWM0_TZ,
+ 	/* eHRPWM1 function */
+ 	DA850_EHRPWM1_A,
+ 	DA850_EHRPWM1_B,
+ 	DA850_EHRPWM1_TZ,
+ 	/* eCAP functions */
+ 	DA850_ECAP0_APWM0,
+ 	DA850_ECAP1_APWM1,
+ 	DA850_ECAP2_APWM2,
+
 };
 
 enum davinci_tnetv107x_index {
