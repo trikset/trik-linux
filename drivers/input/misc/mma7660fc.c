@@ -764,7 +764,7 @@ mma7660fc_ctrl_ioctl(struct file *file,
 		int_data = (int) data->poll_delay;
 #ifdef DEBUG_IOCTL
 		printk("mma7660fc_ctrl_ioctl: Get polling delay %d\n", int_data);
-#aendif
+#endif
 		if (copy_to_user(argp, &int_data, sizeof(int_data)))
 			return -EFAULT;
 		break;
