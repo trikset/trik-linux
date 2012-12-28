@@ -628,6 +628,28 @@ static const struct mux_config da850_pins[] = {
         MUX_CFG(DA850, ECAP1_APWM1,     1,      28,     15,     4,      false)
         /* eCAP2 function */
         MUX_CFG(DA850, ECAP2_APWM2,     1,      0,      15,     4,      false)
+	/*LCD GPIO*/
+	MUX_CFG(DA850,  GPIO7_0,        18,      4,      15,      8,      false)
+	MUX_CFG(DA850,  GPIO7_1,        18,      0,      15,      8,      false)
+ 	MUX_CFG(DA850,  GPIO7_2,        17,      28,      15,      8,      false)
+	MUX_CFG(DA850,  GPIO7_3,        17,      24,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_4,        17,      20,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_5,        17,      16,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_6,        17,      12,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_7,        17,      8,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_8,        17,      4,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_9,        17,      0,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_10,        16,      28,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_11,        16,      24,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_12,        16,      20,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_13,        16,      16,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_14,        16,      12,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO7_15,        16,      8,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO8_8,        19,      4,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO8_9,        19,      0,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO8_10,        18,      28,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO8_11,        18,      24,      15,      8,      false)
+        MUX_CFG(DA850,  GPIO6_0,        19,      24,      15,      8,      false)
 
 
 #endif
@@ -1343,9 +1365,8 @@ static struct davinci_soc_info davinci_soc_info_da850 = {
 void __init da850_init(void)
 {
 	unsigned int v;
-
 	davinci_common_init(&davinci_soc_info_da850);
-
+	printk("** da850_init **\n");
 	da8xx_syscfg0_base = ioremap(DA8XX_SYSCFG0_BASE, SZ_4K);
 	if (WARN(!da8xx_syscfg0_base, "Unable to map syscfg0 module"))
 		return;
@@ -1361,7 +1382,9 @@ void __init da850_init(void)
 	 * both PLL0 and PLL1 to the same frequency so, there should not
 	 * be any noticeable change even in non-DVFS use cases.
 	 */
+
 	da850_set_async3_src(1);
+	printk("*** da850_init ***\n");
 
 	/* Unlock writing to PLL0 registers */
 	v = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP0_REG));
@@ -1372,4 +1395,6 @@ void __init da850_init(void)
 	v = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP3_REG));
 	v &= ~CFGCHIP3_PLL1_MASTER_LOCK;
 	__raw_writel(v, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP3_REG));
+	printk("***** da850_init *****\n");
+	
 }
