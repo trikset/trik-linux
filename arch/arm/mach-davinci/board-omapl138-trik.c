@@ -40,6 +40,9 @@
 
 #define DA850TRIK_POW_CON_REG		DA850_GPIO5_14
 #define DA850TRIK_POW_CON_PIN		GPIO_TO_PIN(5, 14)
+
+#define DA850TRIK_LED_CON_REG		DA850_GPIO5_7
+#define DA850TRIK_LED_CON_PIN           GPIO_TO_PIN(5, 7)
 		
 #define DA850TRIK_MMCSD_CD_REG		DA850_GPIO4_1
 #define DA850TRIK_MMCSD_CD_PIN		GPIO_TO_PIN(4, 1)
@@ -651,8 +654,6 @@ static __init void da850trik_cap_init(void)
                 	pr_warning("da850trik_cap_init"
                         	    "eCAP 2 registration failed: %d\n", ret);
 	}
-	
-
 }
 static __init void da850trik_usb_init(void)
 {
@@ -1289,9 +1290,41 @@ static __init int da850trik_init_cpufreq(void)
 #else
 static __init int da850_evm_init_cpufreq(void) { return 0; }
 #endif
+static struct gpio_led da850trik_leds[] = {
+        {
+                .active_low = 1,
+                .gpio = DA850TRIK_LED_CON_PIN, /* assigned at runtime */
+                .name = "led_ctrl", /* assigned at runtime */
+        },
+};
+static struct gpio_led_platform_data da850trik_leds_pdata = {
+        .leds = da850trik_leds,
+        .num_leds = ARRAY_SIZE(da850trik_leds),
+};
+
+static struct platform_device da850trik_leds_device = {
+        .name           = "leds-gpio",
+        .id             = -1,
+        .dev = {
+                .platform_data = &da850trik_leds_pdata
+        }
+};
 
 
+static __init void da850trik_led_init(void){
+	int ret;
 
+	ret = davinci_cfg_reg(DA850TRIK_LED_CON_REG);
+	if (ret){
+		pr_warning("Could not req cfg LEDS");
+	}
+	gpio_direction_output(DA850TRIK_LCD_BL_PIN, 0);
+
+	ret = platform_device_register(&da850trik_leds_device);
+        if (ret) {
+                pr_warning("Could not register baseboard GPIO expander LEDS");
+        }
+}
 
 
 
@@ -1348,6 +1381,7 @@ static __init void da850trik_init(void)
 	if (HAS_ECAP_PWM) {
 		da850trik_cap_init();
 	}
+	da850trik_led_init();
 	platform_device_register(&da850trik_manage_device);
 }
 
@@ -1355,6 +1389,7 @@ static __init void da850trik_init(void)
 static void __init da850trik_map_io(void)
 {
 	da850_init();
+	printk("**da850init**\n");
 }
 
 MACHINE_START(OMAPL138_TRIKBOARD, "AM18x/OMAP-L138 Trikboard")
