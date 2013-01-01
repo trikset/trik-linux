@@ -25,6 +25,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -946,7 +947,7 @@ static void __init da850trik_spi0_init(void)
 /*
  * ILI9340-based LCD
  */
-static const short da850trik_lcd_extra_pins[] __initdata = {
+static const short da850trik_lcd_extra_pins[] __initconst = {
 	DA850_GPIO6_12, // LCD backlight
 	DA850_GPIO8_10, // LCD reset
 	-1
@@ -967,6 +968,7 @@ static void da850trik_lcd_reset_ctrl(int _reset)
 	gpio_set_value(GPIO_TO_PIN(8, 10), _reset?0:1); // active low
 }
 
+#define DA8XX_LCD_CNTRL_BASE		0x01e13000
 static struct resource da850trik_lcdc_resources[] = {
 	[0] = { /* registers */
 		.start  = DA8XX_LCD_CNTRL_BASE,
@@ -991,7 +993,7 @@ static struct platform_device da850trik_lcd_device = {
 	},
 };
 
-static __init void da850trik_lcd_init(void)
+static __init int da850trik_lcd_init(void)
 {
 	int ret;
 
@@ -1011,15 +1013,15 @@ static __init void da850trik_lcd_init(void)
 	if (ret)
 		pr_warning("%s: LCD reset gpio request failed: %d\n", __func__, ret);
 
-	ret = clk_add_alias(NULL, "da8xx_lcdc_ili9340.0", NULL, "da8xx_lcdc.0")
-	if (ret)
-		pr_warning("%s: LCD clk alias setup failed: %d\n", __func__, ret);
-
 	ret = platform_device_register(&da850trik_lcd_device);
 	if (ret) {
 		pr_err("%s: LCD platform device register failed: %d\n", __func__, ret);
 		return ret;
 	}
+
+	ret = clk_add_alias(NULL, dev_name(&da850trik_lcd_device.dev), "da8xx_lcdc", NULL);
+	if (ret)
+		pr_warning("%s: LCD clk alias setup failed: %d\n", __func__, ret);
 
 	return 0;
 }
