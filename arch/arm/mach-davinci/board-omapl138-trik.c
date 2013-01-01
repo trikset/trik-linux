@@ -944,7 +944,7 @@ static void __init da850trik_spi0_init(void)
 
 
 /*
- * LCD
+ * ILI9340-based LCD
  */
 static const short da850trik_lcd_extra_pins[] __initdata = {
 	DA850_GPIO6_12, // LCD backlight
@@ -952,13 +952,44 @@ static const short da850trik_lcd_extra_pins[] __initdata = {
 	-1
 };
 
+static void da850trik_lcd_backlight_ctrl(int _bl)
+{
+	gpio_set_value(GPIO_TO_PIN(6, 12), _bl?1:0); // active high
+}
+
 static void da850trik_lcd_power_ctrl(int _power)
 {
-#warning TODO power up, getclk?
-
-#warning TODO temporary backlight control
-	gpio_set_value(GPIO_TO_PIN(6, 12), _power);
+#warning TODO something here?
 }
+
+static void da850trik_lcd_reset_ctrl(int _reset)
+{
+	gpio_set_value(GPIO_TO_PIN(8, 10), _reset?0:1); // active low
+}
+
+static struct resource da850trik_lcdc_resources[] = {
+	[0] = { /* registers */
+		.start  = DA8XX_LCD_CNTRL_BASE,
+		.end    = DA8XX_LCD_CNTRL_BASE + SZ_4K - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = { /* interrupt */
+		.start  = IRQ_DA8XX_LCDINT,
+		.end    = IRQ_DA8XX_LCDINT,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device da850trik_lcd_device = {
+	.name		= "da8xx_lcdc_ili9340",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(da850trik_lcdc_resources),
+	.resource	= da850trik_lcdc_resources,
+	.dev = {
+#warning TODO LCD device platform data
+		.platform_data 		= NULL,
+	},
+};
 
 static __init void da850trik_lcd_init(void)
 {
@@ -980,10 +1011,17 @@ static __init void da850trik_lcd_init(void)
 	if (ret)
 		pr_warning("%s: LCD reset gpio request failed: %d\n", __func__, ret);
 
+	ret = clk_add_alias(NULL, "da8xx_lcdc_ili9340.0", NULL, "da8xx_lcdc.0")
+	if (ret)
+		pr_warning("%s: LCD clk alias setup failed: %d\n", __func__, ret);
 
-#warning TODO register framebuffer and backlight device
+	ret = platform_device_register(&da850trik_lcd_device);
+	if (ret) {
+		pr_err("%s: LCD platform device register failed: %d\n", __func__, ret);
+		return ret;
+	}
 
-
+	return 0;
 }
 
 
