@@ -48,8 +48,6 @@
 #define DA850TRIK_MMCSD_CD_PIN		GPIO_TO_PIN(4, 1)
 #define DA850TRIK_USB20_OC_REG		DA850_GPIO5_15
 #define DA850TRIK_USB20_OC_PIN		GPIO_TO_PIN(5, 15)
-#define DA850TRIK_LCD_BL_REG		DA850_GPIO6_12
-#define DA850TRIK_LCD_BL_PIN		GPIO_TO_PIN(6, 12)
 #define DA850TRIK_AUDIO_RESET_REG	DA850_GPIO6_15
 #define DA850TRIK_AUDIO_RESET_PIN	GPIO_TO_PIN(6, 15)
 #define DA850TRIK_ACCEL_IRQ_REG		DA850_GPIO0_13
@@ -947,47 +945,47 @@ static void __init da850trik_spi0_init(void)
 /*
  * LCD
  */
-static void da850trik_lcd_power_ctrl(int val)
+static const short da850trik_lcd_extra_pins[] __initdata = {
+	DA850_GPIO6_12, // LCD backlight
+	DA850_GPIO8_10, // LCD reset
+	-1
+};
+
+static void da850trik_lcd_power_ctrl(int _power)
 {
-	/* lcd backlight */
-	gpio_set_value(DA850TRIK_LCD_BL_PIN, val);
-	msleep(10);
+#warning TODO power up, getclk?
+
+#warning TODO temporary backlight control
+	gpio_set_value(GPIO_TO_PIN(6, 12), _power);
 }
 
-static void da850trik_lcd_init(void)
+static __init void da850trik_lcd_init(void)
 {
 	int ret;
 
 	ret = davinci_cfg_reg_list(da850_lcdcntl_pins);
-	if (ret) {
-		pr_err("%s: lcd mux setup failed: %d\n",
-			__func__, ret);
-		return;
-	}
+	if (ret)
+		pr_warning("%s: LCD ctrl pinmux setup failed: %d\n", __func__, ret);
 
-	ret = davinci_cfg_reg(DA850TRIK_LCD_BL_REG);
-	if (ret) {
-		pr_err("%s: LCD backlight mux setup failed: %d\n",
-			__func__, ret);
-		return;
-	}
+	ret = davinci_cfg_reg_list(da850trik_lcd_extra_pins);
+	if (ret)
+		pr_warning("%s: LCD extra pinmux setup failed: %d\n", __func__, ret);
 
-	ret = gpio_request(DA850TRIK_LCD_BL_PIN, "lcd backlight");
-	if (ret < 0) {
-		pr_err("%s: failed to request GPIO for LCD backlight: %d\n",
-			__func__, ret);
-		return;
-	}
-	/* Switch off panel power and backlight */
-	gpio_direction_output(DA850TRIK_LCD_BL_PIN, 0);
-	msleep(10);
+	ret = gpio_request_one(GPIO_TO_PIN(6, 12), GPIOF_OUT_INIT_LOW, "LCD backlight");
+	if (ret)
+		pr_warning("%s: LCD backlight gpio request failed: %d\n", __func__, ret);
 
-	/* Switch off panel power and backlight */
-	da850trik_lcd_power_ctrl(0);
+	ret = gpio_request_one(GPIO_TO_PIN(8, 10), GPIOF_OUT_INIT_LOW, "LCD reset");
+	if (ret)
+		pr_warning("%s: LCD reset gpio request failed: %d\n", __func__, ret);
 
-	/* Switch on panel power and backlight */
-	da850trik_lcd_power_ctrl(1);
+
+#warning TODO register framebuffer and backlight device
+
+
 }
+
+
 
 
 /*
@@ -996,30 +994,6 @@ static void da850trik_lcd_init(void)
 static ssize_t da850trik_mmc_cd_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", da850trik_mmc_get_cd(0));
-}
-
-static ssize_t da850trik_lcd_bl_read(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%s\n", gpio_get_value(DA850TRIK_LCD_BL_PIN) ? "on" : "off");
-}
-
-static ssize_t da850trik_lcd_bl_write(struct device *dev, struct device_attribute *attr,
-					const char *buf, size_t count)
-{
-	size_t length;
-
-	if (count < 1) return -EINVAL;
-	length = (buf[count - 1] == '\n') ? count - 1 : count;
-
-	if (strncasecmp(buf, "on", length) == 0){
-		da850trik_lcd_power_ctrl(1);
-		return count;
-	}
-	if (strncasecmp(buf, "off", length) == 0){
-		da850trik_lcd_power_ctrl(0);
-		return count;
-	}
-	return -EINVAL;
 }
 
 static ssize_t da850trik_audio_codec_read(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1153,7 +1127,6 @@ static ssize_t da850trik_msp430_rst_write(struct device *dev, struct device_attr
 }
 
 static const DEVICE_ATTR(mmc_card_detect,   0444, da850trik_mmc_cd_read,      NULL);
-static const DEVICE_ATTR(lcd_backlight,     0644, da850trik_lcd_bl_read,      da850trik_lcd_bl_write);
 static const DEVICE_ATTR(audio_codec,       0644, da850trik_audio_codec_read, da850trik_audio_codec_write);
 static const DEVICE_ATTR(wlan,              0644, da850trik_wlan_read,        da850trik_wlan_write);
 static const DEVICE_ATTR(bluetooth,         0644, da850trik_bluetooth_read,   da850trik_bluetooth_write);
@@ -1162,7 +1135,6 @@ static const DEVICE_ATTR(msp430_reset,      0644, da850trik_msp430_rst_read,  da
 
 static const struct attribute *da850trik_manage_attrs[] = {
 	&dev_attr_mmc_card_detect.attr,
-	&dev_attr_lcd_backlight.attr,
 	&dev_attr_audio_codec.attr,
 	&dev_attr_wlan.attr,
 	&dev_attr_bluetooth.attr,
