@@ -9,7 +9,7 @@
 #include <linux/ioport.h>
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/da8xx-ili9340-fb.h>
@@ -30,6 +30,13 @@
 #else
 #define __devinitexit __devinit
 #endif
+
+
+
+
+#define REGDEF_MASK(reg_ofs, reg_sz)			(((1ull<<(reg_sz))-1ull) << (reg_ofs))
+#define REGDEF_SET_VALUE(reg_ofs, reg_sz, val)		(((val) << (reg_ofs)) & REGDEF_MASK(reg_ofs, reg_sz))
+#define REGDEF_GET_VALUE(reg_ofs, reg_sz, reg_val)	(((reg_val) & REGDEF_MASK(reg_ofs, reg_sz)) >> (reg_ofs))
 
 
 
@@ -130,10 +137,14 @@
 
 
 
-static void da8xx_ili9340_defio_redraw(struct fb_info* _info, struct list_head* _pagelist);
-static int da8xx_ili9340_fbops_check_var(struct fb_var_screeninfo* _var, struct fb_info* _info);
-static int da8xx_ili9340_fbops_set_par(struct fb_info* _info);
-static void da8xx_ili9340_update_work(struct work_struct* _work);
+static int	da8xx_ili9340_fbops_check_var(struct fb_var_screeninfo* _var, struct fb_info* _info);
+static int	da8xx_ili9340_fbops_set_par(struct fb_info* _info);
+static ssize_t	da8xx_ili9340_fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos);
+static int	da8xx_ili9340_fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info);
+static int	da8xx_ili9340_fbops_blank(int _blank, struct fb_info* _info);
+static int	da8xx_ili9340_fbops_sync(struct fb_info* _info);
+static void	da8xx_ili9340_defio_redraw(struct fb_info* _info, struct list_head* _pagelist);
+static void	da8xx_ili9340_update_work(struct work_struct* _work);
 
 
 
@@ -143,9 +154,7 @@ struct da8xx_ili9340_par {
 
 	__u32		pseudo_palette[16];
 
-
-#warning TODO should be mutex, not spinlock
-	spinlock_t		lidd_access_lock;
+	struct mutex		lidd_access_lock;
 	struct work_struct	lidd_update_work;
 
 	resource_size_t	lidd_reg_start;
@@ -206,13 +215,13 @@ static struct fb_ops da8xx_ili9340_fbops = {
 	.fb_check_var	= da8xx_ili9340_fbops_check_var,
 	.fb_set_par	= da8xx_ili9340_fbops_set_par,
 	.fb_read	= fb_sys_read,
-	//.fb_write	= da8xx_ili9340_fbops_write,
+	.fb_write	= da8xx_ili9340_fbops_write,
 	.fb_fillrect	= sys_fillrect,
 	.fb_copyarea	= sys_copyarea,
 	.fb_imageblit	= sys_imageblit,
-	//.fb_pan_display	= da8xx_ili9340_fbops_pan_display,
-	//.fb_blank	= da8xx_ili9340_fbops_blank,
-	//.fb_sync	= da8xx_ili9340_fbops_sync,
+	.fb_pan_display	= da8xx_ili9340_fbops_pan_display,
+	.fb_blank	= da8xx_ili9340_fbops_blank,
+	.fb_sync	= da8xx_ili9340_fbops_sync,
 	//.fb_ioctl	= da8xx_ili9340_fbops_ioctl,
 };
 
@@ -227,12 +236,12 @@ static inline size_t da8xx_ili9340_line_length(const struct fb_var_screeninfo* _
 
 static inline void da8xx_ili9340_lidd_lock(struct da8xx_ili9340_par* _par)
 {
-	spin_lock(&_par->lidd_access_lock);
+	mutex_lock(&_par->lidd_access_lock);
 }
 
 static inline void da8xx_ili9340_lidd_unlock(struct da8xx_ili9340_par* _par)
 {
-	spin_unlock(&_par->lidd_access_lock);
+	mutex_unlock(&_par->lidd_access_lock);
 }
 
 static inline __u32 da8xx_ili9340_lidd_reg_read(struct device* _dev, struct da8xx_ili9340_par* _par, unsigned _reg)
@@ -240,7 +249,7 @@ static inline __u32 da8xx_ili9340_lidd_reg_read(struct device* _dev, struct da8x
 	void __iomem*	reg_ptr		= _par->lidd_reg_base + _reg;
 	__u32 value;
 
-	assert_spin_locked(&_par->lidd_access_lock);
+	BUG_ON(!mutex_is_locked(&_par->lidd_access_lock));
 	BUG_ON(_par->lidd_reg_base == NULL);
 
 	return __raw_readl(reg_ptr);
@@ -250,7 +259,7 @@ static inline void da8xx_ili9340_lidd_reg_write(struct device* _dev, struct da8x
 {
 	void __iomem*	reg_ptr		= _par->lidd_reg_base + _reg;
 
-	assert_spin_locked(&_par->lidd_access_lock);
+	BUG_ON(!mutex_is_locked(&_par->lidd_access_lock));
 	BUG_ON(_par->lidd_reg_base == NULL);
 
 	__raw_writel(_value, reg_ptr);
@@ -260,11 +269,16 @@ static inline void da8xx_ili9340_lidd_reg_change(struct device* _dev, struct da8
 {
 	void __iomem*	reg_ptr		= _par->lidd_reg_base + _reg;
 
-	assert_spin_locked(&_par->lidd_access_lock);
+	BUG_ON(!mutex_is_locked(&_par->lidd_access_lock));
 	BUG_ON(_par->lidd_reg_base == NULL);
 
 	__raw_writel((__raw_readl(reg_ptr) & ~_mask) | _value, reg_ptr);
 }
+
+
+
+
+
 
 
 static int da8xx_ili9340_fbops_check_var(struct fb_var_screeninfo* _var, struct fb_info* _info)
@@ -373,7 +387,51 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info)
 	return ret;
 }
 
+static ssize_t	da8xx_ili9340_fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos)
+{
+	struct device* dev		= _info->device;
+	dev_dbg(dev, "%s: called\n", __func__);
+#warning TODO
+	dev_dbg(dev, "%s: done\n", __func__);
+	return _count;
+}
+
+static int	da8xx_ili9340_fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info)
+{
+	struct device* dev		= _info->device;
+	dev_dbg(dev, "%s: called\n", __func__);
+#warning TODO
+	dev_dbg(dev, "%s: done\n", __func__);
+	return 0;
+}
+
+static int	da8xx_ili9340_fbops_blank(int _blank, struct fb_info* _info)
+{
+	struct device* dev		= _info->device;
+	dev_dbg(dev, "%s: called\n", __func__);
+#warning TODO
+	dev_dbg(dev, "%s: done\n", __func__);
+	return 0;
+}
+
+static int	da8xx_ili9340_fbops_sync(struct fb_info* _info)
+{
+	struct device* dev		= _info->device;
+	dev_dbg(dev, "%s: called\n", __func__);
+#warning TODO
+	dev_dbg(dev, "%s: done\n", __func__);
+	return 0;
+}
+
 static void da8xx_ili9340_defio_redraw(struct fb_info* _info, struct list_head* _pagelist)
+{
+	struct da8xx_ili9340_par* par	= _info->par;
+
+#warning TODO
+
+}
+
+static void	da8xx_ili9340_update_work(struct work_struct* _work)
 {
 #warning TODO
 }
@@ -382,7 +440,6 @@ static irqreturn_t da8xx_ili9340_lidd_edma_done(int _irq, void* _dev)
 {
 	struct fb_info* info		= dev_get_drvdata(_dev);
 	struct da8xx_ili9340_par* par	= info->par;
-
 
 #warning TODO
 
@@ -396,12 +453,12 @@ static irqreturn_t da8xx_ili9340_lidd_edma_done(int _irq, void* _dev)
 
 
 
-static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice)
+
+static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, struct da8xx_ili9340_pdata* _pdata)
 {
 	int ret		= -EINVAL;
 	struct device* dev			= &_pdevice->dev;
 	struct fb_info* info			= platform_get_drvdata(_pdevice);
-	struct da8xx_ili9340_pdata* pdata	= &dev->platform_data;
 	struct da8xx_ili9340_par* par		= info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
@@ -412,14 +469,14 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice)
 	info->fbops		= &da8xx_ili9340_fbops;
 	info->pseudo_palette	= par->pseudo_palette;
 
-	par->yres_screens	= (pdata->yres_screens>1?pdata->yres_screens:1);
-	info->var.xres		= pdata->xres;
+	par->yres_screens	= (_pdata->yres_screens>1?_pdata->yres_screens:1);
+	info->var.xres		= _pdata->xres;
 	info->var.xres_virtual	= info->var.xres;
-	info->var.yres		= pdata->yres;
+	info->var.yres		= _pdata->yres;
 	info->var.yres_virtual	= info->var.yres * par->yres_screens;
-	info->var.bits_per_pixel= pdata->bits_per_pixel;
-	info->var.height	= pdata->screen_height;
-	info->var.width		= pdata->screen_width;
+	info->var.bits_per_pixel= _pdata->bits_per_pixel;
+	info->var.height	= _pdata->screen_height;
+	info->var.width		= _pdata->screen_width;
 
 	info->screen_base	= 0;
 	info->screen_size	= 0;
@@ -434,7 +491,7 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice)
 	}
 
 	info->fbdefio		= &da8xx_ili9340_defio;
-	info->fbdefio->delay	= (HZ / pdata->fps);
+	info->fbdefio->delay	= (HZ / _pdata->fps);
 
 	fb_deferred_io_init(info);
 
@@ -469,12 +526,55 @@ static void __devinitexit da8xx_ili9340_fb_shutdown(struct platform_device* _pde
 
 
 
-static int __devinit da8xx_ili9340_lidd_init(struct platform_device* _pdevice)
+static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevice, struct da8xx_ili9340_pdata* _pdata)
 {
 	int ret					= -EINVAL;
 	struct device* dev			= &_pdevice->dev;
 	struct fb_info* info			= platform_get_drvdata(_pdevice);
-	struct da8xx_ili9340_pdata* pdata	= &dev->platform_data;
+	struct da8xx_ili9340_par* par		= info->par;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+
+	da8xx_ili9340_lidd_lock(par);
+
+#warning TODO set LIDD registers
+
+	da8xx_ili9340_lidd_unlock(par);
+
+	dev_dbg(dev, "%s: done\n", __func__);
+
+	return 0;
+
+
+ exit:
+	return ret;
+}
+
+static void __devinitexit da8xx_ili9340_lidd_regs_shutdown(struct platform_device* _pdevice)
+{
+	struct device* dev			= &_pdevice->dev;
+	struct fb_info* info			= platform_get_drvdata(_pdevice);
+	struct da8xx_ili9340_par* par		= info->par;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+
+	da8xx_ili9340_lidd_lock(par);
+
+#warning TODO reset LIDD registers?
+
+	da8xx_ili9340_lidd_unlock(par);
+
+	dev_dbg(dev, "%s: done\n", __func__);
+}
+
+
+
+
+static int __devinit da8xx_ili9340_lidd_init(struct platform_device* _pdevice, struct da8xx_ili9340_pdata* _pdata)
+{
+	int ret					= -EINVAL;
+	struct device* dev			= &_pdevice->dev;
+	struct fb_info* info			= platform_get_drvdata(_pdevice);
 	struct da8xx_ili9340_par* par		= info->par;
 	struct resource* res_ptr;
 
@@ -536,24 +636,24 @@ static int __devinit da8xx_ili9340_lidd_init(struct platform_device* _pdevice)
 		goto exit_put_lidd_clk;
 	}
 
-	spin_lock_init(&par->lidd_access_lock);
+	mutex_init(&par->lidd_access_lock);
 	INIT_WORK(&par->lidd_update_work, &da8xx_ili9340_update_work);
 
-
-
-	da8xx_ili9340_lidd_lock(par);
-
-
-#warning TODO set LIDD registers
-
-
-	da8xx_ili9340_lidd_unlock(par);
+	ret = da8xx_ili9340_lidd_regs_init(_pdevice, _pdata);
+	if (ret) {
+		dev_err(dev, "%s: cannot setup LIDD registers: %d\n", __func__, ret);
+		goto exit_destroy_lidd_lock;
+	}
 
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return 0;
 
 
+ exit_shutdown_lidd_regs:
+	da8xx_ili9340_lidd_regs_shutdown(_pdevice);
+ exit_destroy_lidd_lock:
+	mutex_destroy(&par->lidd_access_lock);
  exit_disable_lidd_clk:
 	clk_disable(par->lidd_clk);
  exit_put_lidd_clk:
@@ -576,12 +676,13 @@ static void __devinitexit da8xx_ili9340_lidd_shutdown(struct platform_device* _p
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
+#warning TODO check if lock&destroy mutex is acceptable; check double locking in shutdown_regs
 	da8xx_ili9340_lidd_lock(par); // lock forever
 
 #warning TODO reset LCD registers
-#warning TODO reset LIDD registers?
 
-
+	da8xx_ili9340_lidd_regs_shutdown(_pdevice);
+	mutex_destroy(&par->lidd_access_lock);
 	clk_disable(par->lidd_clk);
 	clk_put(par->lidd_clk);
 	free_irq(par->lidd_irq, dev);
@@ -656,6 +757,7 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 {
 	int ret			= -EINVAL;
 	struct device* dev	= &_pdevice->dev;
+	struct da8xx_ili9340_pdata* pdata = _pdevice->dev.platform_data;
 	struct fb_info* info	= NULL;
 
 	dev_dbg(dev, "%s: called, pdevice %s.%d (%p), dev %s (%p)\n",
@@ -674,13 +776,13 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 	dev_set_drvdata(dev, info);
 
 
-	ret = da8xx_ili9340_fb_init(_pdevice);
+	ret = da8xx_ili9340_fb_init(_pdevice, pdata);
 	if (ret) {
 		dev_err(dev, "%s: cannot initialize framebuffer: %d\n", __func__, ret);
 		goto exit_release_framebuffer;
 	}
 
-	ret = da8xx_ili9340_lidd_init(_pdevice);
+	ret = da8xx_ili9340_lidd_init(_pdevice, pdata);
 	if (ret) {
 		dev_err(dev, "%s: cannot initialize da8xx lcd controller: %d\n", __func__, ret);
 		goto exit_fb_shutdown;
