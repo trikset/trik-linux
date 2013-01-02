@@ -38,6 +38,7 @@
 #include <mach/spi.h>
 #include <linux/mma7660fc.h>
 #include <linux/wl12xx.h>
+#include <linux/da8xx-ili9340-fb.h>
 
 
 #define DA850TRIK_POW_CON_REG		DA850_GPIO5_14
@@ -982,14 +983,17 @@ static struct resource da850trik_lcdc_resources[] = {
 	},
 };
 
-static struct platform_device da850trik_lcd_device = {
+static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
+#warning TODO LCD device platform data
+};
+
+static struct platform_device da850trik_lcdc_device = {
 	.name		= "da8xx_lcdc_ili9340",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(da850trik_lcdc_resources),
 	.resource	= da850trik_lcdc_resources,
 	.dev = {
-#warning TODO LCD device platform data
-		.platform_data 		= NULL,
+		.platform_data 		= &da850trik_lcdc_pdata,
 	},
 };
 
@@ -1013,13 +1017,13 @@ static __init int da850trik_lcd_init(void)
 	if (ret)
 		pr_warning("%s: LCD reset gpio request failed: %d\n", __func__, ret);
 
-	ret = platform_device_register(&da850trik_lcd_device);
+	ret = platform_device_register(&da850trik_lcdc_device);
 	if (ret) {
 		pr_err("%s: LCD platform device register failed: %d\n", __func__, ret);
 		return ret;
 	}
 
-	ret = clk_add_alias(NULL, dev_name(&da850trik_lcd_device.dev), "da8xx_lcdc", NULL);
+	ret = clk_add_alias(NULL, dev_name(&da850trik_lcdc_device.dev), "da8xx_lcdc", NULL);
 	if (ret)
 		pr_warning("%s: LCD clk alias setup failed: %d\n", __func__, ret);
 
