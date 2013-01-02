@@ -12,6 +12,7 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/da8xx-ili9340-fb.h>
 
 #define DRIVER_NAME "da8xx_lcdc_ili9340"
 
@@ -39,17 +40,9 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info);
 
 
 
-struct da8xx_ili9340_pdata {
-	int	xres;
-	int	yres;
-	int	yscreens;
-	int	bits_per_pixel;
-	int	screen_height;
-	int	screen_width;
-	int	fps;
-};
-
 struct da8xx_ili9340_par {
+	unsigned	yres_screens;
+
 	u32		pseudo_palette[16];
 
 	resource_size_t	lidd_reg_start;
@@ -70,8 +63,7 @@ static const struct fb_fix_screeninfo da8xx_ili9340_fix_init __devinitconst = {
 	.type_aux	= 0,
 	.visual		= FB_VISUAL_TRUECOLOR,
 	.xpanstep	= 0,
-#warning TODO ypanstep should be set based on xres,yres padding on bits per pixel and LIDD requirement; yres_virtual should be set with respect with this padding
-	.ypanstep	= 1, // only vertical pan is supported
+	.ypanstep	= 1, // allow vertical panning
 	.ywrapstep	= 0,
 	//.line_length
 	.mmio_start	= 0,
@@ -125,11 +117,17 @@ static struct fb_ops da8xx_ili9340_fbops = {
 
 
 
+static size_t da8xx_ili9340_line_length(const struct fb_var_screeninfo* _var)
+{
+	return DIV_ROUND_UP(_var->bits_per_pixel, BITS_PER_BYTE) * _var->xres_virtual;
+}
 
 static int da8xx_ili9340_fbops_check_var(struct fb_var_screeninfo* _var, struct fb_info* _info)
 {
-	int ret			= -EINVAL;
-	struct device* dev	= _info->device;
+	int ret				= -EINVAL;
+	struct device* dev		= _info->device;
+	struct da8xx_ili9340_par* par	= _info->par;
+	unsigned bytes_per_pixel;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
@@ -162,8 +160,9 @@ static int da8xx_ili9340_fbops_check_var(struct fb_var_screeninfo* _var, struct 
 	_var->xres		= _info->var.xres;
 	_var->xres_virtual	= _info->var.xres_virtual;
 	_var->yres		= _info->var.yres;
-	if (_var->yres_virtual < _var->yres)
-		_var->yres_virtual	= _var->yres;
+	_var->yres_virtual	= _info->var.yres * (likely((da8xx_ili9340_line_length(&_info->var) % DA8XX_LIDD_EDMA_ALIGN) == 0) ?
+						     par->yres_screens :
+						     1);
 	_var->grayscale		= _info->var.grayscale;
 	_var->nonstd		= _info->var.nonstd;
 
@@ -191,7 +190,8 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info)
 
 #warning LOCKING REQUIRED!
 
-	line_length	= DIV_ROUND_UP(_info->var.bits_per_pixel, BITS_PER_BYTE) * _info->var.xres_virtual;
+
+	line_length	= da8xx_ili9340_line_length(&_info->var);
 	screen_size	= line_length * _info->var.yres_virtual;
 
 #warning TODO only realloc when required?
@@ -259,10 +259,11 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice)
 	info->fbops		= &da8xx_ili9340_fbops;
 	info->pseudo_palette	= par->pseudo_palette;
 
+	par->yres_screens	= (pdata->yres_screens>1?pdata->yres_screens:1);
 	info->var.xres		= pdata->xres;
 	info->var.xres_virtual	= info->var.xres;
-	info->var.yres		= pdata->yres;;
-	info->var.yres_virtual	= info->var.yres * (pdata->yscreens>1?pdata->yscreens:1);
+	info->var.yres		= pdata->yres;
+	info->var.yres_virtual	= info->var.yres * par->yres_screens;
 	info->var.bits_per_pixel= pdata->bits_per_pixel;
 	info->var.height	= pdata->screen_height;
 	info->var.width		= pdata->screen_width;
