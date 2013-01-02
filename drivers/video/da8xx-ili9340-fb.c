@@ -31,11 +31,109 @@
 #define __devinitexit __devinit
 #endif
 
-#define DA8XX_LIDD_EDMA_ALIGN 4
+
+
+
+#define DA8XX_LCDC_REVID			0x00
+#define DA8XX_LCDC_LCD_CTRL			0x04
+#define DA8XX_LCDC_LCD_STAT			0x08
+#define DA8XX_LCDC_LIDD_CTRL			0x0c
+#define DA8XX_LCDC_LIDD_CS0_CONF		0x10
+#define DA8XX_LCDC_LIDD_CS0_ADDR		0x14
+#define DA8XX_LCDC_LIDD_CS0_DATA		0x18
+#define DA8XX_LCDC_LIDD_CS1_CONF		0x1c
+#define DA8XX_LCDC_LIDD_CS1_ADDR		0x20
+#define DA8XX_LCDC_LIDD_CS1_DATA		0x24
+
+#define DA8XX_LCDC_DMA_CTRL			0x40
+#define DA8XX_LCDC_DMA_FB0_BASE			0x44
+#define DA8XX_LCDC_DMA_FB0_CEILING		0x48
+#define DA8XX_LCDC_DMA_FB1_BASE			0x4c
+#define DA8XX_LCDC_DMA_FB1_CEILING		0x50
+
+
+#define DA8XX_LCDC_REVID__REV			0,  (32)
+
+#define DA8XX_LCDC_LCD_CTRL__MODESEL		0,  (1)
+#define DA8XX_LCDC_LCD_CTRL__CLKDIV		8,  (8)
+
+#define DA8XX_LCDC_LCD_STAT__DONE		0,  (1)
+#define DA8XX_LCDC_LCD_STAT__EOF0		8,  (1)
+#define DA8XX_LCDC_LCD_STAT__EOF1		9,  (1)
+
+#define DA8XX_LCDC_LIDD_CTRL__MODE_SEL		0,  (3)
+#define DA8XX_LCDC_LIDD_CTRL__ALEPOL		3,  (1)
+#define DA8XX_LCDC_LIDD_CTRL__RS_EN_POL		4,  (1)
+#define DA8XX_LCDC_LIDD_CTRL__WS_DIR_POL	5,  (1)
+#define DA8XX_LCDC_LIDD_CTRL__CS0_E0_POL	6,  (1)
+#define DA8XX_LCDC_LIDD_CTRL__CS1_E1_POL	7,  (1)
+#define DA8XX_LCDC_LIDD_CTRL__LIDD_DMA_EN	8,  (1)
+#define DA8XX_LCDC_LIDD_CTRL__DMA_CS0_CS1	9,  (1)
+#define DA8XX_LCDC_LIDD_CTRL__DONE_INT_EN	10, (1)
+
+#define DA8XX_LCDC_LIDD_CSn_CONF__TA		0,  (2)
+#define DA8XX_LCDC_LIDD_CSn_CONF__R_HOLD	2,  (4)
+#define DA8XX_LCDC_LIDD_CSn_CONF__R_STROBE	6,  (6)
+#define DA8XX_LCDC_LIDD_CSn_CONF__R_SU		12, (5)
+#define DA8XX_LCDC_LIDD_CSn_CONF__W_HOLD	17, (4)
+#define DA8XX_LCDC_LIDD_CSn_CONF__W_STROBE	21, (6)
+#define DA8XX_LCDC_LIDD_CSn_CONF__W_SU		27, (5)
+#define DA8XX_LCDC_LIDD_CSn_ADDR__ADR_INDX	0,  (16)
+#define DA8XX_LCDC_LIDD_CSn_DATA__DATA		0,  (16)
+
+#define DA8XX_LCDC_DMA_CTRL__FRAME_MODE		0,  (1)
+#define DA8XX_LCDC_DMA_CTRL__BIGENDIAN		1,  (1)
+#define DA8XX_LCDC_DMA_CTRL__EOF_INT_EN		2,  (1)
+#define DA8XX_LCDC_DMA_CTRL__BURST_SIZE		4,  (3)
+
+#define DA8XX_LCDC_DMA_FBn_BASE__FBn_BASE	0,  (32)
+#define DA8XX_LCDC_DMA_FBn_CEILING__FBn_CEIL	0,  (32)
+
+
+#define DA8XX_LCDC_REVID__REV__id			0x4c100100 //Expected LCD controller ID
+
+#define DA8XX_LCDC_LCD_CTRL__MODESEL__lidd		0x0 //LCD controller in LIDD mode
+#define DA8XX_LCDC_LCD_CTRL__CLKDIV__default		0x1 //MCLK to LCD_CLK by default
+
+#define DA8XX_LCDC_LIDD_CTRL__MODE_SEL__6800sync		0x0 //MPU6800 sync
+#define DA8XX_LCDC_LIDD_CTRL__MODE_SEL__6800async		0x1 //MPU6800 async
+#define DA8XX_LCDC_LIDD_CTRL__MODE_SEL__8080sync		0x2 //8080 sync
+#define DA8XX_LCDC_LIDD_CTRL__MODE_SEL__8080async		0x3 //8080 async
+#define DA8XX_LCDC_LIDD_CTRL__ALEPOL__norm			0x0 //do not invert ALE
+#define DA8XX_LCDC_LIDD_CTRL__ALEPOL__inv			0x1 //invert ALE
+#define DA8XX_LCDC_LIDD_CTRL__RS_EN_POL__norm			0x0 //do not invert RS/EN
+#define DA8XX_LCDC_LIDD_CTRL__RS_EN_POL__inv			0x1 //invert RS/EN
+#define DA8XX_LCDC_LIDD_CTRL__WS_DIR_POL__norm			0x0 //do not invert WS/DIR
+#define DA8XX_LCDC_LIDD_CTRL__WS_DIR_POL__inv			0x1 //invert WS/DIR
+#define DA8XX_LCDC_LIDD_CTRL__CSn_En_POL__norm			0x0 //do not invert CSn/En
+#define DA8XX_LCDC_LIDD_CTRL__CSn_En_POL__inv			0x1 //invert CSn/En
+#define DA8XX_LCDC_LIDD_CTRL__LIDD_DMA_EN__deactivate		0x0 //deactivate DMA
+#define DA8XX_LCDC_LIDD_CTRL__LIDD_DMA_EN__activate		0x1 //activate DMA
+#define DA8XX_LCDC_LIDD_CTRL__DMA_CS0_CS1__cs0			0x0 //DMA writes to LIDD CS0
+#define DA8XX_LCDC_LIDD_CTRL__DMA_CS0_CS1__cs1			0x1 //DMA writes to LIDD CS1
+#define DA8XX_LCDC_LIDD_CTRL__DONE_INT_EN__enable		0x1 //Enable LIDD frame done interrupt
+#define DA8XX_LCDC_LIDD_CTRL__DONE_INT_EN__disable		0x0 //Disable LIDD frame done interrupt
+
+#define DA8XX_LCDC_DMA_CTRL__FRAME_MODE__single			0x0 //Single frame buffer (fb0)
+#define DA8XX_LCDC_DMA_CTRL__BIGENDIAN__disable			0x0 //Big endian data reordering disabled
+#define DA8XX_LCDC_DMA_CTRL__BIGENDIAN__enable			0x1 //Big endian data reordering enabled
+#define DA8XX_LCDC_DMA_CTRL__EOF_INT_EN__enable			0x1 //End of frame (CS0/CS1) interrupt enabled
+#define DA8XX_LCDC_DMA_CTRL__EOF_INT_EN__disable		0x0 //End of frame (CS0/CS1) interrupt disabled
+#define DA8XX_LCDC_DMA_CTRL__BURST_SIZE__1			0x0 //Burst size of 1
+#define DA8XX_LCDC_DMA_CTRL__BURST_SIZE__2			0x1 //Burst size of 2
+#define DA8XX_LCDC_DMA_CTRL__BURST_SIZE__4			0x2 //Burst size of 4
+#define DA8XX_LCDC_DMA_CTRL__BURST_SIZE__8			0x3 //Burst size of 8
+#define DA8XX_LCDC_DMA_CTRL__BURST_SIZE__16			0x4 //Burst size of 16
+
+#define DA8XX_LCDC_DMA_FBn_BASE__ALIGNMENT			0x4 //DMA address alignment
+
+
+
 
 static void da8xx_ili9340_defio_redraw(struct fb_info* _info, struct list_head* _pagelist);
 static int da8xx_ili9340_fbops_check_var(struct fb_var_screeninfo* _var, struct fb_info* _info);
 static int da8xx_ili9340_fbops_set_par(struct fb_info* _info);
+static void da8xx_ili9340_update_work(struct work_struct* _work);
 
 
 
@@ -43,7 +141,12 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info);
 struct da8xx_ili9340_par {
 	unsigned	yres_screens;
 
-	u32		pseudo_palette[16];
+	__u32		pseudo_palette[16];
+
+
+#warning TODO should be mutex, not spinlock
+	spinlock_t		lidd_access_lock;
+	struct work_struct	lidd_update_work;
 
 	resource_size_t	lidd_reg_start;
 	resource_size_t	lidd_reg_size;
@@ -117,10 +220,52 @@ static struct fb_ops da8xx_ili9340_fbops = {
 
 
 
-static size_t da8xx_ili9340_line_length(const struct fb_var_screeninfo* _var)
+static inline size_t da8xx_ili9340_line_length(const struct fb_var_screeninfo* _var)
 {
 	return DIV_ROUND_UP(_var->bits_per_pixel, BITS_PER_BYTE) * _var->xres_virtual;
 }
+
+static inline void da8xx_ili9340_lidd_lock(struct da8xx_ili9340_par* _par)
+{
+	spin_lock(&_par->lidd_access_lock);
+}
+
+static inline void da8xx_ili9340_lidd_unlock(struct da8xx_ili9340_par* _par)
+{
+	spin_unlock(&_par->lidd_access_lock);
+}
+
+static inline __u32 da8xx_ili9340_lidd_reg_read(struct device* _dev, struct da8xx_ili9340_par* _par, unsigned _reg)
+{
+	void __iomem*	reg_ptr		= _par->lidd_reg_base + _reg;
+	__u32 value;
+
+	assert_spin_locked(&_par->lidd_access_lock);
+	ASSERT_BUG(_par->lidd_reg_base == NULL);
+
+	return __raw_readl(reg_ptr);
+}
+
+static inline void da8xx_ili9340_lidd_reg_write(struct device* _dev, struct da8xx_ili9340_par* _par, unsigned _reg, __u32 _value)
+{
+	void __iomem*	reg_ptr		= _par->lidd_reg_base + _reg;
+
+	assert_spin_locked(&_par->lidd_access_lock);
+	ASSERT_BUG(_par->lidd_reg_base == NULL);
+
+	__raw_writel(_value, reg_ptr);
+}
+
+static inline void da8xx_ili9340_lidd_reg_change(struct device* _dev, struct da8xx_ili9340_par* _par, unsigned _reg, __u32 _mask, __u32 _value)
+{
+	void __iomem*	reg_ptr		= _par->lidd_reg_base + _reg;
+
+	assert_spin_locked(&_par->lidd_access_lock);
+	ASSERT_BUG(_par->lidd_reg_base == NULL);
+
+	__raw_writel((__raw_readl(reg_ptr) & ~_mask) | _value, reg_ptr);
+}
+
 
 static int da8xx_ili9340_fbops_check_var(struct fb_var_screeninfo* _var, struct fb_info* _info)
 {
@@ -160,7 +305,7 @@ static int da8xx_ili9340_fbops_check_var(struct fb_var_screeninfo* _var, struct 
 	_var->xres		= _info->var.xres;
 	_var->xres_virtual	= _info->var.xres_virtual;
 	_var->yres		= _info->var.yres;
-	_var->yres_virtual	= _info->var.yres * (likely((da8xx_ili9340_line_length(&_info->var) % DA8XX_LIDD_EDMA_ALIGN) == 0) ?
+	_var->yres_virtual	= _info->var.yres * (likely((da8xx_ili9340_line_length(&_info->var) % DA8XX_LCDC_DMA_FBn_BASE__ALIGNMENT) == 0) ?
 						     par->yres_screens :
 						     1);
 	_var->grayscale		= _info->var.grayscale;
@@ -180,7 +325,7 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info)
 	struct device* dev		= _info->device;
 	struct da8xx_ili9340_par* par	= _info->par;
 
-	u32			line_length;
+	__u32			line_length;
 	unsigned long		screen_size;
 	char __iomem*		screen_base;
 	size_t			dma_phsize;
@@ -188,15 +333,14 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info)
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-#warning LOCKING REQUIRED!
-
+	da8xx_ili9340_lidd_lock(par);
 
 	line_length	= da8xx_ili9340_line_length(&_info->var);
 	screen_size	= line_length * _info->var.yres_virtual;
 
 #warning TODO only realloc when required?
 
-	dma_phsize	= ALIGN(screen_size, DA8XX_LIDD_EDMA_ALIGN);
+	dma_phsize	= ALIGN(screen_size, DA8XX_LCDC_DMA_FBn_BASE__ALIGNMENT);
 	screen_base	= dma_alloc_coherent(dev, dma_phsize, &dma_phaddr, GFP_KERNEL | GFP_DMA);
 	if (screen_base == NULL) {
 		dev_err(dev, "%s: cannot allocate EDMA screen buffer\n", __func__);
@@ -216,15 +360,17 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info)
 
 	memset(_info->screen_base, 0, _info->screen_size);
 
+
 #warning TODO set LIDD registers, LCD registers, and start screen flush, maybe reset
 
-#warning TODO unlock
+
+	da8xx_ili9340_lidd_unlock(par);
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return 0;
 
  exit:
-#warning TODO unlock
+	da8xx_ili9340_lidd_unlock(par);
 	return ret;
 }
 
@@ -235,7 +381,15 @@ static void da8xx_ili9340_defio_redraw(struct fb_info* _info, struct list_head* 
 
 static irqreturn_t da8xx_ili9340_lidd_edma_done(int _irq, void* _dev)
 {
+	struct fb_info* info		= dev_get_drvdata(_dev);
+	struct da8xx_ili9340_par* par	= info->par;
+
+
 #warning TODO
+
+	da8xx_ili9340_lidd_reg_change(_dev, par, DA8XX_LCDC_LCD_STAT, 0x0, 0x0); //Write STAT register back
+
+	da8xx_ili9340_lidd_unlock(par);
 	return IRQ_HANDLED;
 }
 
@@ -383,18 +537,18 @@ static int __devinit da8xx_ili9340_lidd_init(struct platform_device* _pdevice)
 		goto exit_put_lidd_clk;
 	}
 
+	spin_lock_init(&par->lidd_access_lock);
+	INIT_WORK(&par->lidd_update_work, &da8xx_ili9340_update_work);
 
 
 
-#warning TODO create LIDD lock and workqueue
-
-
+	da8xx_ili9340_lidd_lock(par);
 
 
 #warning TODO set LIDD registers
 
 
-
+	da8xx_ili9340_lidd_unlock(par);
 
 	dev_dbg(dev, "%s: done\n", __func__);
 
@@ -423,6 +577,12 @@ static void __devinitexit da8xx_ili9340_lidd_shutdown(struct platform_device* _p
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
+	da8xx_ili9340_lidd_lock(par); // lock forever
+
+#warning TODO reset LCD registers
+#warning TODO reset LIDD registers?
+
+
 	clk_disable(par->lidd_clk);
 	clk_put(par->lidd_clk);
 	free_irq(par->lidd_irq, dev);
@@ -435,38 +595,6 @@ static void __devinitexit da8xx_ili9340_lidd_shutdown(struct platform_device* _p
 
 
 
-static int __devinit da8xx_ili9340_lcd_init(struct platform_device* _pdevice)
-{
-	int ret		= -EINVAL;
-	struct device* dev			= &_pdevice->dev;
-	struct fb_info* info			= platform_get_drvdata(_pdevice);
-	struct da8xx_ili9340_pdata* pdata	= &dev->platform_data;
-	struct da8xx_ili9340_par* par		= info->par;
-
-	dev_dbg(dev, "%s: called\n", __func__);
-
-#warning TODO
-
-	dev_dbg(dev, "%s: done\n", __func__);
-
-	return 0;
-
-
- exit:
-	return ret;
-}
-
-static void __devinitexit da8xx_ili9340_lcd_shutdown(struct platform_device* _pdevice)
-{
-	struct device* dev			= &_pdevice->dev;
-	struct fb_info* info			= platform_get_drvdata(_pdevice);
-
-	dev_dbg(dev, "%s: called\n", __func__);
-
-#warning TODO
-
-	dev_dbg(dev, "%s: done\n", __func__);
-}
 
 
 
@@ -559,17 +687,11 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 		goto exit_fb_shutdown;
 	}
 
-	ret = da8xx_ili9340_lcd_init(_pdevice);
-	if (ret) {
-		dev_err(dev, "%s: cannot initialize ili9340 lcd controller: %d\n", __func__, ret);
-		goto exit_lidd_shutdown;
-	}
-
 
 	ret = register_framebuffer(info);
 	if (ret) {
 		dev_err(dev, "%s: cannot register framebuffer: %d\n", __func__, ret);
-		goto exit_lcd_shutdown;
+		goto exit_lidd_shutdown;
 	}
 
 
@@ -601,8 +723,6 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 
  exit_unregister_framebuffer:
 	unregister_framebuffer(info);
- exit_lcd_shutdown:
-	da8xx_ili9340_lcd_shutdown(_pdevice);
  exit_lidd_shutdown:
 	da8xx_ili9340_lidd_shutdown(_pdevice);
  exit_fb_shutdown:
@@ -620,12 +740,9 @@ static int __devexit da8xx_ili9340_remove(struct platform_device* _pdevice)
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-#warning TODO make sure pending operations completed!
-
 	unregister_framebuffer(info);
 
-	da8xx_ili9340_lcd_shutdown(_pdevice);
-	da8xx_ili9340_lidd_shutdown(_pdevice);
+	da8xx_ili9340_lidd_shutdown(_pdevice); // no more pending operations after this point
 	da8xx_ili9340_fb_shutdown(_pdevice);
 
 	framebuffer_release(info);
