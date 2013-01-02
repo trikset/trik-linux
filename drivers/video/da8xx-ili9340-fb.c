@@ -241,7 +241,7 @@ static inline __u32 da8xx_ili9340_lidd_reg_read(struct device* _dev, struct da8x
 	__u32 value;
 
 	assert_spin_locked(&_par->lidd_access_lock);
-	ASSERT_BUG(_par->lidd_reg_base == NULL);
+	BUG_ON(_par->lidd_reg_base == NULL);
 
 	return __raw_readl(reg_ptr);
 }
@@ -251,7 +251,7 @@ static inline void da8xx_ili9340_lidd_reg_write(struct device* _dev, struct da8x
 	void __iomem*	reg_ptr		= _par->lidd_reg_base + _reg;
 
 	assert_spin_locked(&_par->lidd_access_lock);
-	ASSERT_BUG(_par->lidd_reg_base == NULL);
+	BUG_ON(_par->lidd_reg_base == NULL);
 
 	__raw_writel(_value, reg_ptr);
 }
@@ -261,7 +261,7 @@ static inline void da8xx_ili9340_lidd_reg_change(struct device* _dev, struct da8
 	void __iomem*	reg_ptr		= _par->lidd_reg_base + _reg;
 
 	assert_spin_locked(&_par->lidd_access_lock);
-	ASSERT_BUG(_par->lidd_reg_base == NULL);
+	BUG_ON(_par->lidd_reg_base == NULL);
 
 	__raw_writel((__raw_readl(reg_ptr) & ~_mask) | _value, reg_ptr);
 }
@@ -272,7 +272,6 @@ static int da8xx_ili9340_fbops_check_var(struct fb_var_screeninfo* _var, struct 
 	int ret				= -EINVAL;
 	struct device* dev		= _info->device;
 	struct da8xx_ili9340_par* par	= _info->par;
-	unsigned bytes_per_pixel;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
