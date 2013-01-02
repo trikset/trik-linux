@@ -2239,6 +2239,20 @@ config FB_DA8XX
 	  found on DA8xx/OMAP-L1xx SoCs.
 	  If unsure, say N.
 
+config FB_DA8XX_ILI9340
+	tristate "DA8xx/OMAP-L1xx Framebuffer support for ILI9340-based LCD"
+	depends on FB && ARCH_DAVINCI_DA8XX
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	select FB_DEFERRED_IO
+	select FB_BACKLIGHT
+	---help---
+	  This is the frame buffer device driver for the TI LCD controller
+	  operating with ILI9340-based LCD.
+	  If unsure, say N.
+
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"
 	depends on FB
