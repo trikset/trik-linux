@@ -954,19 +954,21 @@ static const short da850trik_lcd_extra_pins[] __initconst = {
 	-1
 };
 
-static void da850trik_lcd_backlight_ctrl(int _bl)
+static void da850trik_lcd_backlight_ctrl(bool _backlight)
 {
-	gpio_set_value(GPIO_TO_PIN(6, 12), _bl?1:0); // active high
+	gpio_set_value(GPIO_TO_PIN(6, 12), _backlight);
 }
 
-static void da850trik_lcd_power_ctrl(int _power)
+static void da850trik_lcd_power_ctrl(bool _power_up)
 {
-#warning TODO something here?
-}
-
-static void da850trik_lcd_reset_ctrl(int _reset)
-{
-	gpio_set_value(GPIO_TO_PIN(8, 10), _reset?0:1); // active low
+	if (_power_up) {
+		gpio_set_value(GPIO_TO_PIN(8, 10), 0);
+		udelay(10);
+		gpio_set_value(GPIO_TO_PIN(8, 10), 1);
+		mdelay(120);
+	} else {
+		gpio_set_value(GPIO_TO_PIN(8, 10), 0);
+	}
 }
 
 #define DA8XX_LCD_CNTRL_BASE		0x01e13000
@@ -985,6 +987,8 @@ static struct resource da850trik_lcdc_resources[] = {
 
 static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
 #warning TODO LCD device platform data
+	.cb_backlight_ctrl	= &da850trik_lcd_backlight_ctrl,
+	.cb_power_ctrl		= &da850trik_lcd_power_ctrl,
 };
 
 static struct platform_device da850trik_lcdc_device = {
