@@ -282,18 +282,17 @@ static inline void da8xx_ili9340_lcdc_reg_change(struct device* _dev, struct da8
 
 static inline __u32 da8xx_ili9340_display_read_data(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
-#warning TODO display registers access
-	return 0;
+	return da8xx_ili9340_lcdc_reg_read(_dev, _par, _par->lidd_reg_cs_data);
 }
 
 static inline void da8xx_ili9340_display_write_addr(struct device* _dev, struct da8xx_ili9340_par* _par, __u32 _addr)
 {
-#warning TODO display registers access
+	da8xx_ili9340_lcdc_reg_write(_dev, _par, _par->lidd_reg_cs_addr, _addr);
 }
 
-static inline void da8xx_ili9340_display_write_data(struct device* _dev, struct da8xx_ili9340_par* _par, __u32 _addr)
+static inline void da8xx_ili9340_display_write_data(struct device* _dev, struct da8xx_ili9340_par* _par, __u32 _data)
 {
-#warning TODO display registers access
+	da8xx_ili9340_lcdc_reg_write(_dev, _par, _par->lidd_reg_cs_data, _data);
 }
 
 
@@ -452,6 +451,7 @@ static int da8xx_ili9340_fbops_sync(struct fb_info* _info)
 	dev_dbg(dev, "%s: done\n", __func__);
 	return 0;
 }
+
 
 
 
