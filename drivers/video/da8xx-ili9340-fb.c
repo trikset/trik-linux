@@ -119,6 +119,11 @@
 #define DA8XX_LCDCREG_DMA_FBn_BASE__ALIGNMENT			0x4 //DMA address alignment
 
 
+#define ILI9340_CMD_NOP				0x00
+#define ILI9340_CMD_READID			0x04
+#define ILI9340_CMD_MEMORY_WRITE		0x2c
+
+
 enum da8xx_ili9340_work_task { // task are executed in this order
 	DA8XX_ILI9340_WORK_LCDC_POWER_ON	= 0x01,
 	DA8XX_ILI9340_WORK_LCD_SETUP		= 0x02,
@@ -282,9 +287,9 @@ static inline __u32 display_read_data(struct device* _dev, struct da8xx_ili9340_
 	return lcdc_reg_read(_dev, _par, _par->lidd_reg_cs_data);
 }
 
-static inline void display_write_addr(struct device* _dev, struct da8xx_ili9340_par* _par, __u32 _addr)
+static inline void display_write_cmd(struct device* _dev, struct da8xx_ili9340_par* _par, __u32 _cmd)
 {
-	lcdc_reg_write(_dev, _par, _par->lidd_reg_cs_addr, _addr);
+	lcdc_reg_write(_dev, _par, _par->lidd_reg_cs_addr, _cmd);
 }
 
 static inline void display_write_data(struct device* _dev, struct da8xx_ili9340_par* _par, __u32 _data)
@@ -452,20 +457,45 @@ static int fbops_sync(struct fb_info* _info)
 
 
 
-#if 0
 static void defio_redraw(struct fb_info* _info, struct list_head* _pagelist)
 {
 	lcdc_schedule_work(_info, DA8XX_ILI9340_WORK_LCD_REDRAW);
 }
-#endif
 
 static void da8xx_ili9340_lcdc_edma_start(struct device* _dev)
 {
 	struct fb_info* info		= dev_get_drvdata(_dev);
 	struct da8xx_ili9340_par* par	= info->par;
+	dma_addr_t phaddr_base;
+	dma_addr_t phaddr_ceil;
 
 	lcdc_lock(par);
-#warning TODO start edma
+
+	if (info->var.xoffset != 0)
+		dev_warn(_dev, "%s: xoffset != 0\n", __func__);
+	phaddr_base = par->fb_dma_phaddr + info->var.yoffset*info->fix.line_length;
+	phaddr_ceil = phaddr_base + info->var.yres*info->fix.line_length - 1;
+
+	display_write_cmd(_dev, par, ILI9340_CMD_NOP);
+	display_write_cmd(_dev, par, ILI9340_CMD_MEMORY_WRITE);
+
+	// Set EDMA address
+	lcdc_reg_write(_dev, par,
+			DA8XX_LCDCREG_DMA_FB0_BASE,
+			REGDEF_SET_VALUE(DA8XX_LCDCREG_DMA_FBn_BASE__FBn_BASE, phaddr_base));
+	lcdc_reg_write(_dev, par,
+			DA8XX_LCDCREG_DMA_FB0_CEILING,
+			REGDEF_SET_VALUE(DA8XX_LCDCREG_DMA_FBn_CEILING__FBn_CEIL, phaddr_ceil));
+
+	// Kick EDMA on
+	lcdc_reg_change(_dev, par,
+			DA8XX_LCDCREG_LIDD_CTRL,
+			REGDEF_MASK(DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN),
+			REGDEF_SET_VALUE(DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN, DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN__activate));
+	lcdc_reg_change(_dev, par,
+			DA8XX_LCDCREG_LIDD_CTRL,
+			REGDEF_MASK(DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN),
+			REGDEF_SET_VALUE(DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN, DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN__deactivate));
 }
 
 static irqreturn_t da8xx_ili9340_lcdc_edma_done(int _irq, void* _dev)
@@ -475,6 +505,8 @@ static irqreturn_t da8xx_ili9340_lcdc_edma_done(int _irq, void* _dev)
 	struct da8xx_ili9340_par* par	= info->par;
 
 	lcdc_reg_change(dev, par, DA8XX_LCDCREG_LCD_STAT, 0x0, 0x0); //Write STAT register back
+	display_write_cmd(dev, par, ILI9340_CMD_NOP);
+
 	lcdc_unlock(par);
 	lcdc_schedule_work_done(info, DA8XX_ILI9340_WORK_LCD_REDRAW);
 
