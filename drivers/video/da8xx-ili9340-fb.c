@@ -30,9 +30,13 @@
 
 
 
-#define REGDEF_MASK(reg_ofs, reg_sz)			(((1ull<<(reg_sz))-1ull) << (reg_ofs))
-#define REGDEF_SET_VALUE(reg_ofs, reg_sz, val)		(((val) << (reg_ofs)) & REGDEF_MASK(reg_ofs, reg_sz))
-#define REGDEF_GET_VALUE(reg_ofs, reg_sz, reg_val)	(((reg_val) & REGDEF_MASK(reg_ofs, reg_sz)) >> (reg_ofs))
+#define REGDEFSPLIT_MASK(reg_ofs, reg_sz)			(((1ull<<(reg_sz))-1ull) << (reg_ofs))
+#define REGDEFSPLIT_SET_VALUE(reg_ofs, reg_sz, val)		(((val) << (reg_ofs)) & REGDEFSPLIT_MASK(reg_ofs, reg_sz))
+#define REGDEFSPLIT_GET_VALUE(reg_ofs, reg_sz, reg_val)		(((reg_val) & REGDEFSPLIT_MASK(reg_ofs, reg_sz)) >> (reg_ofs))
+
+#define REGDEF_MASK(reg_def)			REGDEFSPLIT_MASK(reg_def)
+#define REGDEF_SET_VALUE(reg_def, val)		REGDEFSPLIT_SET_VALUE(reg_def, val)
+#define REGDEF_GET_VALUE(reg_def, reg_val)	REGDEFSPLIT_GET_VALUE(reg_def, reg_val)
 
 
 
@@ -569,6 +573,14 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 	da8xx_ili9340_lidd_lock(par);
 
 	regval = da8xx_ili9340_lidd_reg_read(dev, par, DA8XX_LCDC_REVID);
+	uval = REGDEF_GET_VALUE(DA8XX_LCDC_REVID__REV, regval);
+	if (uval != DA8XX_LCDC_REVID__REV__id) {
+		dev_err(dev, "%s: detected wrong LCD controller REVID %x, expected %x\n", __func__, (unsigned)uval, (unsigned)DA8XX_LCDC_REVID__REV__id);
+		ret = -EINVAL;
+		goto exit_unlock;
+	}
+
+
 
 #warning TODO set LIDD registers
 
