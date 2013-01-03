@@ -994,6 +994,14 @@ static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
 	.screen_width		= 37, //36,72mm
 	.fps			= 50,
 
+	.lcdc_lidd_mode		= DA8XX_LCDC_LIDD_MODE_6800ASYNC,
+	.lcdc_lidd_cs		= DA8XX_LCDC_LIDD_CS0,
+	.lcdc_lidd_ale_pol	= DA8XX_LCDC_LIDD_POL_ACTIVE_LOW,
+	.lcdc_lidd_rs_en_pol	= DA8XX_LCDC_LIDD_POL_ACTIVE_LOW,
+	.lcdc_lidd_ws_dir_pol	= DA8XX_LCDC_LIDD_POL_ACTIVE_LOW,
+	.lcdc_lidd_cs_pol	= DA8XX_LCDC_LIDD_POL_ACTIVE_LOW,
+	.lcdc_lidd_edma_burst	= 16,
+
 #warning TODO timings are invalid
 	.lcdc_lidd_mclk_ns	= 10,
 	.lcdc_t_ta_ns		= 10,
