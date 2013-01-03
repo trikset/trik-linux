@@ -371,9 +371,9 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info)
 
 	memset(_info->screen_base, 0, _info->screen_size);
 
-
-#warning TODO set LIDD registers, LCD registers, and start screen flush, maybe reset
-
+#warning TODO schedule LCDC power on / reset
+#warning TODO schedule LCD init and sleep out
+#warning TODO schedule FB flush
 
 	da8xx_ili9340_lcdc_unlock(par);
 	dev_dbg(dev, "%s: done\n", __func__);
@@ -391,35 +391,37 @@ static ssize_t	da8xx_ili9340_fbops_write(struct fb_info* _info, const char __use
 {
 	struct device* dev		= _info->device;
 	dev_dbg(dev, "%s: called\n", __func__);
-#warning TODO
+#warning TODO schedule FB flush
 	dev_dbg(dev, "%s: done\n", __func__);
 	return _count;
 }
 
-static int	da8xx_ili9340_fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info)
+static int da8xx_ili9340_fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info)
 {
 	struct device* dev		= _info->device;
 	dev_dbg(dev, "%s: called\n", __func__);
-#warning TODO
+#warning TODO pan
+#warning TODO schedule FB flush
 	dev_dbg(dev, "%s: done\n", __func__);
 	return 0;
 }
 
-static int	da8xx_ili9340_fbops_blank(int _blank, struct fb_info* _info)
+static int da8xx_ili9340_fbops_blank(int _blank, struct fb_info* _info)
 {
 	struct device* dev		= _info->device;
 	dev_dbg(dev, "%s: called\n", __func__);
-#warning TODO
+#warning TODO backlight control?
 	dev_dbg(dev, "%s: done\n", __func__);
 	return 0;
 }
 
-static int	da8xx_ili9340_fbops_sync(struct fb_info* _info)
+static int da8xx_ili9340_fbops_sync(struct fb_info* _info)
 {
 	struct device* dev		= _info->device;
 	struct da8xx_ili9340_par* par	= _info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
+#warning TODO if this sync is correct?
 	da8xx_ili9340_lcdc_lock(par);
 	da8xx_ili9340_lcdc_unlock(par);
 	dev_dbg(dev, "%s: done\n", __func__);
@@ -431,24 +433,21 @@ static void da8xx_ili9340_defio_redraw(struct fb_info* _info, struct list_head* 
 	struct device* dev		= _info->device;
 
 	dev_dbg(dev, "%s: called\n", __func__);
-#warning TODO
+#warning TODO schedule FB flush
 	dev_dbg(dev, "%s: done\n", __func__);
 }
 
-#warning TEMPORARY
-#if 0
-static void	da8xx_ili9340_update_work(struct work_struct* _work)
+static void da8xx_ili9340_update_work(struct work_struct* _work)
 {
 #warning TODO
 }
-#endif
 
 static irqreturn_t da8xx_ili9340_lcdc_edma_done(int _irq, void* _dev)
 {
 	struct fb_info* info		= dev_get_drvdata(_dev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-#warning TODO
+#warning TODO FB flush done
 
 	da8xx_ili9340_lcdc_reg_change(_dev, par, DA8XX_LCDCREG_LCD_STAT, 0x0, 0x0); //Write STAT register back
 
@@ -490,7 +489,7 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 	info->fix.smem_len	= 0;
 	info->fix.smem_start	= 0;
 
-#warning TODO allocate fake colormap
+#warning Allocating fake colormap
 	ret = fb_alloc_cmap(&info->cmap, 0, 0);
 	if (ret) {
 		dev_err(dev, "%s: cannot allocated colormap: %d\n", __func__, ret);
@@ -873,11 +872,11 @@ static void __devinitexit da8xx_ili9340_lcdc_shutdown(struct platform_device* _p
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-#warning TODO check if lock&destroy mutex is acceptable; check double locking in shutdown_regs
+#warning TODO schedule LCD sleep IN task
+#warning TODO schedule LCDC power off task
+
+#warning Check if lock&destroy mutex is acceptable; check double locking in shutdown_regs
 	da8xx_ili9340_lcdc_lock(par); // lock forever
-
-#warning TODO reset LCD registers
-
 	da8xx_ili9340_lidd_regs_shutdown(_pdevice);
 	mutex_destroy(&par->lcdc_access_lock);
 	clk_disable(par->lcdc_clk);
@@ -996,7 +995,6 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 
 
 #warning TODO kick start?
-#warning TODO temporary kick start
 #if 0
 	ret = da8xx_ili9340_fbops_check_var(&info->var, info);
 	if (ret) {
