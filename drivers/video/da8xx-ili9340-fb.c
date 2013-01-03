@@ -624,8 +624,7 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 	info->fix.smem_len	= 0;
 	info->fix.smem_start	= 0;
 
-#warning Allocating fake colormap
-	ret = fb_alloc_cmap(&info->cmap, 0, 0);
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret) {
 		dev_err(dev, "%s: cannot allocated colormap: %d\n", __func__, ret);
 		goto exit;
