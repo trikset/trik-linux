@@ -37,7 +37,6 @@ struct da8xx_ili9340_pdata {
 	enum da8xx_ili9340_pdata_lcdc_lidd_bus_polarity	lcdc_lidd_rs_en_pol;
 	enum da8xx_ili9340_pdata_lcdc_lidd_bus_polarity	lcdc_lidd_ws_dir_pol;
 	enum da8xx_ili9340_pdata_lcdc_lidd_bus_polarity	lcdc_lidd_cs_pol;
-	enum da8xx_ili9340_pdata_lcdc_lidd_bus_polarity	lcdc_lidd_reset_pol;
 	unsigned long					lcdc_lidd_edma_burst;
 
 	unsigned long					lcdc_lidd_mclk_ns;
@@ -48,9 +47,9 @@ struct da8xx_ili9340_pdata {
 	unsigned long					lcdc_t_whold_ns;
 	unsigned long					lcdc_t_wstrobe_ns;
 	unsigned long					lcdc_t_wsu_ns;
-	unsigned long					lcdc_t_reset_ns;
-	unsigned long					lcdc_t_reset_wait_ns;
 
+	void (*cb_backlight_ctrl)(bool _backlight);
+	void (*cb_power_ctrl)(bool _power_up);
 };
 
 
