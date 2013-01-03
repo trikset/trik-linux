@@ -131,6 +131,13 @@
 #define DA8XX_LCDCREG_DMA_FBn_BASE__ALIGNMENT			0x4 //DMA address alignment
 
 
+enum da8xx_ili9340_work_type {
+  DA8XX_ILI9340_WORK_INVALID = 0,
+  DA8XX_ILI9340_WORK_POWER_ON, // LCDC power on, LCD setup and LCD sleep out
+  DA8XX_ILI9340_WORK_REFRESH,
+  DA8XX_ILI9340_WORK_POWER_OFF, // LCD sleep in, LCDC power down
+};
+static void	da8xx_ili9340_schedule_work(struct fb_info* _info, da8xx_ili9340_work_type _work_type);
 
 
 static int	da8xx_ili9340_fbops_check_var(struct fb_var_screeninfo* _var, struct fb_info* _info);
@@ -139,8 +146,11 @@ static ssize_t	da8xx_ili9340_fbops_write(struct fb_info* _info, const char __use
 static int	da8xx_ili9340_fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info);
 static int	da8xx_ili9340_fbops_blank(int _blank, struct fb_info* _info);
 static int	da8xx_ili9340_fbops_sync(struct fb_info* _info);
+
 static void	da8xx_ili9340_defio_redraw(struct fb_info* _info, struct list_head* _pagelist);
-static void	da8xx_ili9340_update_work(struct work_struct* _work);
+
+static void		da8xx_ili9340_lcdc_work(struct work_struct* _work);
+static irqreturn_t	da8xx_ili9340_lcdc_edma_done(int _irq, void* _dev);
 
 
 
@@ -371,9 +381,8 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info)
 
 	memset(_info->screen_base, 0, _info->screen_size);
 
-#warning TODO schedule LCDC power on / reset
-#warning TODO schedule LCD init and sleep out
-#warning TODO schedule FB flush
+	da8xx_ili9340_schedule_work(_info, DA8XX_ILI9340_WORK_POWER_ON);
+	da8xx_ili9340_schedule_work(_info, DA8XX_ILI9340_WORK_REFRESH);
 
 	da8xx_ili9340_lcdc_unlock(par);
 	dev_dbg(dev, "%s: done\n", __func__);
@@ -389,11 +398,14 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info)
 
 static ssize_t	da8xx_ili9340_fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos)
 {
+	ssize_t ret;
 	struct device* dev		= _info->device;
+
 	dev_dbg(dev, "%s: called\n", __func__);
-#warning TODO schedule FB flush
+	ret = fb_sys_write(_info, _buf, _count, _ppos);
+	da8xx_ili9340_schedule_work(_info, DA8XX_ILI9340_WORK_REFRESH);
 	dev_dbg(dev, "%s: done\n", __func__);
-	return _count;
+	return ret;
 }
 
 static int da8xx_ili9340_fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info)
@@ -401,7 +413,7 @@ static int da8xx_ili9340_fbops_pan_display(struct fb_var_screeninfo* _var, struc
 	struct device* dev		= _info->device;
 	dev_dbg(dev, "%s: called\n", __func__);
 #warning TODO pan
-#warning TODO schedule FB flush
+	da8xx_ili9340_schedule_work(_info, DA8XX_ILI9340_WORK_REFRESH);
 	dev_dbg(dev, "%s: done\n", __func__);
 	return 0;
 }
@@ -421,9 +433,9 @@ static int da8xx_ili9340_fbops_sync(struct fb_info* _info)
 	struct da8xx_ili9340_par* par	= _info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
-#warning TODO if this sync is correct?
-	da8xx_ili9340_lcdc_lock(par);
-	da8xx_ili9340_lcdc_unlock(par);
+
+#warning TODO wait for refresh work finishing
+
 	dev_dbg(dev, "%s: done\n", __func__);
 	return 0;
 }
@@ -433,11 +445,11 @@ static void da8xx_ili9340_defio_redraw(struct fb_info* _info, struct list_head* 
 	struct device* dev		= _info->device;
 
 	dev_dbg(dev, "%s: called\n", __func__);
-#warning TODO schedule FB flush
+	da8xx_ili9340_schedule_work(_info, DA8XX_ILI9340_WORK_REFRESH);
 	dev_dbg(dev, "%s: done\n", __func__);
 }
 
-static void da8xx_ili9340_update_work(struct work_struct* _work)
+static void da8xx_ili9340_lcdc_work(struct work_struct* _work)
 {
 #warning TODO
 }
@@ -872,8 +884,8 @@ static void __devinitexit da8xx_ili9340_lcdc_shutdown(struct platform_device* _p
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-#warning TODO schedule LCD sleep IN task
-#warning TODO schedule LCDC power off task
+	da8xx_ili9340_schedule_work(_info, DA8XX_ILI9340_WORK_POWER_OFF);
+#warning Wait for work to finish, make sure no more works may be scheduled
 
 #warning Check if lock&destroy mutex is acceptable; check double locking in shutdown_regs
 	da8xx_ili9340_lcdc_lock(par); // lock forever
