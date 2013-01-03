@@ -326,7 +326,8 @@ static int da8xx_ili9340_fbops_check_var(struct fb_var_screeninfo* _var, struct 
 
 	return 0;
 
- exit:
+
+ //exit:
 	return ret;
 }
 
@@ -356,7 +357,7 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info)
 	if (screen_base == NULL) {
 		dev_err(dev, "%s: cannot allocate EDMA screen buffer\n", __func__);
 		ret = -ENOMEM;
-		goto exit;
+		goto exit_unlock;
 	}
 
 	dma_free_coherent(dev, par->lidd_dma_phsize, _info->screen_base, par->lidd_dma_phaddr);
@@ -380,8 +381,10 @@ static int da8xx_ili9340_fbops_set_par(struct fb_info* _info)
 
 	return 0;
 
- exit:
+
+ exit_unlock:
 	da8xx_ili9340_lidd_unlock(par);
+ //exit:
 	return ret;
 }
 
@@ -426,10 +429,11 @@ static int	da8xx_ili9340_fbops_sync(struct fb_info* _info)
 
 static void da8xx_ili9340_defio_redraw(struct fb_info* _info, struct list_head* _pagelist)
 {
-	struct da8xx_ili9340_par* par	= _info->par;
+	struct device* dev		= _info->device;
 
+	dev_dbg(dev, "%s: called\n", __func__);
 #warning TODO
-
+	dev_dbg(dev, "%s: done\n", __func__);
 }
 
 #warning TEMPORARY
@@ -504,9 +508,9 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 	return 0;
 
 
- exit_defio_cleanup:
+ //exit_defio_cleanup:
 	fb_deferred_io_cleanup(info);
- exit_dealloc_cmap:
+ //exit_dealloc_cmap:
 	fb_dealloc_cmap(&info->cmap);
  exit:
 	return ret;
@@ -536,6 +540,8 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 	struct device* dev			= &_pdevice->dev;
 	struct fb_info* info			= platform_get_drvdata(_pdevice);
 	struct da8xx_ili9340_par* par		= info->par;
+	__u32 regval;
+	__u32 uval;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
@@ -562,6 +568,7 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 
 	da8xx_ili9340_lidd_lock(par);
 
+	regval = da8xx_ili9340_lidd_reg_read(dev, par, DA8XX_LCDC_REVID);
 
 #warning TODO set LIDD registers
 
@@ -572,6 +579,8 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 	return 0;
 
 
+ exit_unlock:
+	da8xx_ili9340_lidd_unlock(par);
  exit:
 	return ret;
 }
@@ -676,11 +685,11 @@ static int __devinit da8xx_ili9340_lidd_init(struct platform_device* _pdevice, s
 	return 0;
 
 
- exit_shutdown_lidd_regs:
+ //exit_shutdown_lidd_regs:
 	da8xx_ili9340_lidd_regs_shutdown(_pdevice);
  exit_destroy_lidd_lock:
 	mutex_destroy(&par->lidd_access_lock);
- exit_disable_lidd_clk:
+ //exit_disable_lidd_clk:
 	clk_disable(par->lidd_clk);
  exit_put_lidd_clk:
 	clk_put(par->lidd_clk);
@@ -848,7 +857,7 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 	return 0;
 
 
- exit_unregister_framebuffer:
+ //exit_unregister_framebuffer:
 	unregister_framebuffer(info);
  exit_lidd_shutdown:
 	da8xx_ili9340_lidd_shutdown(_pdevice);
@@ -907,7 +916,7 @@ static int __init da8xx_ili9340_init_module(void)
 	return 0;
 
 
- exit_driver_unregister:
+ //exit_driver_unregister:
 	platform_driver_unregister(&da8xx_ili9340_driver);
  exit:
 	return ret;
