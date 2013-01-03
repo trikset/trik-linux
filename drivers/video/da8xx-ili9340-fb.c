@@ -50,7 +50,7 @@
 #define DA8XX_LCDCREG_DMA_FB1_CEILING		0x50
 
 
-#define DA8XX_LCDCREG_REVID__REV			0,  (32)
+#define DA8XX_LCDCREG_REVID__REV			4,  (28)
 
 #define DA8XX_LCDCREG_LCD_CTRL__MODESEL			0,  (1)
 #define DA8XX_LCDCREG_LCD_CTRL__CLKDIV			8,  (8)
@@ -88,7 +88,7 @@
 #define DA8XX_LCDCREG_DMA_FBn_CEILING__FBn_CEIL		0,  (32)
 
 
-#define DA8XX_LCDCREG_REVID__REV__id				0x4c100102 //Expected LCD controller ID
+#define DA8XX_LCDCREG_REVID__REV__id				0x4c10010 //Expected LCD controller ID: 4c10010x
 
 #define DA8XX_LCDCREG_LCD_CTRL__MODESEL__lidd			0x0 //LCD controller in LIDD mode
 #define DA8XX_LCDCREG_LCD_CTRL__CLKDIV__default			0x1 //MCLK to LCD_CLK by default
