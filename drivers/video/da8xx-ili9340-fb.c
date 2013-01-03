@@ -16,6 +16,10 @@
 
 #define DRIVER_NAME "da8xx_lcdc_ili9340"
 
+#define __devinitexit
+
+#warning To be removed
+#if 0
 // Utility helpers
 //#define DEV_BY_FBINFO(info)	(info->device)
 //#define DEV_BY_PDEVICE(pdev)	(&pdev->dev)
@@ -24,8 +28,7 @@
 //#define FBINFO_BY_PAR(par)	(par->fb_info)
 //#define PAR_BY_FBINFO(info)	(info->par)
 //#define PDATA_BY_DEV(dev)	(dev->platform_data)
-
-#define __devinitexit
+#endif
 
 
 
