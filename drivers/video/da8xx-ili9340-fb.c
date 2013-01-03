@@ -381,7 +381,8 @@ static int fbops_set_par(struct fb_info* _info)
 		goto exit_unlock;
 	}
 
-	dma_free_coherent(dev, par->fb_dma_phsize, _info->screen_base, par->fb_dma_phaddr);
+	if (_info->screen_base)
+		dma_free_coherent(dev, par->fb_dma_phsize, _info->screen_base, par->fb_dma_phaddr);
 
 	_info->screen_base	= screen_base;
 	_info->screen_size	= screen_size;
