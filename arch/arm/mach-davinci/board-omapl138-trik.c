@@ -969,6 +969,9 @@ static void da850trik_lcd_power_ctrl(bool _power_up)
 	} else {
 		gpio_set_value(GPIO_TO_PIN(8, 10), 0);
 	}
+
+#warning TODO temporary enforce backlight
+	da850trik_lcd_backlight_ctrl(_power_up);
 }
 
 #define DA8XX_LCD_CNTRL_BASE		0x01e13000
@@ -1031,6 +1034,7 @@ static struct platform_device da850trik_lcdc_device = {
 static __init int da850trik_lcd_init(void)
 {
 	int ret;
+        struct device da8xx_lcdc_fake_dev = {.init_name="da8xx_lcdc"}; // nasty hack to enforce clock alias
 
 	ret = davinci_cfg_reg_list(da850_lcdcntl_pins);
 	if (ret)
@@ -1054,7 +1058,7 @@ static __init int da850trik_lcd_init(void)
 		return ret;
 	}
 
-	ret = clk_add_alias(NULL, dev_name(&da850trik_lcdc_device.dev), "da8xx_lcdc", NULL);
+	ret = clk_add_alias(NULL, dev_name(&da850trik_lcdc_device.dev), NULL, &da8xx_lcdc_fake_dev);
 	if (ret)
 		pr_warning("%s: LCD clk alias setup failed: %d\n", __func__, ret);
 
