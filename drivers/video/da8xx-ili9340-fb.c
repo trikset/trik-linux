@@ -25,7 +25,7 @@
 //#define PAR_BY_FBINFO(info)	(info->par)
 //#define PDATA_BY_DEV(dev)	(dev->platform_data)
 
-#ifdef MODULE
+#if defined(MODULE) || defined(CONFIG_HOTPLUG)
 #define __devinitexit
 #else
 #define __devinitexit __devinit
@@ -165,12 +165,16 @@ struct da8xx_ili9340_par {
 
 	dma_addr_t	lidd_dma_phaddr;
 	size_t		lidd_dma_phsize;
+
+	loff_t		lidd_reg_cs_conf;
+	loff_t		lidd_reg_cs_addr;
+	loff_t		lidd_reg_cs_data;
+	__u32		lidd_reg_dma_cs;
 };
 
 static const struct fb_fix_screeninfo da8xx_ili9340_fix_init __devinitconst = {
 	.id		= "DA8xx ILI9340",
-	//.smem_start
-	//.smem_len
+	//.smem_start, .smem_len
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.type_aux	= 0,
 	.visual		= FB_VISUAL_TRUECOLOR,
@@ -222,7 +226,6 @@ static struct fb_ops da8xx_ili9340_fbops = {
 	.fb_pan_display	= da8xx_ili9340_fbops_pan_display,
 	.fb_blank	= da8xx_ili9340_fbops_blank,
 	.fb_sync	= da8xx_ili9340_fbops_sync,
-	//.fb_ioctl	= da8xx_ili9340_fbops_ioctl,
 };
 
 
@@ -244,33 +247,32 @@ static inline void da8xx_ili9340_lidd_unlock(struct da8xx_ili9340_par* _par)
 	mutex_unlock(&_par->lidd_access_lock);
 }
 
-static inline __u32 da8xx_ili9340_lidd_reg_read(struct device* _dev, struct da8xx_ili9340_par* _par, unsigned _reg)
+static inline __u32 da8xx_ili9340_lidd_reg_read(struct device* _dev, struct da8xx_ili9340_par* _par, loff_t _reg)
 {
 	void __iomem*	reg_ptr		= _par->lidd_reg_base + _reg;
-	__u32 value;
 
-	BUG_ON(!mutex_is_locked(&_par->lidd_access_lock));
 	BUG_ON(_par->lidd_reg_base == NULL);
+	BUG_ON(!mutex_is_locked(&_par->lidd_access_lock));
 
 	return __raw_readl(reg_ptr);
 }
 
-static inline void da8xx_ili9340_lidd_reg_write(struct device* _dev, struct da8xx_ili9340_par* _par, unsigned _reg, __u32 _value)
+static inline void da8xx_ili9340_lidd_reg_write(struct device* _dev, struct da8xx_ili9340_par* _par, loff_t _reg, __u32 _value)
 {
 	void __iomem*	reg_ptr		= _par->lidd_reg_base + _reg;
 
-	BUG_ON(!mutex_is_locked(&_par->lidd_access_lock));
 	BUG_ON(_par->lidd_reg_base == NULL);
+	BUG_ON(!mutex_is_locked(&_par->lidd_access_lock));
 
 	__raw_writel(_value, reg_ptr);
 }
 
-static inline void da8xx_ili9340_lidd_reg_change(struct device* _dev, struct da8xx_ili9340_par* _par, unsigned _reg, __u32 _mask, __u32 _value)
+static inline void da8xx_ili9340_lidd_reg_change(struct device* _dev, struct da8xx_ili9340_par* _par, loff_t _reg, __u32 _mask, __u32 _value)
 {
 	void __iomem*	reg_ptr		= _par->lidd_reg_base + _reg;
 
-	BUG_ON(!mutex_is_locked(&_par->lidd_access_lock));
 	BUG_ON(_par->lidd_reg_base == NULL);
+	BUG_ON(!mutex_is_locked(&_par->lidd_access_lock));
 
 	__raw_writel((__raw_readl(reg_ptr) & ~_mask) | _value, reg_ptr);
 }
@@ -417,8 +419,11 @@ static int	da8xx_ili9340_fbops_blank(int _blank, struct fb_info* _info)
 static int	da8xx_ili9340_fbops_sync(struct fb_info* _info)
 {
 	struct device* dev		= _info->device;
+	struct da8xx_ili9340_par* par	= _info->par;
+
 	dev_dbg(dev, "%s: called\n", __func__);
-#warning TODO
+	da8xx_ili9340_lidd_lock(par);
+	da8xx_ili9340_lidd_unlock(par);
 	dev_dbg(dev, "%s: done\n", __func__);
 	return 0;
 }
@@ -431,10 +436,13 @@ static void da8xx_ili9340_defio_redraw(struct fb_info* _info, struct list_head* 
 
 }
 
+#warning TEMPORARY
+#if 0
 static void	da8xx_ili9340_update_work(struct work_struct* _work)
 {
 #warning TODO
 }
+#endif
 
 static irqreturn_t da8xx_ili9340_lidd_edma_done(int _irq, void* _dev)
 {
@@ -535,7 +543,29 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
+	switch (_pdata->lidd_cs) {
+		case 0:
+			par->lidd_reg_cs_conf	= DA8XX_LCDC_LIDD_CS0_CONF;
+			par->lidd_reg_cs_addr	= DA8XX_LCDC_LIDD_CS0_ADDR;
+			par->lidd_reg_cs_data	= DA8XX_LCDC_LIDD_CS0_DATA;
+			par->lidd_reg_dma_cs	= DA8XX_LCDC_LIDD_CTRL__DMA_CS0_CS1__cs0;
+			dev_dbg(dev, "%s: using CS0\n", __func__);
+			break;
+		case 1:
+			par->lidd_reg_cs_conf	= DA8XX_LCDC_LIDD_CS1_CONF;
+			par->lidd_reg_cs_addr	= DA8XX_LCDC_LIDD_CS1_ADDR;
+			par->lidd_reg_cs_data	= DA8XX_LCDC_LIDD_CS1_DATA;
+			par->lidd_reg_dma_cs	= DA8XX_LCDC_LIDD_CTRL__DMA_CS0_CS1__cs1;
+			dev_dbg(dev, "%s: using CS1\n", __func__);
+			break;
+		default:
+			dev_err(dev, "%s: LCD controller chip-select mode %d unknown\n", __func__, (int)(_pdata->lidd_cs));
+			ret = -EINVAL;
+			goto exit;
+	}
+
 	da8xx_ili9340_lidd_lock(par);
+
 
 #warning TODO set LIDD registers
 
