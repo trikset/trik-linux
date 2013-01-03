@@ -656,7 +656,8 @@ static void __devinitexit da8xx_ili9340_fb_shutdown(struct platform_device* _pde
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-	dma_free_coherent(dev, par->fb_dma_phsize, info->screen_base, par->fb_dma_phaddr);
+	if (info->screen_base)
+		dma_free_coherent(dev, par->fb_dma_phsize, info->screen_base, par->fb_dma_phaddr);
 	fb_deferred_io_cleanup(info);
 	fb_dealloc_cmap(&info->cmap);
 
@@ -940,7 +941,7 @@ static int __devinit da8xx_ili9340_lcdc_init(struct platform_device* _pdevice, s
 		goto exit_iounmap_lcdc_reg;
 	}
 
-	par->lcdc_irq	= res_ptr->start;
+	par->lcdc_irq = res_ptr->start;
 	ret = request_irq(par->lcdc_irq, da8xx_ili9340_lcdc_edma_done, 0, DRIVER_NAME, dev);
 	if (ret) {
 		dev_err(dev, "%s: cannot request LCD controller EDMA completion IRQ: %d\n", __func__, ret);
@@ -953,7 +954,7 @@ static int __devinit da8xx_ili9340_lcdc_init(struct platform_device* _pdevice, s
 		goto exit_free_lcdc_irq;
 	}
 
-	par->lcdc_clk		= clk_get(dev, NULL);
+	par->lcdc_clk = clk_get(dev, NULL);
 	if (IS_ERR(par->lcdc_clk)) {
 		dev_err(dev, "%s: cannot get LCD controller clock\n", __func__);
 		ret = -ENODEV;
