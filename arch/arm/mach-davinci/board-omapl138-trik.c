@@ -1034,7 +1034,6 @@ static struct platform_device da850trik_lcdc_device = {
 static __init int da850trik_lcd_init(void)
 {
 	int ret;
-        struct device da8xx_lcdc_fake_dev = {.init_name="da8xx_lcdc"}; // nasty hack to enforce clock alias
 
 	ret = davinci_cfg_reg_list(da850_lcdcntl_pins);
 	if (ret)
@@ -1057,10 +1056,6 @@ static __init int da850trik_lcd_init(void)
 		pr_err("%s: LCD platform device register failed: %d\n", __func__, ret);
 		return ret;
 	}
-
-	ret = clk_add_alias(NULL, dev_name(&da850trik_lcdc_device.dev), NULL, &da8xx_lcdc_fake_dev);
-	if (ret)
-		pr_warning("%s: LCD clk alias setup failed: %d\n", __func__, ret);
 
 	return 0;
 }
