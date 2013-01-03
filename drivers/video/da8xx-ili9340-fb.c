@@ -25,11 +25,7 @@
 //#define PAR_BY_FBINFO(info)	(info->par)
 //#define PDATA_BY_DEV(dev)	(dev->platform_data)
 
-#if defined(MODULE) || defined(CONFIG_HOTPLUG)
 #define __devinitexit
-#else
-#define __devinitexit __devinit
-#endif
 
 
 
