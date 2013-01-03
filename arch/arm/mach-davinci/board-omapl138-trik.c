@@ -986,7 +986,26 @@ static struct resource da850trik_lcdc_resources[] = {
 };
 
 static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
+	.xres			= 240,
+	.yres			= 320,
+	.yres_screens		= 2,
+	.bits_per_pixel		= 16,
+	.screen_height		= 49, //48,96mm
+	.screen_width		= 37, //36,72mm
+	.fps			= 50,
+
+#warning TODO timings are invalid
+	.lcdc_lidd_mclk_ns	= 10,
+	.lcdc_t_ta_ns		= 10,
+	.lcdc_t_rhold_ns	= 225,
+	.lcdc_t_rstrobe_ns	= 225,
+	.lcdc_t_rsu_ns		= 225,
+	.lcdc_t_whold_ns	= 33,
+	.lcdc_t_wstrobe_ns	= 33,
+	.lcdc_t_wsu_ns		= 33,
+
 #warning TODO LCD device platform data
+
 	.cb_backlight_ctrl	= &da850trik_lcd_backlight_ctrl,
 	.cb_power_ctrl		= &da850trik_lcd_power_ctrl,
 };
