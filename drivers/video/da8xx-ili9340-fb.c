@@ -10,6 +10,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/da8xx-ili9340-fb.h>
@@ -119,52 +120,67 @@
 #define DA8XX_LCDCREG_DMA_FBn_BASE__ALIGNMENT			0x4 //DMA address alignment
 
 
+#warning NOTE ON TIMINGS:
+/* Page 216:
+   Hardware reset -> Level2 command: 120ms
+   Sleep out -> Display on sequence: 60ms
+
+   Page 211:
+   Sleep in -> power off: 120ms
+
+   Page 90, 100, 101:
+   Software reset -> any command: 5ms
+   Software reset -> sleep out: 120ms
+   Sleep in/out -> sleep out/in: 120ms
+   Sleep in/out -> any command: 5ms
+   Sleep out -> self diagnostics: 5ms
+   Sleep out -> supplier's value loaded to registers: 120ms
+*/
+#warning TODO there is 120ms delay in power_ctrl(1) now, but maybe it will be better to use drivers timers; two timers should be added - any cmd and sleep cmd only
+#warning TODO remove or configure msleeps
+
+
 #define ILI9340_CMD_NOP				0x00
 #define ILI9340_CMD_READID			0x04
+#define ILI9340_CMD_READ_SELFDIAG		0x0f
+#define ILI9340_CMD_SLEEP_IN			0x10
+#define ILI9340_CMD_SLEEP_OUT			0x11
+#define ILI9340_CMD_DISPLAY_OFF			0x28
+#define ILI9340_CMD_DISPLAY_ON			0x29
 #define ILI9340_CMD_MEMORY_WRITE		0x2c
 
 
-enum da8xx_ili9340_work_task { // task are executed in this order
-	DA8XX_ILI9340_WORK_LCDC_POWER_ON	= 0x01,
-	DA8XX_ILI9340_WORK_LCD_SETUP		= 0x02,
-	DA8XX_ILI9340_WORK_LCD_SLEEP_OUT	= 0x04,
-	DA8XX_ILI9340_WORK_LCD_REDRAW		= 0x08,
-	DA8XX_ILI9340_WORK_LCD_SLEEP_IN		= 0x10,
-	DA8XX_ILI9340_WORK_LCDC_POWER_OFF	= 0x20,
-};
-static void	lcdc_schedule_work(struct fb_info* _info, enum da8xx_ili9340_work_task _task);
-static void	lcdc_schedule_work_done(struct fb_info* _info, enum da8xx_ili9340_work_task _task);
-static void	lcdc_work_wrapper(struct work_struct* _work);
+#define ILI9340_CMD_READ_SELFDIAG__RLD		7, (1)
+#define ILI9340_CMD_READ_SELFDIAG__FD		6, (1)
 
 
-static int	fbops_check_var(struct fb_var_screeninfo* _var, struct fb_info* _info);
-static int	fbops_set_par(struct fb_info* _info);
+
+static void	lcdc_schedule_redraw_work(struct fb_info* _info);
+static void	lcdc_wait_redraw_work_completion(struct fb_info* _info);
+static void	lcdc_redraw_work(struct work_struct* _work);
+static void	lcdc_redraw_work_done(struct fb_info* _info);
+static void 		lcdc_edma_start(struct device* _dev);
+static irqreturn_t	lcdc_edma_done(int _irq, void* _dev);
+
+
 static ssize_t	fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos);
 static int	fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info);
 static int	fbops_blank(int _blank, struct fb_info* _info);
 static int	fbops_sync(struct fb_info* _info);
 
 static void	defio_redraw(struct fb_info* _info, struct list_head* _pagelist);
-static void		da8xx_ili9340_lcdc_edma_start(struct device* _dev);
-static irqreturn_t	da8xx_ili9340_lcdc_edma_done(int _irq, void* _dev);
 
 
 
 
 struct da8xx_ili9340_par {
-	unsigned	yres_screens;
-
 	__u32		pseudo_palette[16];
 
-	dma_addr_t	fb_dma_phaddr;
-	size_t		fb_dma_phsize;
-	struct fb_info*	fb_info;
-
+	struct fb_info*			fb_info;
 	struct mutex			lcdc_lock;
 
-	struct work_struct		lcdc_work;
-	unsigned long			lcdc_tasks;
-	enum da8xx_ili9340_work_task	lcdc_task_current;
+	dma_addr_t			fb_dma_phaddr;
+	size_t				fb_dma_phsize;
 
 	resource_size_t			lcdc_reg_start;
 	resource_size_t			lcdc_reg_size;
@@ -172,9 +188,14 @@ struct da8xx_ili9340_par {
 	int				lcdc_irq;
 	struct clk*			lcdc_clk;
 
+	struct work_struct		lcdc_redraw_work;
+
 	loff_t		lidd_reg_cs_conf;
 	loff_t		lidd_reg_cs_addr;
 	loff_t		lidd_reg_cs_data;
+
+	void (*cb_backlight_ctrl)(bool _backlight);
+	void (*cb_power_ctrl)(bool _power_up);
 };
 
 static const struct fb_fix_screeninfo da8xx_ili9340_fix_init __devinitconst = {
@@ -221,8 +242,6 @@ static struct fb_deferred_io da8xx_ili9340_defio = {
 
 static struct fb_ops da8xx_ili9340_fbops = {
 	.owner		= THIS_MODULE,
-	.fb_check_var	= &fbops_check_var,
-	.fb_set_par	= &fbops_set_par,
 	.fb_read	= &fb_sys_read,
 	.fb_write	= &fbops_write,
 	.fb_fillrect	= &sys_fillrect,
@@ -236,11 +255,6 @@ static struct fb_ops da8xx_ili9340_fbops = {
 
 
 
-
-static inline size_t calc_line_length(const struct fb_var_screeninfo* _var)
-{
-	return DIV_ROUND_UP(_var->bits_per_pixel, BITS_PER_BYTE) * _var->xres_virtual;
-}
 
 static inline void lcdc_lock(struct da8xx_ili9340_par* _par)
 {
@@ -300,117 +314,6 @@ static inline void display_write_data(struct device* _dev, struct da8xx_ili9340_
 
 
 
-static int fbops_check_var(struct fb_var_screeninfo* _var, struct fb_info* _info)
-{
-	int ret				= -EINVAL;
-	struct device* dev		= _info->device;
-	struct da8xx_ili9340_par* par	= _info->par;
-
-	dev_dbg(dev, "%s: called\n", __func__);
-
-	if (_var->bits_per_pixel <= 16) { // RGB565 mode
-		_var->blue.offset	= 0;
-		_var->blue.length	= 5;
-		_var->green.offset	= 5;
-		_var->green.length	= 6;
-		_var->red.offset	= 11;
-		_var->red.length	= 5;
-		_var->bits_per_pixel	= 16;
-	} else if (_var->bits_per_pixel <= 24) { // RGB666 mode, 3-byte padding
-		_var->blue.offset	= 0;
-		_var->blue.length	= 6;
-		_var->green.offset	= 6;
-		_var->green.length	= 6;
-		_var->red.offset	= 12;
-		_var->red.length	= 6;
-		_var->bits_per_pixel	= 24;
-	} else { // RGB666 mode, 4-byte padding, full byte per color
-		_var->blue.offset	= 0;
-		_var->blue.length	= 6;
-		_var->green.offset	= 8;
-		_var->green.length	= 6;
-		_var->red.offset	= 16;
-		_var->red.length	= 6;
-		_var->bits_per_pixel	= 32;
-	}
-
-	_var->xres		= _info->var.xres;
-	_var->xres_virtual	= _info->var.xres_virtual;
-	_var->yres		= _info->var.yres;
-	_var->yres_virtual	= _info->var.yres * (likely((calc_line_length(&_info->var) % DA8XX_LCDCREG_DMA_FBn_BASE__ALIGNMENT) == 0) ?
-						     par->yres_screens :
-						     1);
-	_var->grayscale		= _info->var.grayscale;
-	_var->nonstd		= _info->var.nonstd;
-
-	dev_dbg(dev, "%s: done\n", __func__);
-
-	return 0;
-
-
- //exit:
-	return ret;
-}
-
-static int fbops_set_par(struct fb_info* _info)
-{
-	int ret				= -EINVAL;
-	struct device* dev		= _info->device;
-	struct da8xx_ili9340_par* par	= _info->par;
-
-	__u32			line_length;
-	unsigned long		screen_size;
-	char __iomem*		screen_base;
-	size_t			dma_phsize;
-	dma_addr_t		dma_phaddr;
-
-	dev_dbg(dev, "%s: called\n", __func__);
-
-	lcdc_lock(par);
-
-	line_length	= calc_line_length(&_info->var);
-	screen_size	= line_length * _info->var.yres_virtual;
-
-#warning TODO only realloc when required?
-
-	dma_phsize	= ALIGN(screen_size, DA8XX_LCDCREG_DMA_FBn_BASE__ALIGNMENT);
-	screen_base	= dma_alloc_coherent(dev, dma_phsize, &dma_phaddr, GFP_KERNEL | GFP_DMA);
-	if (screen_base == NULL) {
-		dev_err(dev, "%s: cannot allocate EDMA screen buffer\n", __func__);
-		ret = -ENOMEM;
-		goto exit_unlock;
-	}
-
-	if (_info->screen_base)
-		dma_free_coherent(dev, par->fb_dma_phsize, _info->screen_base, par->fb_dma_phaddr);
-
-	_info->screen_base	= screen_base;
-	_info->screen_size	= screen_size;
-	_info->fix.line_length	= line_length;
-	_info->fix.smem_start	= virt_to_phys(screen_base);
-	_info->fix.smem_len	= screen_size;
-	par->fb_dma_phaddr	= dma_phaddr;
-	par->fb_dma_phsize	= dma_phsize;
-
-	memset(_info->screen_base, 0, _info->screen_size);
-
-	lcdc_schedule_work(_info, DA8XX_ILI9340_WORK_LCDC_POWER_ON);
-	lcdc_schedule_work(_info, DA8XX_ILI9340_WORK_LCD_SETUP);
-	lcdc_schedule_work(_info, DA8XX_ILI9340_WORK_LCD_REDRAW);
-	lcdc_schedule_work(_info, DA8XX_ILI9340_WORK_LCD_SLEEP_OUT);
-
-	lcdc_unlock(par);
-	dev_dbg(dev, "%s: done\n", __func__);
-
-	return 0;
-
-
- exit_unlock:
-	lcdc_unlock(par);
- //exit:
-	return ret;
-}
-
 static ssize_t	fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos)
 {
 	ssize_t ret;
@@ -418,18 +321,21 @@ static ssize_t	fbops_write(struct fb_info* _info, const char __user* _buf, size_
 
 	dev_dbg(dev, "%s: called\n", __func__);
 	ret = fb_sys_write(_info, _buf, _count, _ppos);
-	lcdc_schedule_work(_info, DA8XX_ILI9340_WORK_LCD_REDRAW);
+	lcdc_schedule_redraw_work(_info);
 	dev_dbg(dev, "%s: done\n", __func__);
+
 	return ret;
 }
 
 static int fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info)
 {
 	struct device* dev		= _info->device;
+
 	dev_dbg(dev, "%s: called\n", __func__);
-#warning TODO pan
-	lcdc_schedule_work(_info, DA8XX_ILI9340_WORK_LCD_REDRAW);
+#warning TODO pan ?
+	lcdc_schedule_redraw_work(_info);
 	dev_dbg(dev, "%s: done\n", __func__);
+
 	return 0;
 }
 
@@ -445,12 +351,9 @@ static int fbops_blank(int _blank, struct fb_info* _info)
 static int fbops_sync(struct fb_info* _info)
 {
 	struct device* dev		= _info->device;
-//	struct da8xx_ili9340_par* par	= _info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
-
-#warning TODO wait for refresh work finishing
-
+	lcdc_wait_redraw_work_completion(_info);
 	dev_dbg(dev, "%s: done\n", __func__);
 	return 0;
 }
@@ -460,10 +363,10 @@ static int fbops_sync(struct fb_info* _info)
 
 static void defio_redraw(struct fb_info* _info, struct list_head* _pagelist)
 {
-	lcdc_schedule_work(_info, DA8XX_ILI9340_WORK_LCD_REDRAW);
+	lcdc_schedule_redraw_work(_info);
 }
 
-static void da8xx_ili9340_lcdc_edma_start(struct device* _dev)
+static void lcdc_edma_start(struct device* _dev)
 {
 	struct fb_info* info		= dev_get_drvdata(_dev);
 	struct da8xx_ili9340_par* par	= info->par;
@@ -499,7 +402,7 @@ static void da8xx_ili9340_lcdc_edma_start(struct device* _dev)
 			REGDEF_SET_VALUE(DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN, DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN__deactivate));
 }
 
-static irqreturn_t da8xx_ili9340_lcdc_edma_done(int _irq, void* _dev)
+static irqreturn_t lcdc_edma_done(int _irq, void* _dev)
 {
 	struct device* dev		= _dev;
 	struct fb_info* info		= dev_get_drvdata(dev);
@@ -509,88 +412,56 @@ static irqreturn_t da8xx_ili9340_lcdc_edma_done(int _irq, void* _dev)
 	display_write_cmd(dev, par, ILI9340_CMD_NOP);
 
 	lcdc_unlock(par);
-	lcdc_schedule_work_done(info, DA8XX_ILI9340_WORK_LCD_REDRAW);
+	lcdc_redraw_work_done(info);
 
 	return IRQ_HANDLED;
 }
 
-static void lcdc_schedule_work(struct fb_info* _info, enum da8xx_ili9340_work_task _task)
-{
-	struct device* dev			= _info->device;
-	struct da8xx_ili9340_par* par		= _info->par;
-	bool slow_task = false;
-
-	dev_dbg(dev, "%s: called for task %u\n", __func__, (unsigned)_task);
-
-	if (_task)
-		set_bit(_task, &par->lcdc_tasks);
-
-	if (par->lcdc_task_current)
-		dev_warn(dev, "%s: already has current task %u\n", __func__, (unsigned)par->lcdc_task_current);
-
-	if (test_and_clear_bit(DA8XX_ILI9340_WORK_LCDC_POWER_ON, &par->lcdc_tasks)) {
-		par->lcdc_task_current = DA8XX_ILI9340_WORK_LCDC_POWER_ON;
-		slow_task = true;
-	} else if (test_and_clear_bit(DA8XX_ILI9340_WORK_LCD_SETUP, &par->lcdc_tasks))
-		par->lcdc_task_current = DA8XX_ILI9340_WORK_LCD_SETUP;
-	else if (test_and_clear_bit(DA8XX_ILI9340_WORK_LCD_SLEEP_OUT, &par->lcdc_tasks))
-		par->lcdc_task_current = DA8XX_ILI9340_WORK_LCD_SLEEP_OUT;
-	else if (test_and_clear_bit(DA8XX_ILI9340_WORK_LCD_REDRAW, &par->lcdc_tasks))
-		par->lcdc_task_current = DA8XX_ILI9340_WORK_LCD_REDRAW;
-	else if (test_and_clear_bit(DA8XX_ILI9340_WORK_LCD_SLEEP_IN, &par->lcdc_tasks))
-		par->lcdc_task_current = DA8XX_ILI9340_WORK_LCD_SLEEP_IN;
-	else if (test_and_clear_bit(DA8XX_ILI9340_WORK_LCDC_POWER_OFF, &par->lcdc_tasks)) {
-		par->lcdc_task_current = DA8XX_ILI9340_WORK_LCDC_POWER_OFF;
-		slow_task = true;
-	} else {
-		dev_dbg(dev, "%s: done, nothing to schedule\n", __func__);
-		return;
-	}
-
-	if (slow_task) {
-		dev_dbg(dev, "%s: scheduling slow task %u\n", __func__, (unsigned)par->lcdc_task_current);
-		queue_work(system_long_wq, &par->lcdc_work);
-	} else {
-		dev_dbg(dev, "%s: scheduling task %u\n", __func__, (unsigned)par->lcdc_task_current);
-		schedule_work(&par->lcdc_work);
-	}
-
-	dev_dbg(dev, "%s: done\n", __func__);
-}
-
-static void lcdc_schedule_work_done(struct fb_info* _info, enum da8xx_ili9340_work_task _task)
+static void lcdc_schedule_redraw_work(struct fb_info* _info)
 {
 	struct device* dev			= _info->device;
 	struct da8xx_ili9340_par* par		= _info->par;
 
-	dev_dbg(dev, "%s: called for task %u\n", __func__, (unsigned)_task);
+	dev_dbg(dev, "%s: called\n", __func__);
+	schedule_work(&par->lcdc_redraw_work);
+	dev_dbg(dev, "%s: done\n", __func__);
+}
 
-	if (par->lcdc_task_current != _task)
-		dev_warn(dev, "%s: finished task %u mismatches current task %u\n",
-			__func__, (unsigned)_task, (unsigned)par->lcdc_task_current);
-	par->lcdc_task_current = 0;
+static void lcdc_wait_redraw_work_completion(struct fb_info* _info)
+{
+	struct device* dev			= _info->device;
+	struct da8xx_ili9340_par* par		= _info->par;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+
+#warning TODO wait for redraw work done
 
 	dev_dbg(dev, "%s: done\n", __func__);
-
-	lcdc_schedule_work(_info, 0); // re-schedule
 }
 
 
 
 
-static void lcdc_work_wrapper(struct work_struct* _work)
+static void lcdc_redraw_work(struct work_struct* _work)
 {
-	struct da8xx_ili9340_par* par	= container_of(_work, struct da8xx_ili9340_par, lcdc_work);
+	struct da8xx_ili9340_par* par	= container_of(_work, struct da8xx_ili9340_par, lcdc_redraw_work);
 	struct fb_info* info		= par->fb_info;
 	struct device* dev		= info->device;
 
-	dev_notice(dev, "%s: called for task %u\n", __func__, (unsigned)par->lcdc_task_current);
+	dev_dbg(dev, "%s: starting redraw work\n", __func__);
+	lcdc_edma_start(dev);
+}
 
+static void lcdc_redraw_work_done(struct fb_info* _info)
+{
+	struct device* dev			= _info->device;
+	struct da8xx_ili9340_par* par		= _info->par;
 
-#warning TODO real content
+	dev_dbg(dev, "%s: called\n", __func__);
 
+#warning TODO notify work done
 
-	lcdc_schedule_work_done(info, par->lcdc_task_current);
+	dev_dbg(dev, "%s: done\n", __func__);
 }
 
 
@@ -611,24 +482,65 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 	info->fbops		= &da8xx_ili9340_fbops;
 	info->pseudo_palette	= par->pseudo_palette;
 
-	par->yres_screens	= (_pdata->yres_screens>1?_pdata->yres_screens:1);
 	info->var.xres		= _pdata->xres;
 	info->var.xres_virtual	= info->var.xres;
 	info->var.yres		= _pdata->yres;
-	info->var.yres_virtual	= info->var.yres * par->yres_screens;
-	info->var.bits_per_pixel= _pdata->bits_per_pixel;
+	info->var.yres_virtual	= info->var.yres * (info->fix.ypanstep?2:1);
 	info->var.height	= _pdata->screen_height;
 	info->var.width		= _pdata->screen_width;
 
-	info->screen_base	= 0;
-	info->screen_size	= 0;
-	info->fix.smem_len	= 0;
-	info->fix.smem_start	= 0;
+#warning TODO configure by enum, 4 modes here
+	if (_pdata->bits_per_pixel <= 16) { // RGB565 mode
+		info->var.blue.offset		= 0;
+		info->var.blue.length		= 5;
+		info->var.green.offset		= 5;
+		info->var.green.length		= 6;
+		info->var.red.offset		= 11;
+		info->var.red.length		= 5;
+		info->var.bits_per_pixel	= 16;
+	} else if (_pdata->bits_per_pixel <= 24) { // RGB666 mode, 3-byte padding
+		info->var.blue.offset		= 0;
+		info->var.blue.length		= 6;
+		info->var.green.offset		= 6;
+		info->var.green.length		= 6;
+		info->var.red.offset		= 12;
+		info->var.red.length		= 6;
+		info->var.bits_per_pixel	= 24;
+	} else { // RGB666 mode, 4-byte padding, full byte per color
+		info->var.blue.offset		= 0;
+		info->var.blue.length		= 6;
+		info->var.green.offset		= 8;
+		info->var.green.length		= 6;
+		info->var.red.offset		= 16;
+		info->var.red.length		= 6;
+		info->var.bits_per_pixel	= 32;
+	}
+
+	info->fix.line_length		= DIV_ROUND_UP(info->var.bits_per_pixel, BITS_PER_BYTE) * info->var.xres_virtual;
+	if (ALIGN(info->fix.line_length, DA8XX_LCDCREG_DMA_FBn_BASE__ALIGNMENT) != info->fix.line_length) {
+		dev_warn(dev, "%s: framebuffer line is not alignment on LCD controller DMA boundary, y-axis padding disabled\n", __func__);
+		info->fix.ypanstep = 0; // disable panning
+	}
+	info->screen_size		= info->fix.line_length * info->var.yres_virtual;
+	par->fb_dma_phsize		= ALIGN(info->screen_size, DA8XX_LCDCREG_DMA_FBn_BASE__ALIGNMENT);
+	if (par->fb_dma_phsize != info->screen_size)
+		dev_warn(dev, "%s: whole framebuffer is not alignment on LCD controller DMA boundary\n", __func__);
+
+	info->screen_base	= dma_alloc_coherent(dev, par->fb_dma_phsize, &par->fb_dma_phaddr, GFP_KERNEL | GFP_DMA);
+	if (info->screen_base == NULL) {
+		dev_err(dev, "%s: cannot allocate EDMA screen buffer\n", __func__);
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	memset(info->screen_base, 0, info->screen_size);
+	info->fix.smem_start	= virt_to_phys(info->screen_base);
+	info->fix.smem_len	= info->screen_size;
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret) {
 		dev_err(dev, "%s: cannot allocated colormap: %d\n", __func__, ret);
-		goto exit;
+		goto exit_free_dma;
 	}
 
 	info->fbdefio		= &da8xx_ili9340_defio;
@@ -645,9 +557,14 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 	fb_deferred_io_cleanup(info);
  //exit_dealloc_cmap:
 	fb_dealloc_cmap(&info->cmap);
+ exit_free_dma:
+	dma_free_coherent(dev, par->fb_dma_phsize, info->screen_base, par->fb_dma_phaddr);
  exit:
 	return ret;
 }
+
+
+
 
 static void __devinitexit da8xx_ili9340_fb_shutdown(struct platform_device* _pdevice)
 {
@@ -657,10 +574,9 @@ static void __devinitexit da8xx_ili9340_fb_shutdown(struct platform_device* _pde
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-	if (info->screen_base)
-		dma_free_coherent(dev, par->fb_dma_phsize, info->screen_base, par->fb_dma_phaddr);
 	fb_deferred_io_cleanup(info);
 	fb_dealloc_cmap(&info->cmap);
+	dma_free_coherent(dev, par->fb_dma_phsize, info->screen_base, par->fb_dma_phaddr);
 
 	dev_dbg(dev, "%s: done\n", __func__);
 }
@@ -943,7 +859,7 @@ static int __devinit da8xx_ili9340_lcdc_init(struct platform_device* _pdevice, s
 	}
 
 	par->lcdc_irq = res_ptr->start;
-	ret = request_irq(par->lcdc_irq, da8xx_ili9340_lcdc_edma_done, 0, DRIVER_NAME, dev);
+	ret = request_irq(par->lcdc_irq, &lcdc_edma_done, 0, DRIVER_NAME, dev);
 	if (ret) {
 		dev_err(dev, "%s: cannot request LCD controller EDMA completion IRQ: %d\n", __func__, ret);
 		goto exit_iounmap_lcdc_reg;
@@ -969,9 +885,7 @@ static int __devinit da8xx_ili9340_lcdc_init(struct platform_device* _pdevice, s
 	}
 
 	mutex_init(&par->lcdc_lock);
-	INIT_WORK(&par->lcdc_work, &lcdc_work_wrapper);
-	par->lcdc_tasks = 0;
-	par->lcdc_task_current = 0;
+	INIT_WORK(&par->lcdc_redraw_work, &lcdc_redraw_work);
 
 	ret = da8xx_ili9340_lidd_regs_init(_pdevice, _pdata);
 	if (ret) {
@@ -1007,30 +921,122 @@ static void __devinitexit da8xx_ili9340_lcdc_shutdown(struct platform_device* _p
 	struct device* dev			= &_pdevice->dev;
 	struct fb_info* info			= platform_get_drvdata(_pdevice);
 	struct da8xx_ili9340_par* par		= info->par;
-	unsigned retry = 10;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-	lcdc_schedule_work(info, DA8XX_ILI9340_WORK_LCD_SLEEP_IN);
-	lcdc_schedule_work(info, DA8XX_ILI9340_WORK_LCDC_POWER_OFF);
-	do {
-		dev_dbg(dev, "%s: waiting for LCD controller task finish\n", __func__);
-		flush_work(&par->lcdc_work);
-	} while (par->lcdc_tasks && (--retry > 0));
-
-#warning Check if lock&destroy mutex is acceptable; check double locking in shutdown_regs
-	lcdc_lock(par); // lock forever
+#warning Think here about locking?..
 	da8xx_ili9340_lidd_regs_shutdown(_pdevice);
-	if (par->lcdc_tasks)
-		dev_warn(dev, "%s: LCD controller tasks list is non-empty\n", __func__);
-	if (par->lcdc_task_current)
-		dev_warn(dev, "%s: LCD controller current task is non-empty\n", __func__);
 	mutex_destroy(&par->lcdc_lock);
 	clk_disable(par->lcdc_clk);
 	clk_put(par->lcdc_clk);
 	free_irq(par->lcdc_irq, dev);
 	iounmap(par->lcdc_reg_base);
 	release_mem_region(par->lcdc_reg_start, par->lcdc_reg_size);
+
+	dev_dbg(dev, "%s: done\n", __func__);
+}
+
+
+
+
+static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice, struct da8xx_ili9340_pdata* _pdata)
+{
+	int ret					= -EINVAL;
+	struct device* dev			= &_pdevice->dev;
+	struct fb_info* info			= platform_get_drvdata(_pdevice);
+	struct da8xx_ili9340_par* par		= info->par;
+	__u32 disp_mfc, disp_ver, disp_id;
+	__u32 disp_self_diag1, disp_self_diag2;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+
+	par->cb_backlight_ctrl	= _pdata->cb_backlight_ctrl;
+	par->cb_power_ctrl	= _pdata->cb_power_ctrl;
+
+	// Startup routine should be asyncronous for faster bootup
+#warning TODO make code below asynchronous
+	par->cb_power_ctrl(1);
+
+	// Checking display ID
+	display_write_cmd(dev, par, ILI9340_CMD_READID);
+	/*ignore*/	display_read_data(dev, par);
+	disp_mfc	= display_read_data(dev, par);
+	disp_ver	= display_read_data(dev, par);
+	disp_id		= display_read_data(dev, par);
+	pr_info(DRIVER_NAME ": detected display: manufacturer 0x%x, version 0x%x, id 0x%x\n",
+			(unsigned)disp_mfc, (unsigned)disp_ver, (unsigned)disp_id);
+
+	// Sleep-out
+	display_write_cmd(dev, par, ILI9340_CMD_READ_SELFDIAG);
+	/*ignore*/	display_read_data(dev, par);
+	disp_self_diag1	= display_read_data(dev, par);
+
+	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_OUT);
+	msleep(120);	// Sleep-in to Sleep-out is 120ms, ch11.2, 210
+#warning Maybe it might work to wait for 5ms and then loop for up to 120ms until reg value changes
+
+	display_write_cmd(dev, par, ILI9340_CMD_READ_SELFDIAG);
+	/*ignore*/	display_read_data(dev, par);
+	disp_self_diag2	= display_read_data(dev, par);
+
+	if (REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__RLD, disp_self_diag1) ==
+		REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__RLD, disp_self_diag2)) {
+		dev_err(dev, "%s: ILI9340 reports register loading failure\n", __func__);
+		goto exit_sleep_in;
+	}
+	if (REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__FD, disp_self_diag1) ==
+		REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__FD, disp_self_diag2)) {
+		dev_err(dev, "%s: ILI9340 reports functionality failure\n", __func__);
+		goto exit_sleep_in;
+	}
+
+
+#warning TODO setup display
+
+
+	lcdc_schedule_redraw_work(info);
+	lcdc_wait_redraw_work_completion(info);
+
+	display_write_cmd(dev, par, ILI9340_CMD_DISPLAY_ON);
+
+#warning Temporary enabling backlight this way
+	par->cb_backlight_ctrl(1);
+
+	dev_dbg(dev, "%s: done\n", __func__);
+
+	return 0;
+
+
+ //exit_display_off:
+	display_write_cmd(dev, par, ILI9340_CMD_DISPLAY_OFF);
+ exit_sleep_in:
+	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_IN);
+	msleep(120); // Sleep-in to power off delay, ch12, pg211
+ //exit_power_off:
+	par->cb_power_ctrl(0);
+ //exit:
+	return ret;
+}
+
+static void __devinitexit da8xx_ili9340_display_shutdown(struct platform_device* _pdevice)
+{
+	struct device* dev			= &_pdevice->dev;
+	struct fb_info* info			= platform_get_drvdata(_pdevice);
+	struct da8xx_ili9340_par* par		= info->par;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+
+	// Shutdown routine may be synchronous since it must wait for real shutdown completion
+	lcdc_wait_redraw_work_completion(info);
+
+#warning Temporary enabling backlight this way
+	par->cb_backlight_ctrl(0);
+
+	display_write_cmd(dev, par, ILI9340_CMD_DISPLAY_OFF);
+	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_IN);
+	msleep(120); // Sleep-in to power off delay, ch12, pg211
+
+	par->cb_power_ctrl(0);
 
 	dev_dbg(dev, "%s: done\n", __func__);
 }
@@ -1129,37 +1135,25 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 
 	ret = da8xx_ili9340_lcdc_init(_pdevice, pdata);
 	if (ret) {
-		dev_err(dev, "%s: cannot initialize da8xx lcd controller: %d\n", __func__, ret);
+		dev_err(dev, "%s: cannot initialize da8xx LCD controller: %d\n", __func__, ret);
 		goto exit_fb_shutdown;
 	}
+
+	ret = da8xx_ili9340_display_init(_pdevice, pdata);
+	if (ret) {
+		dev_err(dev, "%s: cannot initialize da8xx display data: %d\n", __func__, ret);
+		goto exit_lcdc_shutdown;
+	}
+
+
+#warning TODO allow user access
 
 
 	ret = register_framebuffer(info);
 	if (ret) {
 		dev_err(dev, "%s: cannot register framebuffer: %d\n", __func__, ret);
-		goto exit_lcdc_shutdown;
+		goto exit_display_shutdown;
 	}
-
-
-
-
-#warning TODO kick start?
-#if 0
-	ret = fbops_check_var(&info->var, info);
-	if (ret) {
-		dev_err(dev, "%s: default var check failed: %d\n", __func__, ret);
-		goto exit_unregister_framebuffer;
-	}
-
-	ret = fbops_set_par(info);
-	if (ret) {
-		dev_err(dev, "%s: default par set failed: %d\n", __func__, ret);
-		goto exit_unregister_framebuffer;
-	}
-#endif
-
-
-
 
 	dev_dbg(dev, "%s: done\n", __func__);
 
@@ -1168,6 +1162,8 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 
  //exit_unregister_framebuffer:
 	unregister_framebuffer(info);
+ exit_display_shutdown:
+	da8xx_ili9340_display_shutdown(_pdevice);
  exit_lcdc_shutdown:
 	da8xx_ili9340_lcdc_shutdown(_pdevice);
  exit_fb_shutdown:
@@ -1187,7 +1183,13 @@ static int __devexit da8xx_ili9340_remove(struct platform_device* _pdevice)
 
 	unregister_framebuffer(info);
 
-	da8xx_ili9340_lcdc_shutdown(_pdevice); // no more pending operations after this point
+
+#warning TODO block user access
+#warning TODO ensure there is no pending user actions
+
+
+	da8xx_ili9340_display_shutdown(_pdevice);
+	da8xx_ili9340_lcdc_shutdown(_pdevice);
 	da8xx_ili9340_fb_shutdown(_pdevice);
 
 	framebuffer_release(info);

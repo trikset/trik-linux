@@ -25,7 +25,6 @@ enum da8xx_ili9340_pdata_lcdc_lidd_bus_polarity {
 struct da8xx_ili9340_pdata {
 	int	xres;
 	int	yres;
-	int	yres_screens;
 	int	bits_per_pixel;
 	int	screen_height;
 	int	screen_width;
