@@ -991,7 +991,6 @@ static struct resource da850trik_lcdc_resources[] = {
 static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
 	.xres			= 240,
 	.yres			= 320,
-	.yres_screens		= 2,
 	.bits_per_pixel		= 16,
 	.screen_height		= 49, //48,96mm
 	.screen_width		= 37, //36,72mm
