@@ -177,6 +177,7 @@ struct da8xx_ili9340_par {
 	__u32		pseudo_palette[16];
 
 	struct fb_info*			fb_info;
+	enum da8xx_ili9340_pdata_lcdc_visual_mode	fb_visual_mode;
 	struct mutex			lcdc_lock;
 
 	dma_addr_t			fb_dma_phaddr;
@@ -489,32 +490,49 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 	info->var.height	= _pdata->screen_height;
 	info->var.width		= _pdata->screen_width;
 
-#warning TODO configure by enum, 4 modes here
-	if (_pdata->bits_per_pixel <= 16) { // RGB565 mode
-		info->var.blue.offset		= 0;
-		info->var.blue.length		= 5;
-		info->var.green.offset		= 5;
-		info->var.green.length		= 6;
-		info->var.red.offset		= 11;
-		info->var.red.length		= 5;
-		info->var.bits_per_pixel	= 16;
-	} else if (_pdata->bits_per_pixel <= 24) { // RGB666 mode, 3-byte padding
-		info->var.blue.offset		= 0;
-		info->var.blue.length		= 6;
-		info->var.green.offset		= 6;
-		info->var.green.length		= 6;
-		info->var.red.offset		= 12;
-		info->var.red.length		= 6;
-		info->var.bits_per_pixel	= 24;
-	} else { // RGB666 mode, 4-byte padding, full byte per color
-		info->var.blue.offset		= 0;
-		info->var.blue.length		= 6;
-		info->var.green.offset		= 8;
-		info->var.green.length		= 6;
-		info->var.red.offset		= 16;
-		info->var.red.length		= 6;
-		info->var.bits_per_pixel	= 32;
+	switch (_pdata->visual_mode) {
+		case DA8XX_LCDC_VISUAL_565: // RGB565, 16bits
+			info->var.blue.offset		= 0;
+			info->var.blue.length		= 5;
+			info->var.green.offset		= 5;
+			info->var.green.length		= 6;
+			info->var.red.offset		= 11;
+			info->var.red.length		= 5;
+			info->var.bits_per_pixel	= 16;
+			break;
+		case DA8XX_LCDC_VISUAL_666: // RGB666, 24bits
+			info->var.blue.offset		= 0;
+			info->var.blue.length		= 6;
+			info->var.green.offset		= 6;
+			info->var.green.length		= 6;
+			info->var.red.offset		= 12;
+			info->var.red.length		= 6;
+			info->var.bits_per_pixel	= 24;
+			break;
+		case DA8XX_LCDC_VISUAL_888: // RGB888, 24bits
+			info->var.blue.offset		= 0;
+			info->var.blue.length		= 8;
+			info->var.green.offset		= 8;
+			info->var.green.length		= 8;
+			info->var.red.offset		= 16;
+			info->var.red.length		= 8;
+			info->var.bits_per_pixel	= 24;
+			break;
+		case DA8XX_LCDC_VISUAL_8880: // RGB888, 32bits
+			info->var.blue.offset		= 0;
+			info->var.blue.length		= 8;
+			info->var.green.offset		= 8;
+			info->var.green.length		= 8;
+			info->var.red.offset		= 16;
+			info->var.red.length		= 8;
+			info->var.bits_per_pixel	= 32;
+			break;
+		default:
+			dev_err(dev, "%s: unsupported visual mode %u\n", __func__, (unsigned)_pdata->visual_mode);
+			ret = -EINVAL;
+			goto exit;
 	}
+	par->fb_visual_mode = _pdata->visual_mode;
 
 	info->fix.line_length		= DIV_ROUND_UP(info->var.bits_per_pixel, BITS_PER_BYTE) * info->var.xres_virtual;
 	if (ALIGN(info->fix.line_length, DA8XX_LCDCREG_DMA_FBn_BASE__ALIGNMENT) != info->fix.line_length) {
