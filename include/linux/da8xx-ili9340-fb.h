@@ -2,6 +2,14 @@
 #define __DA8XX_ILI9340_PLATFORM_DATA __FILE__
 
 
+enum da8xx_ili9340_pdata_lcdc_visual_mode {
+	DA8XX_LCDC_VISUAL_INVALID = 0,
+	DA8XX_LCDC_VISUAL_565,
+	DA8XX_LCDC_VISUAL_666,
+	DA8XX_LCDC_VISUAL_888,
+	DA8XX_LCDC_VISUAL_8880,
+};
+
 enum da8xx_ili9340_pdata_lcdc_lidd_bus_mode {
 	DA8XX_LCDC_LIDD_MODE_INVALID = 0,
 	DA8XX_LCDC_LIDD_MODE_6800SYNC,
@@ -25,7 +33,8 @@ enum da8xx_ili9340_pdata_lcdc_lidd_bus_polarity {
 struct da8xx_ili9340_pdata {
 	int	xres;
 	int	yres;
-	int	bits_per_pixel;
+	enum da8xx_ili9340_pdata_lcdc_visual_mode	visual_mode;
+
 	int	screen_height;
 	int	screen_width;
 	int	fps;

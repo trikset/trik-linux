@@ -991,10 +991,10 @@ static struct resource da850trik_lcdc_resources[] = {
 static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
 	.xres			= 240,
 	.yres			= 320,
-	.bits_per_pixel		= 16,
+	.visual_mode		= DA8XX_LCDC_VISUAL_565,
 	.screen_height		= 49, //48,96mm
 	.screen_width		= 37, //36,72mm
-	.fps			= 50,
+	.fps			= 50, //20ms delay between memory write and redrawing
 
 	.lcdc_lidd_mode		= DA8XX_LCDC_LIDD_MODE_6800ASYNC,
 	.lcdc_lidd_cs		= DA8XX_LCDC_LIDD_CS0,
