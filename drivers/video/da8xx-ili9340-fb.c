@@ -955,7 +955,7 @@ static int __devinit da8xx_ili9340_lcdc_init(struct platform_device* _pdevice, s
 		goto exit_free_lcdc_irq;
 	}
 
-	par->lcdc_clk = clk_get(dev, NULL);
+	par->lcdc_clk = clk_get(dev, "da8xx_lcdc");
 	if (IS_ERR(par->lcdc_clk)) {
 		dev_err(dev, "%s: cannot get LCD controller clock\n", __func__);
 		ret = -ENODEV;
