@@ -584,7 +584,7 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 	}
 
 	info->fbdefio		= &da8xx_ili9340_defio;
-	info->fbdefio->delay	= (HZ / _pdata->fps);
+	info->fbdefio->delay	= (HZ / (_pdata->fps>1?_pdata->fps:1));
 
 	fb_deferred_io_init(info);
 
