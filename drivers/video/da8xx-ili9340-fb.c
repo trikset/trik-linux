@@ -627,7 +627,7 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 
 	unsigned long lcdc_clk_khz;
 	unsigned long lcdc_mclk_ns;
-	__u32 lidd_mclk_div;
+	__u32 lcdc_mclk_div;
 
 	bool lidd_is_async;
 	__u32 lidd_ctrl_mode;
@@ -652,13 +652,15 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 		goto exit;
 	}
 
-	lcdc_clk_khz	= clk_get_rate(par->lcdc_clk);
-	lidd_mclk_div	= DIV_ROUND_UP(lcdc_clk_khz * _pdata->lcdc_lidd_mclk_ns, USEC_PER_SEC);
-	if (lidd_mclk_div == 0)
-		lidd_mclk_div = 1;
-	lcdc_mclk_ns = USEC_PER_SEC / (lcdc_clk_khz/lidd_mclk_div);
+	lcdc_clk_khz	= clk_get_rate(par->lcdc_clk)/1000; // khz to avoid potential overflow
+	lcdc_mclk_div	= DIV_ROUND_UP(lcdc_clk_khz * _pdata->lcdc_lidd_mclk_ns, USEC_PER_SEC);
+	if (lcdc_mclk_div == 0)
+		lcdc_mclk_div = 1;
+	lcdc_mclk_ns = DIV_ROUND_UP(USEC_PER_SEC, lcdc_clk_khz * lcdc_mclk_div);
+	if (lcdc_mclk_ns == 0)
+		lcdc_mclk_ns = 1;
         dev_dbg(dev, "%s: configuring LCD controller MCLK div %lu, MCLK will be %uns with %uns configured\n",
-			__func__, (unsigned long)lidd_mclk_div, (unsigned)_pdata->lcdc_lidd_mclk_ns, (unsigned)lcdc_mclk_ns);
+			__func__, (unsigned long)lcdc_mclk_div, (unsigned)lcdc_mclk_ns, (unsigned)_pdata->lcdc_lidd_mclk_ns);
 
 	switch (_pdata->lcdc_lidd_mode) {
 		case DA8XX_LCDC_LIDD_MODE_6800SYNC:
@@ -774,7 +776,7 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 	lcdc_reg_write(dev, par, DA8XX_LCDCREG_LCD_CTRL,
 			0
 			| REGDEF_SET_VALUE(DA8XX_LCDCREG_LCD_CTRL__MODESEL,	DA8XX_LCDCREG_LCD_CTRL__MODESEL__lidd)
-			| REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LCD_CTRL__CLKDIV,	lidd_mclk_div, lidd_reg_ovf));
+			| REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LCD_CTRL__CLKDIV,	lcdc_mclk_div, lidd_reg_ovf));
 	if (lidd_reg_ovf) {
 		dev_warn(dev, "%s: noticed LCD controller MCLK div overflow\n", __func__);
 		lidd_reg_ovf = 0;
