@@ -149,10 +149,17 @@
 #define ILI9340_CMD_DISPLAY_OFF			0x28
 #define ILI9340_CMD_DISPLAY_ON			0x29
 #define ILI9340_CMD_MEMORY_WRITE		0x2c
+#define ILI9340_CMD_PIXEL_FORMAT		0x3a
+#define ILI9340_CMD_IFACE_CTRL			0xf6
 
 
 #define ILI9340_CMD_READ_SELFDIAG__RLD		7, (1)
 #define ILI9340_CMD_READ_SELFDIAG__FD		6, (1)
+#define ILI9340_CMD_PIXEL_FORMAT__DBI		0, (3)
+#define ILI9340_CMD_IFACE_CTRL__WEMODE		0, (1)
+#define ILI9340_CMD_IFACE_CTRL__MDT		0, (2)
+#define ILI9340_CMD_IFACE_CTRL__EPF		4, (2)
+
 
 
 
@@ -504,15 +511,6 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 			info->var.red.offset		= 11;
 			info->var.red.length		= 5;
 			info->var.bits_per_pixel	= 16;
-			break;
-		case DA8XX_LCDC_VISUAL_666: // RGB666, 24bits
-			info->var.blue.offset		= 0;
-			info->var.blue.length		= 6;
-			info->var.green.offset		= 6;
-			info->var.green.length		= 6;
-			info->var.red.offset		= 12;
-			info->var.red.length		= 6;
-			info->var.bits_per_pixel	= 24;
 			break;
 		case DA8XX_LCDC_VISUAL_888: // RGB888, 24bits
 			info->var.blue.offset		= 0;
@@ -974,6 +972,7 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	struct da8xx_ili9340_par* par		= info->par;
 	__u32 disp_mfc, disp_ver, disp_id;
 	__u32 disp_self_diag1, disp_self_diag2;
+	__u32 disp_dbi, disp_mdt;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
@@ -1011,11 +1010,13 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	if (REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__RLD, disp_self_diag1) ==
 		REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__RLD, disp_self_diag2)) {
 		dev_err(dev, "%s: ILI9340 reports register loading failure\n", __func__);
+		ret = -EBUSY;
 		goto exit_sleep_in;
 	}
 	if (REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__FD, disp_self_diag1) ==
 		REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__FD, disp_self_diag2)) {
 		dev_err(dev, "%s: ILI9340 reports functionality failure\n", __func__);
+		ret = -EBUSY;
 		goto exit_sleep_in;
 	}
 
@@ -1023,7 +1024,25 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 #warning TODO setup display
 
 
-#warning TODO setup visual mode and prepare for redraw command
+	switch (par->fb_visual_mode) {
+		case DA8XX_LCDC_VISUAL_565:	disp_dbi = 0x5;	disp_mdt = 0x0;	break;
+		case DA8XX_LCDC_VISUAL_888:	disp_dbi = 0x6;	disp_mdt = 0x0;	break;
+		case DA8XX_LCDC_VISUAL_8880:	disp_dbi = 0x6;	disp_mdt = 0x1;	break;
+		default:
+			dev_err(dev, "%s: unsupported visual mode\n", __func__);
+			ret = -EINVAL;
+			goto exit_sleep_in;
+	}
+	display_write_cmd(dev, par, ILI9340_CMD_PIXEL_FORMAT);
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_PIXEL_FORMAT__DBI, disp_dbi));
+	display_write_cmd(dev, par, ILI9340_CMD_IFACE_CTRL);
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__WEMODE, 0x0)); // ignore extra data
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__MDT, disp_mdt)
+					| REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__EPF, 0x0)); // in 565 mode, lowest bit is populated with topmost
+	display_write_data(dev, par, 0);
+
+
+#warning TODO prepare for redraw command
 
 
 
