@@ -336,7 +336,7 @@ static inline void display_write_data(struct device* _dev, struct da8xx_ili9340_
 
 
 
-static ssize_t	fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos)
+static ssize_t fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos)
 {
 	ssize_t ret;
 	struct device* dev		= _info->device;
@@ -363,6 +363,7 @@ static int fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _in
 		return -EINVAL;
 
 	_info->var.yoffset = _var->yoffset;
+
 	lcdc_schedule_redraw_work(_info);
 	dev_dbg(dev, "%s: done\n", __func__);
 
