@@ -482,10 +482,9 @@ static void lcdc_redraw_work_done(struct fb_info* _info)
 	struct device* dev			= _info->device;
 	struct da8xx_ili9340_par* par		= _info->par;
 
-	dev_dbg(dev, "%s: called\n", __func__);
+	dev_dbg(dev, "%s: completed redraw work\n", __func__);
 	atomic_set(&par->lcdc_redraw_active, 0);
 	wake_up_all(&par->lcdc_redraw_wait);
-	dev_dbg(dev, "%s: done\n", __func__);
 }
 
 
