@@ -614,6 +614,7 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, GPIO6_12,	13,	12,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_13,	13,	8,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_15,	13,	0,	15,	8,	false)
+	MUX_CFG(DA850, GPIO8_10,	18,	28,	15,	8,	false)
 	MUX_CFG(DA850, RTC_ALARM,	0,	28,	15,	2,	false)
  	/* eHRPWM0 function */
         MUX_CFG(DA850,  EHRPWM0_A,      3,      0,      15,     2,      false) //???
@@ -629,28 +630,6 @@ static const struct mux_config da850_pins[] = {
         MUX_CFG(DA850, ECAP1_APWM1,     1,      28,     15,     4,      false)
         /* eCAP2 function */
         MUX_CFG(DA850, ECAP2_APWM2,     1,      0,      15,     4,      false)
-	/*LCD GPIO*/
-	MUX_CFG(DA850,  GPIO7_0,        18,      4,      15,      8,      false)
-	MUX_CFG(DA850,  GPIO7_1,        18,      0,      15,      8,      false)
- 	MUX_CFG(DA850,  GPIO7_2,        17,      28,      15,      8,      false)
-	MUX_CFG(DA850,  GPIO7_3,        17,      24,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_4,        17,      20,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_5,        17,      16,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_6,        17,      12,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_7,        17,      8,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_8,        17,      4,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_9,        17,      0,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_10,        16,      28,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_11,        16,      24,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_12,        16,      20,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_13,        16,      16,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_14,        16,      12,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO7_15,        16,      8,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO8_8,        19,      4,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO8_9,        19,      0,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO8_10,        18,      28,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO8_11,        18,      24,      15,      8,      false)
-        MUX_CFG(DA850,  GPIO6_0,        19,      24,      15,      8,      false)
 
 
 #endif
