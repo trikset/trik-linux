@@ -773,14 +773,14 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 	dev_dbg(dev, "%s: applying registers\n", __func__);
 	lcdc_lock(par);
 
-	lcdc_reg_write(dev, par, DA8XX_LCDCREG_LCD_CTRL,
-			0
-			| REGDEF_SET_VALUE(DA8XX_LCDCREG_LCD_CTRL__MODESEL,	DA8XX_LCDCREG_LCD_CTRL__MODESEL__lidd)
-			| REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LCD_CTRL__CLKDIV,	lcdc_mclk_div, lidd_reg_ovf));
+	regval = 0;
+	regval |= REGDEF_SET_VALUE(DA8XX_LCDCREG_LCD_CTRL__MODESEL,	DA8XX_LCDCREG_LCD_CTRL__MODESEL__lidd);
+	regval |= REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LCD_CTRL__CLKDIV,	lcdc_mclk_div, lidd_reg_ovf);
 	if (lidd_reg_ovf) {
 		dev_warn(dev, "%s: noticed LCD controller MCLK div overflow\n", __func__);
 		lidd_reg_ovf = 0;
 	}
+	lcdc_reg_write(dev, par, DA8XX_LCDCREG_LCD_CTRL, regval);
 
 	lcdc_reg_write(dev, par, DA8XX_LCDCREG_LIDD_CTRL,
 			0
@@ -794,19 +794,19 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 			| REGDEF_SET_VALUE(DA8XX_LCDCREG_LIDD_CTRL__DMA_CS0_CS1,	lidd_dma_cs)
 			| REGDEF_SET_VALUE(DA8XX_LCDCREG_LIDD_CTRL__DONE_INT_EN,	DA8XX_LCDCREG_LIDD_CTRL__DONE_INT_EN__enable));
 
-	lcdc_reg_write(dev, par, par->lidd_reg_cs_conf,
-			0
-			| REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__TA,		DIV_ROUND_UP(_pdata->lcdc_t_ta_ns,	lcdc_mclk_ns), lidd_reg_ovf)
-			| REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__R_HOLD,	DIV_ROUND_UP(_pdata->lcdc_t_rhold_ns,	lcdc_mclk_ns), lidd_reg_ovf)
-			| REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__R_STROBE,	DIV_ROUND_UP(_pdata->lcdc_t_rstrobe_ns,	lcdc_mclk_ns), lidd_reg_ovf)
-			| REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__R_SU,	DIV_ROUND_UP(_pdata->lcdc_t_rsu_ns,	lcdc_mclk_ns), lidd_reg_ovf)
-			| REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__W_HOLD,	DIV_ROUND_UP(_pdata->lcdc_t_whold_ns,	lcdc_mclk_ns), lidd_reg_ovf)
-			| REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__W_STROBE,	DIV_ROUND_UP(_pdata->lcdc_t_wstrobe_ns,	lcdc_mclk_ns), lidd_reg_ovf)
-			| REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__W_SU,	DIV_ROUND_UP(_pdata->lcdc_t_wsu_ns,	lcdc_mclk_ns), lidd_reg_ovf));
+	regval = 0;
+	regval |= REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__TA,		DIV_ROUND_UP(_pdata->lcdc_t_ta_ns,	lcdc_mclk_ns), lidd_reg_ovf);
+	regval |= REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__R_HOLD,	DIV_ROUND_UP(_pdata->lcdc_t_rhold_ns,	lcdc_mclk_ns), lidd_reg_ovf);
+	regval |= REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__R_STROBE,	DIV_ROUND_UP(_pdata->lcdc_t_rstrobe_ns,	lcdc_mclk_ns), lidd_reg_ovf);
+	regval |= REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__R_SU,	DIV_ROUND_UP(_pdata->lcdc_t_rsu_ns,	lcdc_mclk_ns), lidd_reg_ovf);
+	regval |= REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__W_HOLD,	DIV_ROUND_UP(_pdata->lcdc_t_whold_ns,	lcdc_mclk_ns), lidd_reg_ovf);
+	regval |= REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__W_STROBE,	DIV_ROUND_UP(_pdata->lcdc_t_wstrobe_ns,	lcdc_mclk_ns), lidd_reg_ovf);
+	regval |= REGDEF_SET_VALUE_OVF(DA8XX_LCDCREG_LIDD_CSn_CONF__W_SU,	DIV_ROUND_UP(_pdata->lcdc_t_wsu_ns,	lcdc_mclk_ns), lidd_reg_ovf);
 	if (lidd_reg_ovf) {
 		dev_warn(dev, "%s: noticed LCD controller timings overflow\n", __func__);
 		lidd_reg_ovf = 0;
 	}
+	lcdc_reg_write(dev, par, par->lidd_reg_cs_conf, regval);
 
 	lcdc_reg_write(dev, par, DA8XX_LCDCREG_DMA_CTRL,
 			0
