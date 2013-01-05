@@ -993,7 +993,7 @@ static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
 	.screen_width		= 37, //36,72mm
 	.fps			= 50, //20ms delay between memory write and redrawing
 
-	.lcdc_lidd_mode		= DA8XX_LCDC_LIDD_MODE_6800ASYNC,
+	.lcdc_lidd_mode		= DA8XX_LCDC_LIDD_MODE_8080ASYNC,
 	.lcdc_lidd_cs		= DA8XX_LCDC_LIDD_CS0,
 	.lcdc_lidd_ale_pol	= DA8XX_LCDC_LIDD_POL_ACTIVE_LOW,
 	.lcdc_lidd_rs_en_pol	= DA8XX_LCDC_LIDD_POL_ACTIVE_LOW,
@@ -1001,17 +1001,16 @@ static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
 	.lcdc_lidd_cs_pol	= DA8XX_LCDC_LIDD_POL_ACTIVE_LOW,
 	.lcdc_lidd_edma_burst	= 16,
 
-#warning TODO timings are invalid
-	.lcdc_lidd_mclk_ns	= 10,
-	.lcdc_t_ta_ns		= 10,
-	.lcdc_t_rhold_ns	= 225,
-	.lcdc_t_rstrobe_ns	= 225,
-	.lcdc_t_rsu_ns		= 225,
-	.lcdc_t_whold_ns	= 33,
-	.lcdc_t_wstrobe_ns	= 33,
-	.lcdc_t_wsu_ns		= 33,
-
-#warning TODO LCD device platform data
+        // Data taken from ch 19.3.2
+	.lcdc_lidd_mclk_ns	= 0,	// Although not actually exported, it is used as granularity for timings below
+					// Run at LCD_CLK for best granularity
+	.lcdc_t_ta_ns		= 0,	// Tchw=0
+	.lcdc_t_rhold_ns	= 90,	// Taht=10, Trdh=90/90
+	.lcdc_t_rstrobe_ns	= 355,	// Trdl=45/355, Trcs=45/355
+	.lcdc_t_rsu_ns		= 0,	// Tast=0, no CS->RD_low timeout
+	.lcdc_t_whold_ns	= 33,   // Taht=10, Twrh=33, Tdht=10
+	.lcdc_t_wstrobe_ns	= 33,	// Twrl=33, Tcs=15
+	.lcdc_t_wsu_ns		= 0,	// Tast=0, no CS->WR_low timeout
 
 	.cb_backlight_ctrl	= &da850trik_lcd_backlight_ctrl,
 	.cb_power_ctrl		= &da850trik_lcd_power_ctrl,
