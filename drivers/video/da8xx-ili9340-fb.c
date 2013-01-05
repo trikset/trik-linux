@@ -153,6 +153,8 @@
 #define ILI9340_CMD_SLEEP_OUT			0x11
 #define ILI9340_CMD_DISPLAY_OFF			0x28
 #define ILI9340_CMD_DISPLAY_ON			0x29
+#define ILI9340_CMD_COLUMN_ADDR			0x2a
+#define ILI9340_CMD_ROW_ADDR			0x2b
 #define ILI9340_CMD_MEMORY_WRITE		0x2c
 #define ILI9340_CMD_PIXEL_FORMAT		0x3a
 #define ILI9340_CMD_IFACE_CTRL			0xf6
@@ -160,6 +162,10 @@
 
 #define ILI9340_CMD_READ_SELFDIAG__RLD		7, (1)
 #define ILI9340_CMD_READ_SELFDIAG__FD		6, (1)
+#define ILI9340_CMD_COLUMN_ADDR__LOWBYTE	0, (8)
+#define ILI9340_CMD_COLUMN_ADDR__HIGHBYTE	0, (8)
+#define ILI9340_CMD_ROW_ADDR__LOWBYTE		0, (8)
+#define ILI9340_CMD_ROW_ADDR__HIGHBYTE		0, (8)
 #define ILI9340_CMD_PIXEL_FORMAT__DBI		0, (3)
 #define ILI9340_CMD_IFACE_CTRL__WEMODE		0, (1)
 #define ILI9340_CMD_IFACE_CTRL__MDT		0, (2)
@@ -1033,6 +1039,19 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 		ret = -EBUSY;
 		goto exit_sleep_in;
 	}
+
+	display_write_cmd(dev, par, ILI9340_CMD_COLUMN_ADDR);
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__HIGHBYTE,	0));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__LOWBYTE,		0));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__HIGHBYTE,	info->var.xres>>8));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__LOWBYTE,		info->var.xres));
+
+	display_write_cmd(dev, par, ILI9340_CMD_ROW_ADDR);
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__HIGHBYTE,	0));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__LOWBYTE,	0));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__HIGHBYTE,	info->var.yres>>8));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__LOWBYTE,	info->var.yres));
+
 
 
 #warning TODO setup display
