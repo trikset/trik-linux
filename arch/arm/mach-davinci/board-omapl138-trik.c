@@ -969,9 +969,6 @@ static void da850trik_lcd_power_ctrl(bool _power_up)
 	} else {
 		gpio_set_value(GPIO_TO_PIN(8, 10), 0);
 	}
-
-#warning TODO temporary enforce backlight
-	da850trik_lcd_backlight_ctrl(_power_up);
 }
 
 #define DA8XX_LCD_CNTRL_BASE		0x01e13000
