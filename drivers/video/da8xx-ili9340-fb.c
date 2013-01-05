@@ -993,14 +993,14 @@ static int __devinit da8xx_ili9340_lcdc_init(struct platform_device* _pdevice, s
 		goto exit_free_lcdc_irq;
 	}
 
-	par->lcdc_clk = clk_get(dev, "da8xx_lcdc");
+	par->lcdc_clk = devm_clk_get(dev, "da8xx_lcdc");
 	if (IS_ERR(par->lcdc_clk)) {
 		dev_err(dev, "%s: cannot get LCD controller clock\n", __func__);
 		ret = -ENODEV;
 		goto exit_free_lcdc_irq;
 	}
 
-	ret = clk_enable(par->lcdc_clk);
+	ret = clk_prepare_enable(par->lcdc_clk);
 	if (ret) {
 		dev_err(dev, "%s: cannot enable LCD controller clock\n", __func__);
 		goto exit_put_lcdc_clk;
@@ -1026,9 +1026,9 @@ static int __devinit da8xx_ili9340_lcdc_init(struct platform_device* _pdevice, s
  //exit_shutdown_lidd_regs:
 	da8xx_ili9340_lidd_regs_shutdown(_pdevice);
  exit_disable_lcdc_clk:
-	clk_disable(par->lcdc_clk);
+	clk_disable_unprepare(par->lcdc_clk);
  exit_put_lcdc_clk:
-	clk_put(par->lcdc_clk);
+	devm_clk_put(dev, par->lcdc_clk);
  exit_free_lcdc_irq:
 	free_irq(par->lcdc_irq, dev);
  exit_iounmap_lcdc_reg:
@@ -1052,8 +1052,8 @@ static void __devinitexit da8xx_ili9340_lcdc_shutdown(struct platform_device* _p
 	BUG_ON(atomic_read(&par->lcdc_redraw_requested) != 0);
 	BUG_ON(atomic_read(&par->lcdc_redraw_ongoing) != 0);
 	BUG_ON(down_trylock(&par->lcdc_semaphore) != 0);
-	clk_disable(par->lcdc_clk);
-	clk_put(par->lcdc_clk);
+	clk_disable_unprepare(par->lcdc_clk);
+	devm_clk_put(dev, par->lcdc_clk);
 	free_irq(par->lcdc_irq, dev);
 	iounmap(par->lcdc_reg_base);
 	release_mem_region(par->lcdc_reg_start, par->lcdc_reg_size);
@@ -1363,4 +1363,3 @@ MODULE_LICENSE("GPL");
 
 #warning TODO backlight, brightness, idle mode control, maybe gamma or something
 #warning TODO flip horizontal or vertical
-#warning TODO replace clk_get/clk_enable with devm_clk_get/clk_prepare_enable
