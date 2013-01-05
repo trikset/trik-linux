@@ -318,17 +318,17 @@ static inline void lcdc_reg_change(struct device* _dev, struct da8xx_ili9340_par
 	__raw_writel((__raw_readl(reg_ptr) & ~_mask) | _value, reg_ptr);
 }
 
-static inline __u32 display_read_data(struct device* _dev, struct da8xx_ili9340_par* _par)
+static inline __u16 display_read_data(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
 	return lcdc_reg_read(_dev, _par, _par->lidd_reg_cs_data);
 }
 
-static inline void display_write_cmd(struct device* _dev, struct da8xx_ili9340_par* _par, __u32 _cmd)
+static inline void display_write_cmd(struct device* _dev, struct da8xx_ili9340_par* _par, __u16 _cmd)
 {
 	lcdc_reg_write(_dev, _par, _par->lidd_reg_cs_addr, _cmd);
 }
 
-static inline void display_write_data(struct device* _dev, struct da8xx_ili9340_par* _par, __u32 _data)
+static inline void display_write_data(struct device* _dev, struct da8xx_ili9340_par* _par, __u16 _data)
 {
 	lcdc_reg_write(_dev, _par, _par->lidd_reg_cs_data, _data);
 }
@@ -990,9 +990,9 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	struct device* dev			= &_pdevice->dev;
 	struct fb_info* info			= platform_get_drvdata(_pdevice);
 	struct da8xx_ili9340_par* par		= info->par;
-	__u32 disp_mfc, disp_ver, disp_id;
-	__u32 disp_self_diag1, disp_self_diag2;
-	__u32 disp_dbi, disp_mdt;
+	__u16 disp_mfc, disp_ver, disp_id;
+	__u16 disp_self_diag1, disp_self_diag2;
+	__u16 disp_dbi, disp_mdt;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
