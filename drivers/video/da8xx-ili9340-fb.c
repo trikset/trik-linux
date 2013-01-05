@@ -10,7 +10,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
 #include <linux/wait.h>
-#include <linux/mutex.h>
+#include <linux/semaphore.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -126,8 +126,9 @@
 #define DA8XX_LCDCREG_DMA_FBn_BASE__ALIGNMENT			0x4 //DMA address alignment
 
 
-#warning NOTE ON TIMINGS:
-/* Page 216:
+#warning TODO move to header or somewhere else...
+/* Notes on timings
+   Page 216:
    Hardware reset -> Level2 command: 120ms
    Sleep out -> Display on sequence: 60ms
 
@@ -142,8 +143,6 @@
    Sleep out -> self diagnostics: 5ms
    Sleep out -> supplier's value loaded to registers: 120ms
 */
-#warning TODO there is 120ms delay in power_ctrl(1) now, but maybe it will be better to use drivers timers; two timers should be added - any cmd and sleep cmd only
-#warning TODO remove or configure msleeps
 
 
 #define ILI9340_CMD_NOP				0x00
@@ -174,33 +173,16 @@
 
 
 
-static void	lcdc_schedule_redraw_work(struct fb_info* _info);
-static int	lcdc_wait_redraw_work_completion(struct fb_info* _info);
-static void	lcdc_redraw_work(struct work_struct* _work);
-static void	lcdc_redraw_work_done(struct fb_info* _info);
-static void 		lcdc_edma_start(struct device* _dev);
-static irqreturn_t	lcdc_edma_done(int _irq, void* _dev);
-
-
-static ssize_t	fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos);
-static int	fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info);
-static int	fbops_blank(int _blank, struct fb_info* _info);
-static int	fbops_sync(struct fb_info* _info);
-
-static void	defio_redraw(struct fb_info* _info, struct list_head* _pagelist);
-
-
-
-
 struct da8xx_ili9340_par {
-	__u32		pseudo_palette[16];
+	__u32				pseudo_palette[16];
 
-	struct fb_info*			fb_info;
+	struct fb_info*					fb_info;
 	enum da8xx_ili9340_pdata_lcdc_visual_mode	fb_visual_mode;
-	struct mutex			lcdc_lock;
 
 	dma_addr_t			fb_dma_phaddr;
 	size_t				fb_dma_phsize;
+
+	struct semaphore		lcdc_semaphore;
 
 	resource_size_t			lcdc_reg_start;
 	resource_size_t			lcdc_reg_size;
@@ -208,16 +190,20 @@ struct da8xx_ili9340_par {
 	int				lcdc_irq;
 	struct clk*			lcdc_clk;
 
-	struct work_struct		lcdc_redraw_work;
-	atomic_t			lcdc_redraw_active;
-	wait_queue_head_t		lcdc_redraw_wait;
+	struct delayed_work		lcdc_redraw_work;
+	atomic_t			lcdc_redraw_requested;
+	atomic_t			lcdc_redraw_ongoing;
+	wait_queue_head_t		lcdc_redraw_completion;
 
-	loff_t		lidd_reg_cs_conf;
-	loff_t		lidd_reg_cs_addr;
-	loff_t		lidd_reg_cs_data;
+	loff_t				lidd_reg_cs_conf;
+	loff_t				lidd_reg_cs_addr;
+	loff_t				lidd_reg_cs_data;
 
-	void (*cb_backlight_ctrl)(bool _backlight);
-	void (*cb_power_ctrl)(bool _power_up);
+	unsigned			ili9340_t_reset_to_ready_ms;
+	unsigned			ili9340_t_sleep_in_out_ms;
+
+	void		(*cb_backlight_ctrl)(bool _backlight);
+	void		(*cb_power_ctrl)(bool _power_up);
 };
 
 static const struct fb_fix_screeninfo da8xx_ili9340_fix_init __devinitconst = {
@@ -257,10 +243,17 @@ static const struct fb_var_screeninfo da8xx_ili9340_var_init __devinitconst = {
 	.colorspace	= 0,
 };
 
+static void	defio_redraw(struct fb_info* _info, struct list_head* _pagelist);
+
 static struct fb_deferred_io da8xx_ili9340_defio = {
 	//.delay
 	.deferred_io		= defio_redraw,
 };
+
+static ssize_t	fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos);
+static int	fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info);
+static int	fbops_blank(int _blank, struct fb_info* _info);
+static int	fbops_sync(struct fb_info* _info);
 
 static struct fb_ops da8xx_ili9340_fbops = {
 	.owner		= THIS_MODULE,
@@ -274,18 +267,37 @@ static struct fb_ops da8xx_ili9340_fbops = {
 	.fb_sync	= &fbops_sync,
 };
 
+static void		lcdc_schedule_redraw(struct device* _dev, struct da8xx_ili9340_par* _par);
+static int		lcdc_start_redraw_locked(struct device* _dev, struct da8xx_ili9340_par* _par);
+static int		lcdc_wait_redraw_completion(struct device* _dev, struct da8xx_ili9340_par* _par);
+
+static void		lcdc_redraw_work(struct work_struct* _work);
+static void 		lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par);
+static irqreturn_t	lcdc_edma_done(int _irq, void* _dev);
+static void		lcdc_redraw_work_done(struct device* _dev, struct da8xx_ili9340_par* _par);
 
 
 
 
-static inline void lcdc_lock(struct da8xx_ili9340_par* _par)
+
+
+
+
+
+
+static inline int lcdc_lock(struct da8xx_ili9340_par* _par)
 {
-	mutex_lock(&_par->lcdc_lock);
+	return down_interruptible(&_par->lcdc_semaphore);
 }
 
 static inline void lcdc_unlock(struct da8xx_ili9340_par* _par)
 {
-	mutex_unlock(&_par->lcdc_lock);
+	up(&_par->lcdc_semaphore);
+}
+
+static inline void lcdc_assert_locked(struct da8xx_ili9340_par* _par)
+{
+	BUG_ON(_par->lcdc_semaphore.count != 0);
 }
 
 static inline __u32 lcdc_reg_read(struct device* _dev, struct da8xx_ili9340_par* _par, loff_t _reg)
@@ -293,7 +305,7 @@ static inline __u32 lcdc_reg_read(struct device* _dev, struct da8xx_ili9340_par*
 	void __iomem*	reg_ptr		= _par->lcdc_reg_base + _reg;
 
 	BUG_ON(_par->lcdc_reg_base == NULL);
-	BUG_ON(!mutex_is_locked(&_par->lcdc_lock));
+	lcdc_assert_locked(_par);
 
 	return __raw_readl(reg_ptr);
 }
@@ -303,7 +315,7 @@ static inline void lcdc_reg_write(struct device* _dev, struct da8xx_ili9340_par*
 	void __iomem*	reg_ptr		= _par->lcdc_reg_base + _reg;
 
 	BUG_ON(_par->lcdc_reg_base == NULL);
-	BUG_ON(!mutex_is_locked(&_par->lcdc_lock));
+	lcdc_assert_locked(_par);
 
 	__raw_writel(_value, reg_ptr);
 }
@@ -313,7 +325,7 @@ static inline void lcdc_reg_change(struct device* _dev, struct da8xx_ili9340_par
 	void __iomem*	reg_ptr		= _par->lcdc_reg_base + _reg;
 
 	BUG_ON(_par->lcdc_reg_base == NULL);
-	BUG_ON(!mutex_is_locked(&_par->lcdc_lock));
+	lcdc_assert_locked(_par);
 
 	__raw_writel((__raw_readl(reg_ptr) & ~_mask) | _value, reg_ptr);
 }
@@ -340,13 +352,14 @@ static ssize_t fbops_write(struct fb_info* _info, const char __user* _buf, size_
 {
 	ssize_t ret;
 	struct device* dev		= _info->device;
+	struct da8xx_ili9340_par* par	= _info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 	ret = fb_sys_write(_info, _buf, _count, _ppos);
 	if (ret < 0)
 		return ret;
 
-	lcdc_schedule_redraw_work(_info);
+	lcdc_schedule_redraw(dev, par);
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return ret;
@@ -354,7 +367,8 @@ static ssize_t fbops_write(struct fb_info* _info, const char __user* _buf, size_
 
 static int fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info)
 {
-	struct device* dev	= _info->device;
+	struct device* dev		= _info->device;
+	struct da8xx_ili9340_par* par	= _info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 	if (   _info->fix.ypanstep == 0
@@ -364,7 +378,7 @@ static int fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _in
 
 	_info->var.yoffset = _var->yoffset;
 
-	lcdc_schedule_redraw_work(_info);
+	lcdc_schedule_redraw(dev, par);
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return 0;
@@ -383,9 +397,10 @@ static int fbops_sync(struct fb_info* _info)
 {
 	int ret;
 	struct device* dev		= _info->device;
+	struct da8xx_ili9340_par* par	= _info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
-	ret = lcdc_wait_redraw_work_completion(_info);
+	ret = lcdc_wait_redraw_completion(dev, par);
 	dev_dbg(dev, "%s: done\n", __func__);
 	return ret;
 }
@@ -395,40 +410,109 @@ static int fbops_sync(struct fb_info* _info)
 
 static void defio_redraw(struct fb_info* _info, struct list_head* _pagelist)
 {
-	lcdc_schedule_redraw_work(_info);
+	struct device* dev		= _info->device;
+	struct da8xx_ili9340_par* par	= _info->par;
+
+	lcdc_schedule_redraw(dev, par);
 }
 
-static void lcdc_edma_start(struct device* _dev)
+
+
+
+static inline void _lcdc_redraw_work_done(struct device* _dev, struct da8xx_ili9340_par* _par)
+{
+	atomic_set(&_par->lcdc_redraw_ongoing, 0);
+	wake_up_all(&_par->lcdc_redraw_completion);
+
+	if (atomic_read(&_par->lcdc_redraw_requested) == 0)
+		return;
+
+	if (atomic_inc_return(&_par->lcdc_redraw_ongoing) == 1) { // i.e. it was 0 and no work were ongoing
+		dev_dbg(_dev, "%s: re-scheduling redraw work\n", __func__);
+		atomic_set(&_par->lcdc_redraw_requested, 0);
+		schedule_delayed_work(&_par->lcdc_redraw_work, 1);
+	}
+}
+
+static void lcdc_schedule_redraw(struct device* _dev, struct da8xx_ili9340_par* _par)
+{
+	dev_dbg(_dev, "%s: called\n", __func__);
+
+	atomic_inc(&_par->lcdc_redraw_requested);
+	if (atomic_inc_return(&_par->lcdc_redraw_ongoing) == 1) { // i.e. it was 0 and no work were ongoing
+		dev_dbg(_dev, "%s: scheduling redraw work\n", __func__);
+		atomic_set(&_par->lcdc_redraw_requested, 0);
+		schedule_delayed_work(&_par->lcdc_redraw_work, 0);
+	} // otherwise, we already incremented redraw_requested and work should be re-scheduled at completion
+	dev_dbg(_dev, "%s: done\n", __func__);
+}
+
+static int lcdc_start_redraw_locked(struct device* _dev, struct da8xx_ili9340_par* _par)
+{
+	if (atomic_inc_return(&_par->lcdc_redraw_ongoing) != 1) // i.e. it was already running
+		return -EBUSY;
+
+	dev_dbg(_dev, "%s: starting redraw work\n", __func__);
+	lcdc_assert_locked(_par);
+	lcdc_edma_start(_dev, _par);
+	return 0;
+}
+
+static int lcdc_wait_redraw_completion(struct device* _dev, struct da8xx_ili9340_par* _par)
+{
+	int ret;
+
+	dev_dbg(_dev, "%s: called\n", __func__);
+	ret = wait_event_interruptible(_par->lcdc_redraw_completion, (atomic_read(&_par->lcdc_redraw_ongoing) == 0));
+	dev_dbg(_dev, "%s: done\n", __func__);
+
+	return ret;
+}
+
+static void lcdc_redraw_work(struct work_struct* _work)
+{
+	int ret;
+	struct da8xx_ili9340_par* par	= container_of(to_delayed_work(_work), struct da8xx_ili9340_par, lcdc_redraw_work);
+	struct fb_info* info		= par->fb_info;
+	struct device* dev		= info->device;
+
+	dev_dbg(dev, "%s: starting redraw work\n", __func__);
+	ret = lcdc_lock(par);
+	if (ret) {
+		dev_err(dev, "%s: cannot obtain LCD controller lock: %d\n", __func__, ret);
+		_lcdc_redraw_work_done(dev, par);
+		return;
+	}
+	lcdc_edma_start(dev, par);
+}
+
+static void lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
 	struct fb_info* info		= dev_get_drvdata(_dev);
-	struct da8xx_ili9340_par* par	= info->par;
 	dma_addr_t phaddr_base;
 	dma_addr_t phaddr_ceil;
 
-	lcdc_lock(par);
-
 	if (info->var.xoffset != 0)
 		dev_warn(_dev, "%s: xoffset != 0\n", __func__);
-	phaddr_base = par->fb_dma_phaddr + info->var.yoffset*info->fix.line_length;
+	phaddr_base = _par->fb_dma_phaddr + info->var.yoffset*info->fix.line_length;
 	phaddr_ceil = phaddr_base + info->var.yres*info->fix.line_length - 1;
 
-	display_write_cmd(_dev, par, ILI9340_CMD_NOP);
-	display_write_cmd(_dev, par, ILI9340_CMD_MEMORY_WRITE);
+	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_WRITE);
 
 	// Set EDMA address
-	lcdc_reg_write(_dev, par,
+	lcdc_reg_write(_dev, _par,
 			DA8XX_LCDCREG_DMA_FB0_BASE,
 			REGDEF_SET_VALUE(DA8XX_LCDCREG_DMA_FBn_BASE__FBn_BASE, phaddr_base));
-	lcdc_reg_write(_dev, par,
+	lcdc_reg_write(_dev, _par,
 			DA8XX_LCDCREG_DMA_FB0_CEILING,
 			REGDEF_SET_VALUE(DA8XX_LCDCREG_DMA_FBn_CEILING__FBn_CEIL, phaddr_ceil));
 
 	// Kick EDMA on
-	lcdc_reg_change(_dev, par,
+	lcdc_reg_change(_dev, _par,
 			DA8XX_LCDCREG_LIDD_CTRL,
 			REGDEF_MASK(DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN),
 			REGDEF_SET_VALUE(DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN, DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN__activate));
-	lcdc_reg_change(_dev, par,
+	lcdc_reg_change(_dev, _par,
 			DA8XX_LCDCREG_LIDD_CTRL,
 			REGDEF_MASK(DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN),
 			REGDEF_SET_VALUE(DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN, DA8XX_LCDCREG_LIDD_CTRL__LIDD_DMA_EN__deactivate));
@@ -441,59 +525,23 @@ static irqreturn_t lcdc_edma_done(int _irq, void* _dev)
 	struct da8xx_ili9340_par* par	= info->par;
 
 	lcdc_reg_change(dev, par, DA8XX_LCDCREG_LCD_STAT, 0x0, 0x0); //Write STAT register back - reset interrupt flag
-	display_write_cmd(dev, par, ILI9340_CMD_NOP);
+	display_write_cmd(dev, par, ILI9340_CMD_DISPLAY_ON);
 
-	lcdc_unlock(par);
-	lcdc_redraw_work_done(info);
+	lcdc_redraw_work_done(dev, par);
 
 	return IRQ_HANDLED;
 }
 
-static void lcdc_schedule_redraw_work(struct fb_info* _info)
+static void lcdc_redraw_work_done(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
-	struct device* dev			= _info->device;
-	struct da8xx_ili9340_par* par		= _info->par;
+	dev_dbg(_dev, "%s: completed redraw work\n", __func__);
+	if (atomic_read(&_par->lcdc_redraw_ongoing) == 0) {
+		dev_err(_dev, "%s: redraw work done while not ongoing\n", __func__);
+		return;
+	}
 
-	dev_dbg(dev, "%s: called\n", __func__);
-	atomic_inc(&par->lcdc_redraw_active);
-	schedule_work(&par->lcdc_redraw_work);
-	dev_dbg(dev, "%s: done\n", __func__);
-}
-
-static int lcdc_wait_redraw_work_completion(struct fb_info* _info)
-{
-	int ret;
-	struct device* dev			= _info->device;
-	struct da8xx_ili9340_par* par		= _info->par;
-
-	dev_dbg(dev, "%s: called\n", __func__);
-	ret = wait_event_interruptible(par->lcdc_redraw_wait, (!atomic_read(&par->lcdc_redraw_active)));
-	dev_dbg(dev, "%s: done\n", __func__);
-
-	return ret;
-}
-
-
-
-
-static void lcdc_redraw_work(struct work_struct* _work)
-{
-	struct da8xx_ili9340_par* par	= container_of(_work, struct da8xx_ili9340_par, lcdc_redraw_work);
-	struct fb_info* info		= par->fb_info;
-	struct device* dev		= info->device;
-
-	dev_dbg(dev, "%s: starting redraw work\n", __func__);
-	lcdc_edma_start(dev);
-}
-
-static void lcdc_redraw_work_done(struct fb_info* _info)
-{
-	struct device* dev			= _info->device;
-	struct da8xx_ili9340_par* par		= _info->par;
-
-	dev_dbg(dev, "%s: completed redraw work\n", __func__);
-	atomic_set(&par->lcdc_redraw_active, 0);
-	wake_up_all(&par->lcdc_redraw_wait);
+	lcdc_unlock(_par);
+	_lcdc_redraw_work_done(_dev, _par);
 }
 
 
@@ -651,9 +699,14 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-	lcdc_lock(par);
+	ret = lcdc_lock(par);
+	if (ret) {
+		dev_err(dev, "%s: cannot obtain LCD controller lock: %d\n", __func__, ret);
+		goto exit;
+	}
 	regval = lcdc_reg_read(dev, par, DA8XX_LCDCREG_REVID);
 	lcdc_unlock(par);
+
 	revid = REGDEF_GET_VALUE(DA8XX_LCDCREG_REVID__REV, regval);
 	if (revid != DA8XX_LCDCREG_REVID__REV__id) {
 		dev_err(dev, "%s: detected wrong LCD controller REVID %x, expected %x\n", __func__, (unsigned)revid, (unsigned)DA8XX_LCDCREG_REVID__REV__id);
@@ -780,7 +833,12 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 		lidd_dma_burst_size	= DA8XX_LCDCREG_DMA_CTRL__BURST_SIZE__16;
 
 	dev_dbg(dev, "%s: applying registers\n", __func__);
-	lcdc_lock(par);
+
+	ret = lcdc_lock(par);
+	if (ret) {
+		dev_err(dev, "%s: cannot obtain LCD controller lock: %d\n", __func__, ret);
+		goto exit;
+	}
 
 	regval = 0;
 	regval |= REGDEF_SET_VALUE(DA8XX_LCDCREG_LCD_CTRL__MODESEL,	DA8XX_LCDCREG_LCD_CTRL__MODESEL__lidd);
@@ -845,13 +903,18 @@ static int __devinit da8xx_ili9340_lidd_regs_init(struct platform_device* _pdevi
 
 static void __devinitexit da8xx_ili9340_lidd_regs_shutdown(struct platform_device* _pdevice)
 {
+	int ret					= -EINVAL;
 	struct device* dev			= &_pdevice->dev;
 	struct fb_info* info			= platform_get_drvdata(_pdevice);
 	struct da8xx_ili9340_par* par		= info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-	lcdc_lock(par);
+	ret = lcdc_lock(par);
+	if (ret) {
+		dev_err(dev, "%s: cannot obtain LCD controller lock: %d\n", __func__, ret);
+		goto exit;
+	}
 
 	lcdc_reg_change(dev, par, DA8XX_LCDCREG_LIDD_CTRL,
 			0
@@ -864,6 +927,14 @@ static void __devinitexit da8xx_ili9340_lidd_regs_shutdown(struct platform_devic
 	lcdc_unlock(par);
 
 	dev_dbg(dev, "%s: done\n", __func__);
+
+	return;
+
+
+ //exit_unlock:
+	lcdc_unlock(par);
+ exit:
+	return;
 }
 
 
@@ -935,15 +1006,16 @@ static int __devinit da8xx_ili9340_lcdc_init(struct platform_device* _pdevice, s
 		goto exit_put_lcdc_clk;
 	}
 
-	mutex_init(&par->lcdc_lock);
-	INIT_WORK(&par->lcdc_redraw_work, &lcdc_redraw_work);
-	init_waitqueue_head(&par->lcdc_redraw_wait);
-	atomic_set(&par->lcdc_redraw_active, 0);
+	sema_init(&par->lcdc_semaphore, 1);
+	INIT_DELAYED_WORK(&par->lcdc_redraw_work, &lcdc_redraw_work);
+	atomic_set(&par->lcdc_redraw_requested, 0);
+	atomic_set(&par->lcdc_redraw_ongoing, 0);
+	init_waitqueue_head(&par->lcdc_redraw_completion);
 
 	ret = da8xx_ili9340_lidd_regs_init(_pdevice, _pdata);
 	if (ret) {
 		dev_err(dev, "%s: cannot setup LCD controller LIDD registers: %d\n", __func__, ret);
-		goto exit_destroy_lcdc_lock;
+		goto exit_disable_lcdc_clk;
 	}
 
 	dev_dbg(dev, "%s: done\n", __func__);
@@ -953,9 +1025,7 @@ static int __devinit da8xx_ili9340_lcdc_init(struct platform_device* _pdevice, s
 
  //exit_shutdown_lidd_regs:
 	da8xx_ili9340_lidd_regs_shutdown(_pdevice);
- exit_destroy_lcdc_lock:
-	mutex_destroy(&par->lcdc_lock);
- //exit_disable_lcdc_clk:
+ exit_disable_lcdc_clk:
 	clk_disable(par->lcdc_clk);
  exit_put_lcdc_clk:
 	clk_put(par->lcdc_clk);
@@ -978,10 +1048,10 @@ static void __devinitexit da8xx_ili9340_lcdc_shutdown(struct platform_device* _p
 	dev_dbg(dev, "%s: called\n", __func__);
 
 	da8xx_ili9340_lidd_regs_shutdown(_pdevice);
-	cancel_work_sync(&par->lcdc_redraw_work);
-	BUG_ON(atomic_read(&par->lcdc_redraw_active));
-	BUG_ON(mutex_is_locked(&par->lcdc_lock));
-	mutex_destroy(&par->lcdc_lock);
+	cancel_delayed_work_sync(&par->lcdc_redraw_work);
+	BUG_ON(atomic_read(&par->lcdc_redraw_requested) != 0);
+	BUG_ON(atomic_read(&par->lcdc_redraw_ongoing) != 0);
+	BUG_ON(down_trylock(&par->lcdc_semaphore) != 0);
 	clk_disable(par->lcdc_clk);
 	clk_put(par->lcdc_clk);
 	free_irq(par->lcdc_irq, dev);
@@ -1009,11 +1079,20 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	par->cb_backlight_ctrl	= _pdata->cb_backlight_ctrl;
 	par->cb_power_ctrl	= _pdata->cb_power_ctrl;
 
-	lcdc_lock(par);
+#warning TODO magic const here
+	par->ili9340_t_reset_to_ready_ms	= 120;
+	par->ili9340_t_sleep_in_out_ms		= 120;
+
+	ret = lcdc_lock(par);
+	if (ret) {
+		dev_err(dev, "%s: cannot obtain LCD controller lock: %d\n", __func__, ret);
+		goto exit;
+	}
 
 	// Startup routine should be asyncronous for faster bootup
 #warning TODO make code below asynchronous
 	par->cb_power_ctrl(1);
+	msleep(par->ili9340_t_reset_to_ready_ms); // Reset/power on to registers access delay, ch13.3.1, pg216
 
 	// Checking display ID
 	display_write_cmd(dev, par, ILI9340_CMD_READID);
@@ -1030,8 +1109,7 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	disp_self_diag1	= display_read_data(dev, par);
 
 	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_OUT);
-	msleep(120);	// Sleep-in to Sleep-out is 120ms, ch11.2, 210
-#warning Maybe it might work to wait for 5ms and then loop for up to 120ms until reg value changes
+	msleep(par->ili9340_t_sleep_in_out_ms); // Sleep-out to self diagnostics delay, ch11.2, pg210
 
 	display_write_cmd(dev, par, ILI9340_CMD_READ_SELFDIAG);
 	/*ignore*/	display_read_data(dev, par);
@@ -1062,11 +1140,6 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__HIGHBYTE,	info->var.yres>>8));
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__LOWBYTE,	info->var.yres));
 
-
-
-#warning TODO setup display
-
-
 	switch (par->fb_visual_mode) {
 		case DA8XX_LCDC_VISUAL_565:	disp_dbi = 0x5;	disp_mdt = 0x0;	break;
 		case DA8XX_LCDC_VISUAL_888:	disp_dbi = 0x6;	disp_mdt = 0x0;	break;
@@ -1085,22 +1158,14 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	display_write_data(dev, par, 0);
 
 
-#warning TODO prepare for redraw command
 
-
-
-#warning TODO nasty case might arise here - we must unlock LCD to let redraw complete, but this might cause distortion if another thread gets access to LCD registers after redraw completion
-	lcdc_schedule_redraw_work(info);
-
-	lcdc_unlock(par);
-	lcdc_wait_redraw_work_completion(info);
-	lcdc_lock(par);
-
-	display_write_cmd(dev, par, ILI9340_CMD_DISPLAY_ON);
+#warning TODO setup display
 
 #warning Temporary enabling backlight this way
 	par->cb_backlight_ctrl(1);
-	lcdc_unlock(par);
+
+	lcdc_start_redraw_locked(dev, par);
+	// forget about lock from this point on
 
 	dev_dbg(dev, "%s: done\n", __func__);
 
@@ -1111,17 +1176,18 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	display_write_cmd(dev, par, ILI9340_CMD_DISPLAY_OFF);
  exit_sleep_in:
 	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_IN);
-	msleep(120); // Sleep-in to power off delay, ch12, pg211
+	msleep(par->ili9340_t_sleep_in_out_ms); // Sleep-in to power off delay, ch12, pg211
  //exit_power_off:
 	par->cb_power_ctrl(0);
  //exit_unlock:
 	lcdc_unlock(par);
- //exit:
+ exit:
 	return ret;
 }
 
 static void __devinitexit da8xx_ili9340_display_shutdown(struct platform_device* _pdevice)
 {
+	int ret					= -EINVAL;
 	struct device* dev			= &_pdevice->dev;
 	struct fb_info* info			= platform_get_drvdata(_pdevice);
 	struct da8xx_ili9340_par* par		= info->par;
@@ -1129,20 +1195,31 @@ static void __devinitexit da8xx_ili9340_display_shutdown(struct platform_device*
 	dev_dbg(dev, "%s: called\n", __func__);
 
 	// Shutdown routine may be synchronous since it must wait for real shutdown completion
-	lcdc_wait_redraw_work_completion(info);
-	lcdc_lock(par);
+	lcdc_wait_redraw_completion(dev, par);
+	ret = lcdc_lock(par);
+	if (ret) {
+		dev_err(dev, "%s: cannot obtain LCD controller lock: %d\n", __func__, ret);
+		goto exit;
+	}
 
 #warning Temporary enabling backlight this way
 	par->cb_backlight_ctrl(0);
 
 	display_write_cmd(dev, par, ILI9340_CMD_DISPLAY_OFF);
 	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_IN);
-	msleep(120); // Sleep-in to power off delay, ch12, pg211
+	msleep(par->ili9340_t_sleep_in_out_ms); // Sleep-in to power off delay, ch12, pg211
 
 	par->cb_power_ctrl(0);
 	lcdc_unlock(par);
 
 	dev_dbg(dev, "%s: done\n", __func__);
+
+	return;
+
+ //exit_unlock:
+	lcdc_unlock(par);
+ exit:
+	return;
 }
 
 
@@ -1192,9 +1269,6 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 	}
 
 
-#warning TODO allow user access
-
-
 	ret = register_framebuffer(info);
 	if (ret) {
 		dev_err(dev, "%s: cannot register framebuffer: %d\n", __func__, ret);
@@ -1229,11 +1303,6 @@ static int __devexit da8xx_ili9340_remove(struct platform_device* _pdevice)
 
 	unregister_framebuffer(info);
 
-
-#warning TODO block user access
-#warning TODO ensure there is no pending user actions
-
-
 	da8xx_ili9340_display_shutdown(_pdevice);
 	da8xx_ili9340_lcdc_shutdown(_pdevice);
 	da8xx_ili9340_fb_shutdown(_pdevice);
@@ -1259,7 +1328,7 @@ static struct platform_driver da8xx_ili9340_driver = {
 
 static int __init da8xx_ili9340_init_module(void)
 {
-	int ret = -EINVAL;
+	int ret		= -EINVAL;
 
 	ret = platform_driver_register(&da8xx_ili9340_driver);
 
@@ -1292,3 +1361,6 @@ module_exit(da8xx_ili9340_exit_module);
 
 MODULE_LICENSE("GPL");
 
+#warning TODO backlight, brightness, idle mode control, maybe gamma or something
+#warning TODO flip horizontal or vertical
+#warning TODO replace clk_get/clk_enable with devm_clk_get/clk_prepare_enable
