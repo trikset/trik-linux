@@ -547,7 +547,7 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 	if (par->fb_dma_phsize != info->screen_size)
 		dev_warn(dev, "%s: whole framebuffer is not alignment on LCD controller DMA boundary\n", __func__);
 
-	info->screen_base	= dma_alloc_coherent(dev, par->fb_dma_phsize, &par->fb_dma_phaddr, GFP_KERNEL | GFP_DMA);
+	info->screen_base	= dma_alloc_coherent(NULL, par->fb_dma_phsize, &par->fb_dma_phaddr, GFP_KERNEL);
 	if (info->screen_base == NULL) {
 		dev_err(dev, "%s: cannot allocate EDMA screen buffer\n", __func__);
 		ret = -ENOMEM;
