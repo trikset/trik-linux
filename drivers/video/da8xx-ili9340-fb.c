@@ -17,6 +17,7 @@
 #include <linux/da8xx-ili9340-fb.h>
 
 #define DRIVER_NAME "da8xx_lcdc_ili9340"
+#define NICE_NAME "DA8xx ILI9340 LCD controller"
 
 #define __devinitexit
 
@@ -991,7 +992,7 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	disp_mfc	= display_read_data(dev, par);
 	disp_ver	= display_read_data(dev, par);
 	disp_id		= display_read_data(dev, par);
-	pr_info(DRIVER_NAME ": detected display: manufacturer 0x%x, version 0x%x, id 0x%x\n",
+	pr_info(NICE_NAME ": detected display: manufacturer 0x%x, version 0x%x, id 0x%x\n",
 			(unsigned)disp_mfc, (unsigned)disp_ver, (unsigned)disp_id);
 
 	// Sleep-out
