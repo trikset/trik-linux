@@ -343,6 +343,9 @@ static ssize_t	fbops_write(struct fb_info* _info, const char __user* _buf, size_
 
 	dev_dbg(dev, "%s: called\n", __func__);
 	ret = fb_sys_write(_info, _buf, _count, _ppos);
+	if (ret < 0)
+		return ret;
+
 	lcdc_schedule_redraw_work(_info);
 	dev_dbg(dev, "%s: done\n", __func__);
 
@@ -351,10 +354,15 @@ static ssize_t	fbops_write(struct fb_info* _info, const char __user* _buf, size_
 
 static int fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info)
 {
-	struct device* dev		= _info->device;
+	struct device* dev	= _info->device;
 
 	dev_dbg(dev, "%s: called\n", __func__);
-#warning TODO pan ?
+	if (   _info->fix.ypanstep == 0
+	    || _var->yoffset % _info->fix.ypanstep != 0
+	    || _var->yoffset+_info->var.yres > _info->var.yres_virtual)
+		return -EINVAL;
+
+	_info->var.yoffset = _var->yoffset;
 	lcdc_schedule_redraw_work(_info);
 	dev_dbg(dev, "%s: done\n", __func__);
 
