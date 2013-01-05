@@ -9,6 +9,7 @@
 #include <linux/ioport.h>
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
+#include <linux/wait.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -156,7 +157,7 @@
 
 
 static void	lcdc_schedule_redraw_work(struct fb_info* _info);
-static void	lcdc_wait_redraw_work_completion(struct fb_info* _info);
+static int	lcdc_wait_redraw_work_completion(struct fb_info* _info);
 static void	lcdc_redraw_work(struct work_struct* _work);
 static void	lcdc_redraw_work_done(struct fb_info* _info);
 static void 		lcdc_edma_start(struct device* _dev);
@@ -190,6 +191,8 @@ struct da8xx_ili9340_par {
 	struct clk*			lcdc_clk;
 
 	struct work_struct		lcdc_redraw_work;
+	atomic_t			lcdc_redraw_active;
+	wait_queue_head_t		lcdc_redraw_wait;
 
 	loff_t		lidd_reg_cs_conf;
 	loff_t		lidd_reg_cs_addr;
@@ -351,12 +354,13 @@ static int fbops_blank(int _blank, struct fb_info* _info)
 
 static int fbops_sync(struct fb_info* _info)
 {
+	int ret;
 	struct device* dev		= _info->device;
 
 	dev_dbg(dev, "%s: called\n", __func__);
-	lcdc_wait_redraw_work_completion(_info);
+	ret = lcdc_wait_redraw_work_completion(_info);
 	dev_dbg(dev, "%s: done\n", __func__);
-	return 0;
+	return ret;
 }
 
 
@@ -409,7 +413,7 @@ static irqreturn_t lcdc_edma_done(int _irq, void* _dev)
 	struct fb_info* info		= dev_get_drvdata(dev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	lcdc_reg_change(dev, par, DA8XX_LCDCREG_LCD_STAT, 0x0, 0x0); //Write STAT register back
+	lcdc_reg_change(dev, par, DA8XX_LCDCREG_LCD_STAT, 0x0, 0x0); //Write STAT register back - reset interrupt flag
 	display_write_cmd(dev, par, ILI9340_CMD_NOP);
 
 	lcdc_unlock(par);
@@ -424,20 +428,22 @@ static void lcdc_schedule_redraw_work(struct fb_info* _info)
 	struct da8xx_ili9340_par* par		= _info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
+	atomic_inc(&par->lcdc_redraw_active);
 	schedule_work(&par->lcdc_redraw_work);
 	dev_dbg(dev, "%s: done\n", __func__);
 }
 
-static void lcdc_wait_redraw_work_completion(struct fb_info* _info)
+static int lcdc_wait_redraw_work_completion(struct fb_info* _info)
 {
+	int ret;
 	struct device* dev			= _info->device;
 	struct da8xx_ili9340_par* par		= _info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
-
-#warning TODO wait for redraw work done
-
+	ret = wait_event_interruptible(par->lcdc_redraw_wait, (!atomic_read(&par->lcdc_redraw_active)));
 	dev_dbg(dev, "%s: done\n", __func__);
+
+	return ret;
 }
 
 
@@ -459,9 +465,8 @@ static void lcdc_redraw_work_done(struct fb_info* _info)
 	struct da8xx_ili9340_par* par		= _info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
-
-#warning TODO notify work done
-
+	atomic_set(&par->lcdc_redraw_active, 0);
+	wake_up_all(&par->lcdc_redraw_wait);
 	dev_dbg(dev, "%s: done\n", __func__);
 }
 
@@ -904,6 +909,8 @@ static int __devinit da8xx_ili9340_lcdc_init(struct platform_device* _pdevice, s
 
 	mutex_init(&par->lcdc_lock);
 	INIT_WORK(&par->lcdc_redraw_work, &lcdc_redraw_work);
+	init_waitqueue_head(&par->lcdc_redraw_wait);
+	atomic_set(&par->lcdc_redraw_active, 0);
 
 	ret = da8xx_ili9340_lidd_regs_init(_pdevice, _pdata);
 	if (ret) {
@@ -942,8 +949,10 @@ static void __devinitexit da8xx_ili9340_lcdc_shutdown(struct platform_device* _p
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-#warning Think here about locking?..
 	da8xx_ili9340_lidd_regs_shutdown(_pdevice);
+	cancel_work_sync(&par->lcdc_redraw_work);
+	BUG_ON(atomic_read(&par->lcdc_redraw_active));
+	BUG_ON(mutex_is_locked(&par->lcdc_lock));
 	mutex_destroy(&par->lcdc_lock);
 	clk_disable(par->lcdc_clk);
 	clk_put(par->lcdc_clk);
@@ -970,6 +979,8 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 
 	par->cb_backlight_ctrl	= _pdata->cb_backlight_ctrl;
 	par->cb_power_ctrl	= _pdata->cb_power_ctrl;
+
+	lcdc_lock(par);
 
 	// Startup routine should be asyncronous for faster bootup
 #warning TODO make code below asynchronous
@@ -1012,13 +1023,22 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 #warning TODO setup display
 
 
+#warning TODO setup visual mode and prepare for redraw command
+
+
+
+#warning TODO nasty case might arise here - we must unlock LCD to let redraw complete, but this might cause distortion if another thread gets access to LCD registers after redraw completion
 	lcdc_schedule_redraw_work(info);
+
+	lcdc_unlock(par);
 	lcdc_wait_redraw_work_completion(info);
+	lcdc_lock(par);
 
 	display_write_cmd(dev, par, ILI9340_CMD_DISPLAY_ON);
 
 #warning Temporary enabling backlight this way
 	par->cb_backlight_ctrl(1);
+	lcdc_unlock(par);
 
 	dev_dbg(dev, "%s: done\n", __func__);
 
@@ -1032,6 +1052,8 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	msleep(120); // Sleep-in to power off delay, ch12, pg211
  //exit_power_off:
 	par->cb_power_ctrl(0);
+ //exit_unlock:
+	lcdc_unlock(par);
  //exit:
 	return ret;
 }
@@ -1046,6 +1068,7 @@ static void __devinitexit da8xx_ili9340_display_shutdown(struct platform_device*
 
 	// Shutdown routine may be synchronous since it must wait for real shutdown completion
 	lcdc_wait_redraw_work_completion(info);
+	lcdc_lock(par);
 
 #warning Temporary enabling backlight this way
 	par->cb_backlight_ctrl(0);
@@ -1055,67 +1078,10 @@ static void __devinitexit da8xx_ili9340_display_shutdown(struct platform_device*
 	msleep(120); // Sleep-in to power off delay, ch12, pg211
 
 	par->cb_power_ctrl(0);
+	lcdc_unlock(par);
 
 	dev_dbg(dev, "%s: done\n", __func__);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
