@@ -1680,7 +1680,7 @@ module_exit(da8xx_ili9340_exit_module);
 
 MODULE_LICENSE("GPL");
 
-#warning TODO adaptive brightness, gamma
+#warning TODO adaptive brightness
 #warning TODO flip horizontal or vertical
 #warning TODO fb_logo
 #warning TODO measure performance
