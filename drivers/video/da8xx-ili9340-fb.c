@@ -18,7 +18,7 @@
 #include <linux/da8xx-ili9340-fb.h>
 
 #define DRIVER_NAME "da8xx_lcdc_ili9340"
-#define NICE_NAME "DA8xx ILI9340 LCD controller"
+#define NICE_NAME "DA8xx ILI9340"
 
 #define __devinitexit
 
@@ -210,7 +210,7 @@ struct da8xx_ili9340_par {
 };
 
 static const struct fb_fix_screeninfo da8xx_ili9340_fix_init __devinitconst = {
-	.id		= "DA8xx ILI9340",
+	.id		= NICE_NAME,
 	//.smem_start, .smem_len
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.type_aux	= 0,
