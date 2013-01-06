@@ -1275,20 +1275,19 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	par->cb_power_ctrl	= _pdata->cb_power_ctrl;
 	par->cb_backlight_ctrl = _pdata->cb_backlight_ctrl;
 
-#warning TODO magic const here
-	par->ili9340_t_reset_to_ready_ms	= 120;
-	par->ili9340_t_sleep_in_out_ms		= 120;
-
 	INIT_DELAYED_WORK(&par->display_redraw_work, &display_redraw_work);
 	atomic_set(&par->display_redraw_requested,	0);
 	atomic_set(&par->display_redraw_ongoing,	0);
 	init_waitqueue_head(&par->display_redraw_completion);
 
 	atomic_set(&par->display_on,		1);
-	atomic_set(&par->display_idle,		0);
-	atomic_set(&par->display_backlight,	1);
-	atomic_set(&par->display_brightness,	0xff);
-	atomic_set(&par->display_inversion,	0);
+	atomic_set(&par->display_idle,		_pdata->display_idle);
+	atomic_set(&par->display_backlight,	_pdata->display_backlight);
+	atomic_set(&par->display_brightness,	_pdata->display_brightness);
+	atomic_set(&par->display_inversion,	_pdata->display_inversion);
+
+	par->ili9340_t_reset_to_ready_ms	= _pdata->display_t_reset_to_ready_ms;
+	par->ili9340_t_sleep_in_out_ms		= _pdata->display_t_sleep_in_out_ms;
 
 	ret = lcdc_lock(par);
 	if (ret) {

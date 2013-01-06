@@ -1011,6 +1011,14 @@ static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
 	.lcdc_t_wstrobe_ns	= 33,	// Twrl=33, Tcs=15
 	.lcdc_t_wsu_ns		= 0,	// Tast=0, no CS->WR_low timeout
 
+	.display_t_reset_to_ready_ms	= 120,
+	.display_t_sleep_in_out_ms	= 120,
+
+	.display_idle			= false,
+	.display_backlight		= true,
+	.display_brightness		= 0x100,
+	.display_inversion		= false,
+
 	.cb_power_ctrl		= &da850trik_lcd_power_ctrl,
 	.cb_backlight_ctrl	= &da850trik_lcd_backlight_ctrl,
 
