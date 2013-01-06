@@ -9,6 +9,7 @@
 #include <linux/wait.h>
 #include <linux/semaphore.h>
 #include <linux/delay.h>
+#include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/da8xx-ili9340-fb.h>
@@ -279,10 +280,12 @@ static void		lcdc_redraw_work_done(struct device* _dev, struct da8xx_ili9340_par
 static void		backlight_ctrl(struct device* _dev, struct da8xx_ili9340_par* _par, bool _backlight);
 static ssize_t		sysfs_backlight_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 static ssize_t		sysfs_backlight_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
+static ssize_t		sysfs_perf_count_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 
 
 static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(backlight,	S_IRUGO|S_IWUSR,	&sysfs_backlight_show,		&sysfs_backlight_store),
+	__ATTR(perf_count,	S_IWUSR,		&sysfs_perf_count_show,		NULL),
 };
 
 
@@ -622,6 +625,37 @@ static ssize_t sysfs_backlight_store(struct device* _fbdev, struct device_attrib
 	lcdc_unlock(par);
 
 	return ret;
+}
+
+static ssize_t sysfs_perf_count_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf)
+{
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct device* dev		= info->device;
+	struct da8xx_ili9340_par* par	= info->par;
+
+	unsigned retry;
+	struct timespec started_at;
+	struct timespec spent_time;
+	unsigned long ns_per_redraw;
+
+	started_at	= CURRENT_TIME;
+	for (retry = 0; retry < 10000; ++retry) {
+		int ret;
+		lcdc_schedule_redraw(dev, par);
+		ret = lcdc_wait_redraw_completion(dev, par);
+		if (ret)
+			return ret;
+	}
+	spent_time	= timespec_sub(CURRENT_TIME, started_at);
+	ns_per_redraw	=  spent_time.tv_nsec / retry; // calculate this way to avoid overflow
+	ns_per_redraw	+= spent_time.tv_sec * (NSEC_PER_SEC / retry);
+
+	return snprintf(_buf, PAGE_SIZE,
+			"It took %lu.%09lu for %u redraws\n"
+			"Single redraw takes %luns in average\n"
+			"Maximum possible FPS is %u\n",
+			(unsigned long)spent_time.tv_sec, (unsigned long)spent_time.tv_nsec,
+			ns_per_redraw, (unsigned long)(NSEC_PER_SEC/ns_per_redraw));
 }
 
 
