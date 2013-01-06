@@ -55,6 +55,14 @@ struct da8xx_ili9340_pdata {
 	unsigned long					lcdc_t_wstrobe_ns;
 	unsigned long					lcdc_t_wsu_ns;
 
+	unsigned long					display_t_reset_to_ready_ms;
+	unsigned long					display_t_sleep_in_out_ms;
+
+	bool						display_idle;
+	bool						display_backlight;
+	unsigned					display_brightness;
+	bool						display_inversion;
+
 	void	(*cb_power_ctrl)(bool _power_up);
 	void	(*cb_backlight_ctrl)(bool _backlight);
 };
