@@ -143,6 +143,7 @@
 #define ILI9340_CMD_IDLE_ON			0x39
 #define ILI9340_CMD_PIXEL_FORMAT		0x3a
 #define ILI9340_CMD_BRIGHTNESS			0x51
+#define ILI9340_CMD_DISPLAY_CTRL		0x53
 #define ILI9340_CMD_IFACE_CTRL			0xf6
 
 
@@ -153,6 +154,8 @@
 #define ILI9340_CMD_ROW_ADDR__LOWBYTE		0, (8)
 #define ILI9340_CMD_ROW_ADDR__HIGHBYTE		0, (8)
 #define ILI9340_CMD_PIXEL_FORMAT__DBI		0, (3)
+#define ILI9340_CMD_DISPLAY_CTRL__BCTRL		5, (1)
+#define ILI9340_CMD_DISPLAY_CTRL__DD		3, (1)
 #define ILI9340_CMD_IFACE_CTRL__WEMODE		0, (1)
 #define ILI9340_CMD_IFACE_CTRL__MDT		0, (2)
 #define ILI9340_CMD_IFACE_CTRL__EPF		4, (2)
@@ -529,16 +532,24 @@ static void display_visibility_update(struct device* _dev, struct da8xx_ili9340_
 		if (_par->cb_backlight_ctrl)
 			_par->cb_backlight_ctrl(false);
 	} else {
+		bool idle;
 		unsigned brightness;
 		unsigned gamma;
 
 		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_ON);
 
-		display_write_cmd(_dev, _par, atomic_read(&_par->display_idle)?ILI9340_CMD_IDLE_ON:ILI9340_CMD_IDLE_OFF);
+		idle = atomic_read(&_par->display_idle);
+		display_write_cmd(_dev, _par, idle?ILI9340_CMD_IDLE_ON:ILI9340_CMD_IDLE_OFF);
 
 		brightness = atomic_read(&_par->display_brightness);
 		display_write_cmd(_dev, _par, ILI9340_CMD_BRIGHTNESS);
 		display_write_data(_dev, _par, min(brightness, ILI9340_DISPLAY_MAX_BRIGHTNESS));
+
+		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_CTRL);
+		display_write_data(_dev, _par,
+				0
+				| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__BCTRL, 1)
+				| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__DD, idle?1:0));
 
 		display_write_cmd(_dev, _par, atomic_read(&_par->display_inversion)?ILI9340_CMD_INVERSION_ON:ILI9340_CMD_INVERSION_OFF);
 
@@ -1415,7 +1426,6 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	display_write_data(dev, par, 0);
 
 
-#warning TODO Write CTRL Display: BCTRL
 
 #warning TODO setup display
 
