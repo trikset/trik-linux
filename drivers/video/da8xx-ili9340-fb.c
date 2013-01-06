@@ -4,7 +4,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fb.h>
-#include <linux/backlight.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/ioport.h>
@@ -205,8 +204,8 @@ struct da8xx_ili9340_par {
 
 	void		(*cb_power_ctrl)(bool _power_up);
 
-	struct backlight_device*	backlight_dev;
-	void		(*cb_backlight_ctrl)(unsigned _backlight);
+	bool				backlight_state;
+	void		(*cb_backlight_ctrl)(bool _backlight);
 };
 
 static const struct fb_fix_screeninfo da8xx_ili9340_fix_init __devinitconst = {
@@ -256,6 +255,7 @@ static struct fb_deferred_io da8xx_ili9340_defio = {
 static ssize_t	fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos);
 static int	fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info);
 static int	fbops_sync(struct fb_info* _info);
+static int	fbops_blank(int _blank, struct fb_info* _info);
 
 static struct fb_ops da8xx_ili9340_fbops = {
 	.owner		= THIS_MODULE,
@@ -265,17 +265,8 @@ static struct fb_ops da8xx_ili9340_fbops = {
 	.fb_copyarea	= &sys_copyarea,
 	.fb_imageblit	= &sys_imageblit,
 	.fb_pan_display	= &fbops_pan_display,
+	.fb_blank	= &fbops_blank,
 	.fb_sync	= &fbops_sync,
-};
-
-static int	blops_update_status(struct backlight_device* _bldev);
-static int	blops_get_brightness(struct backlight_device* _bldev);
-static int	blops_check_fb(struct backlight_device* _bldev, struct fb_info* _info);
-
-static struct backlight_ops da8xx_ili9340_blops = {
-	.update_status	= &blops_update_status,
-	.get_brightness	= &blops_get_brightness,
-	.check_fb	= &blops_check_fb,
 };
 
 static void		lcdc_schedule_redraw(struct device* _dev, struct da8xx_ili9340_par* _par);
@@ -288,10 +279,12 @@ static irqreturn_t	lcdc_edma_done(int _irq, void* _dev);
 static void		lcdc_redraw_work_done(struct device* _dev, struct da8xx_ili9340_par* _par);
 
 
+static void		backlight_ctrl(struct device* _dev, struct da8xx_ili9340_par* _par, bool _backlight);
 
 
-
-
+static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
+	__ATTR(backlight,	S_IRUGO|S_IWUSR,	&sysfs_backlight_show,		&sysfs_backlight_store),
+};
 
 
 
@@ -407,6 +400,34 @@ static int fbops_sync(struct fb_info* _info)
 	return ret;
 }
 
+static int fbops_blank(int _blank, struct fb_info* _info)
+{
+	int ret = -EINVAL;
+	struct device* dev		= _info->device;
+	struct da8xx_ili9340_par* par	= _info->par;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+	ret = lcdc_lock(par);
+	if (ret)
+		return ret;
+
+	switch (_blank) {
+		case FB_BLANK_UNBLANK:
+			backlight_ctrl(dev, par, true);
+#warning TODO display on
+			break;
+		case FB_BLANK_POWERDOWN:
+			backlight_ctrl(dev, par, false);
+#warning TODO display off (and ensure that subsequent redraw wont turn it on
+			break;
+	}
+
+	lcdc_unlock(par);
+	dev_dbg(dev, "%s: done\n", __func__);
+
+	return ret;
+}
+
 
 
 
@@ -416,34 +437,6 @@ static void defio_redraw(struct fb_info* _info, struct list_head* _pagelist)
 	struct da8xx_ili9340_par* par	= _info->par;
 
 	lcdc_schedule_redraw(dev, par);
-}
-
-
-
-
-static int blops_update_status(struct backlight_device* _bldev)
-{
-	struct da8xx_ili9340_par* par	= bl_get_data(_bldev);
-
-	if (_bldev->props.power != FB_BLANK_UNBLANK ||
-	    _bldev->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
-		par->cb_backlight_ctrl(0);
-	else
-		par->cb_backlight_ctrl(_bldev->props.brightness);
-
-	return 0;
-}
-
-static int blops_get_brightness(struct backlight_device* _bldev)
-{
-	return _bldev->props.brightness;
-}
-
-static int blops_check_fb(struct backlight_device* _bldev, struct fb_info* _info)
-{
-	struct da8xx_ili9340_par* par	= bl_get_data(_bldev);
-
-	return par->fb_info == _info;
 }
 
 
@@ -572,6 +565,21 @@ static void lcdc_redraw_work_done(struct device* _dev, struct da8xx_ili9340_par*
 
 	lcdc_unlock(_par);
 	_lcdc_redraw_work_done(_dev, _par);
+}
+
+
+
+
+static void backlight_ctrl(struct device* _dev, struct da8xx_ili9340_par* _par, bool _backlight)
+{
+	dev_dbg(_dev, "%s: called\n", __func__);
+	lcdc_assert_locked(_par);
+
+	_par->backlight_state = _backlight;
+	if (_par->cb_backlight_ctrl)
+		_par->cb_backlight_ctrl(_par->backlight_state);
+
+	dev_dbg(_dev, "%s: done\n", __func__);
 }
 
 
@@ -1100,50 +1108,59 @@ static int __devinit da8xx_ili9340_backlight_init(struct platform_device* _pdevi
 	struct device* dev			= &_pdevice->dev;
 	struct fb_info* info			= platform_get_drvdata(_pdevice);
 	struct da8xx_ili9340_par* par		= info->par;
-	struct backlight_properties props;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-	par->cb_backlight_ctrl = _pdata->cb_backlight_ctrl;
-
-	memset(&props, 0, sizeof(props));
-	props.type = BACKLIGHT_RAW;
-	props.max_brightness = FB_BACKLIGHT_MAX;
-	par->backlight_dev = backlight_device_register(dev_name(dev), dev, par, &da8xx_ili9340_blops, &props);
-	if (IS_ERR(par->backlight_dev)) {
-		dev_err(dev, "%s: cannot register backlight device: %ld\n", __func__, PTR_ERR(par->backlight_dev));
-		ret = -ENODEV;
+	ret = lcdc_lock(par);
+	if (ret) {
+		dev_err(dev, "%s: cannot obtain LCD controller lock: %d\n", __func__, ret);
 		goto exit;
 	}
 
-	fb_bl_default_curve(info, _pdata->backlight_off, _pdata->backlight_min, _pdata->backlight_max);
+	par->cb_backlight_ctrl = _pdata->cb_backlight_ctrl;
+	backlight_ctrl(dev, par, true);
 
-	backlight_update_status(par->backlight_dev);
-
+	lcdc_unlock(par);
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return 0;
 
 
- //exit_backlight_unregister:
-	backlight_device_unregister(par->backlight_dev);
+ //exit_backlight_off:
+	backlight_ctrl(dev, par, false);
+ //exit_locked:
+        lcdc_unlock(par);
  exit:
 	return ret;
 }
 
 static void __devinitexit da8xx_ili9340_backlight_shutdown(struct platform_device* _pdevice)
 {
+	int ret;
 	struct device* dev			= &_pdevice->dev;
 	struct fb_info* info			= platform_get_drvdata(_pdevice);
 	struct da8xx_ili9340_par* par		= info->par;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-#warning TODO turn off backlight?
-	backlight_update_status(par->backlight_dev);
-	backlight_device_unregister(par->backlight_dev);
+	ret = lcdc_lock(par);
+	if (ret) {
+		dev_err(dev, "%s: cannot obtain LCD controller lock: %d\n", __func__, ret);
+		goto exit;
+	}
+
+	backlight_ctrl(dev, par, false);
+	lcdc_unlock(par);
 
 	dev_dbg(dev, "%s: done\n", __func__);
+
+	return;
+
+
+ //exit_unlock:
+	lcdc_unlock(par);
+ exit:
+	return;
 }
 
 
@@ -1304,6 +1321,53 @@ static void __devinitexit da8xx_ili9340_display_shutdown(struct platform_device*
 
 
 
+static int __devinit da8xx_ili9340_sysfs_register(struct platform_device* _pdevice, struct da8xx_ili9340_pdata* _pdata)
+{
+	int ret					= -EINVAL;
+	struct device* dev			= &_pdevice->dev;
+	struct fb_info* info			= platform_get_drvdata(_pdevice);
+	int sysfs_entry = 0; // not unsigned to allow simplier unrolling
+
+	dev_dbg(dev, "%s: called\n", __func__);
+
+	for (sysfs_entry = 0; sysfs_entry < ARRAY_SIZE(da8xx_ili9340_sysfs_attrs); ++sysfs_entry) {
+		ret = device_create_file(info->dev, &da8xx_ili9340_sysfs_attrs[sysfs_entry]);
+		if (ret) {
+			dev_err(dev, "%s: cannot register sysfs entry %s: %d\n",
+				__func__, da8xx_ili9340_sysfs_attrs[sysfs_entry].attr.name, ret);
+			goto exit_remove_file;
+		}
+	}
+
+	dev_dbg(dev, "%s: done\n", __func__);
+
+	return 0;
+
+
+ exit_remove_file:
+	while (--sysfs_entry >= 0)
+		device_remove_file(info->dev, &da8xx_ili9340_sysfs_attrs[sysfs_entry]);
+ //exit:
+	return ret;
+}
+
+static void __devinitexit da8xx_ili9340_sysfs_unregister(struct platform_device* _pdevice)
+{
+	struct device* dev			= &_pdevice->dev;
+	struct fb_info* info			= platform_get_drvdata(_pdevice);
+	int sysfs_entry = 0; // not unsigned to allow simplier unrolling
+
+	dev_dbg(dev, "%s: called\n", __func__);
+
+	for (sysfs_entry = ARRAY_SIZE(da8xx_ili9340_sysfs_attrs)-1; sysfs_entry >= 0; --sysfs_entry)
+		device_remove_file(info->dev, &da8xx_ili9340_sysfs_attrs[sysfs_entry]);
+
+	dev_dbg(dev, "%s: done\n", __func__);
+}
+
+
+
+
 static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 {
 	int ret				= -EINVAL;
@@ -1360,12 +1424,22 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 		goto exit_display_shutdown;
 	}
 
+
+	ret = da8xx_ili9340_sysfs_register(_pdevice, pdata);
+	if (ret) {
+		dev_err(dev, "%s: cannot register sysfs entries: %d\n", __func__, ret);
+		goto exit_unregister_framebuffer;
+	}
+
+
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return 0;
 
 
- //exit_unregister_framebuffer:
+ //exit_unregister_sysfs:
+	da8xx_ili9340_sysfs_unregister(_pdevice);
+ exit_unregister_framebuffer:
 	unregister_framebuffer(info);
  exit_display_shutdown:
 	da8xx_ili9340_display_shutdown(_pdevice);
@@ -1387,6 +1461,8 @@ static int __devexit da8xx_ili9340_remove(struct platform_device* _pdevice)
 	struct fb_info* info	= platform_get_drvdata(_pdevice);
 
 	dev_dbg(dev, "%s: called\n", __func__);
+
+	da8xx_ili9340_sysfs_unregister(_pdevice);
 
 	unregister_framebuffer(info);
 
