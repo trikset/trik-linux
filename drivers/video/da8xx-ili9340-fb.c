@@ -131,14 +131,17 @@
 #define ILI9340_CMD_READ_SELFDIAG		0x0f
 #define ILI9340_CMD_SLEEP_IN			0x10
 #define ILI9340_CMD_SLEEP_OUT			0x11
+#define ILI9340_CMD_INVERSION_OFF		0x20
+#define ILI9340_CMD_INVERSION_ON		0x21
 #define ILI9340_CMD_DISPLAY_OFF			0x28
 #define ILI9340_CMD_DISPLAY_ON			0x29
 #define ILI9340_CMD_COLUMN_ADDR			0x2a
 #define ILI9340_CMD_ROW_ADDR			0x2b
 #define ILI9340_CMD_MEMORY_WRITE		0x2c
-#define ILI9340_CMD_DISPLAY_NOIDLE		0x38
-#define ILI9340_CMD_DISPLAY_IDLE		0x39
+#define ILI9340_CMD_IDLE_OFF			0x38
+#define ILI9340_CMD_IDLE_ON			0x39
 #define ILI9340_CMD_PIXEL_FORMAT		0x3a
+#define ILI9340_CMD_BRIGHTNESS			0x51
 #define ILI9340_CMD_IFACE_CTRL			0xf6
 
 
@@ -201,6 +204,8 @@ struct da8xx_ili9340_par {
 	atomic_t			display_on;
 	atomic_t			display_idle;
 	atomic_t			display_backlight;
+	atomic_t			display_brightness;
+	atomic_t			display_inversion;
 
 	loff_t				lidd_reg_cs_conf;
 	loff_t				lidd_reg_cs_addr;
@@ -289,12 +294,18 @@ static ssize_t		sysfs_backlight_show(struct device* _fbdev, struct device_attrib
 static ssize_t		sysfs_backlight_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 static ssize_t		sysfs_idle_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 static ssize_t		sysfs_idle_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
+static ssize_t		sysfs_brightness_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
+static ssize_t		sysfs_brightness_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
+static ssize_t		sysfs_inversion_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
+static ssize_t		sysfs_inversion_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 static ssize_t		sysfs_perf_count_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 
 
 static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(backlight,	S_IRUGO|S_IWUSR,	&sysfs_backlight_show,		&sysfs_backlight_store),
 	__ATTR(idle,		S_IRUGO|S_IWUSR,	&sysfs_idle_show,		&sysfs_idle_store),
+	__ATTR(brightness,	S_IRUGO|S_IWUSR,	&sysfs_brightness_show,		&sysfs_brightness_store),
+	__ATTR(inversion,	S_IRUGO|S_IWUSR,	&sysfs_inversion_show,		&sysfs_inversion_store),
 	__ATTR(perf_count,	S_IWUSR,		&sysfs_perf_count_show,		NULL),
 };
 
@@ -509,8 +520,14 @@ static void display_visibility_update(struct device* _dev, struct da8xx_ili9340_
 		if (_par->cb_backlight_ctrl)
 			_par->cb_backlight_ctrl(false);
 	} else {
+		unsigned brightness;
+
 		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_ON);
-		display_write_cmd(_dev, _par, atomic_read(&_par->display_idle)==0?ILI9340_CMD_DISPLAY_NOIDLE:ILI9340_CMD_DISPLAY_IDLE);
+		display_write_cmd(_dev, _par, atomic_read(&_par->display_idle)==0?ILI9340_CMD_IDLE_OFF:ILI9340_CMD_IDLE_ON);
+		brightness = atomic_read(&_par->display_brightness);
+		display_write_cmd(_dev, _par, ILI9340_CMD_BRIGHTNESS);
+		display_write_data(_dev, _par, min(brightness, 0xff));
+		display_write_cmd(_dev, _par, atomic_read(&_par->display_inversion)==0?ILI9340_CMD_INVERSION_OFF:ILI9340_CMD_INVERSION_ON);
 		if (_par->cb_backlight_ctrl)
 			_par->cb_backlight_ctrl(atomic_read(&_par->display_backlight));
 	}
@@ -600,26 +617,22 @@ static ssize_t sysfs_backlight_show(struct device* _fbdev, struct device_attribu
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	if (atomic_read(&par->display_backlight) == 0)
-		strcpy(_buf, "off");
-	else
-		strcpy(_buf, "on");
-
-	return strlen(_buf);
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_backlight));
 }
 
 static ssize_t sysfs_backlight_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
 {
+	int ret;
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct device* dev		= info->device;
 	struct da8xx_ili9340_par* par	= info->par;
+	unsigned value;
 
-	if (_count >= 2 && !memcmp(_buf, "on", 2))
-		atomic_set(&par->display_backlight, 1);
-	else if (_count >= 3 && !memcmp(_buf, "off", 3))
-		atomic_set(&par->display_backlight, 0);
-	else
-		return -EINVAL;
+	ret = kstrtouint(_buf, 0, &value);
+	if (ret)
+		return ret;
+
+	atomic_set(&par->display_backlight, value);
 
 	display_schedule_redraw(dev, par);
 	return _count;
@@ -630,26 +643,74 @@ static ssize_t sysfs_idle_show(struct device* _fbdev, struct device_attribute* _
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	if (atomic_read(&par->display_idle) == 0)
-		strcpy(_buf, "off");
-	else
-		strcpy(_buf, "on");
-
-	return strlen(_buf);
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_idle));
 }
 
 static ssize_t sysfs_idle_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
 {
+	int ret;
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct device* dev		= info->device;
 	struct da8xx_ili9340_par* par	= info->par;
+	unsigned value;
 
-	if (_count >= 2 && !memcmp(_buf, "on", 2))
-		atomic_set(&par->display_idle, 1);
-	else if (_count >= 3 && !memcmp(_buf, "off", 3))
-		atomic_set(&par->display_idle, 0);
-	else
-		return -EINVAL;
+	ret = kstrtouint(_buf, 0, &value);
+	if (ret)
+		return ret;
+
+	atomic_set(&par->display_idle, value);
+
+	display_schedule_redraw(dev, par);
+	return _count;
+}
+
+static ssize_t sysfs_brightness_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf)
+{
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct da8xx_ili9340_par* par	= info->par;
+
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_brightness));
+}
+
+static ssize_t sysfs_brightness_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
+{
+	int ret;
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct device* dev		= info->device;
+	struct da8xx_ili9340_par* par	= info->par;
+	unsigned value;
+
+	ret = kstrtouint(_buf, 0, &value);
+	if (ret)
+		return ret;
+
+	atomic_set(&par->display_brightness, value);
+
+	display_schedule_redraw(dev, par);
+	return _count;
+}
+
+static ssize_t sysfs_inversion_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf)
+{
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct da8xx_ili9340_par* par	= info->par;
+
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_inversion));
+}
+
+static ssize_t sysfs_inversion_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
+{
+	int ret;
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct device* dev		= info->device;
+	struct da8xx_ili9340_par* par	= info->par;
+	unsigned value;
+
+	ret = kstrtouint(_buf, 0, &value);
+	if (ret)
+		return ret;
+
+	atomic_set(&par->display_inversion, value);
 
 	display_schedule_redraw(dev, par);
 	return _count;
@@ -1226,6 +1287,8 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	atomic_set(&par->display_on,		1);
 	atomic_set(&par->display_idle,		0);
 	atomic_set(&par->display_backlight,	1);
+	atomic_set(&par->display_brightness,	0xff);
+	atomic_set(&par->display_inversion,	0);
 
 	ret = lcdc_lock(par);
 	if (ret) {
@@ -1302,6 +1365,7 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	display_write_data(dev, par, 0);
 
 
+#warning TODO Write CTRL Display: BCTRL
 
 #warning TODO setup display
 
@@ -1566,7 +1630,7 @@ module_exit(da8xx_ili9340_exit_module);
 
 MODULE_LICENSE("GPL");
 
-#warning TODO brightness, adaptive brightness, inversion, gamma
+#warning TODO adaptive brightness, gamma
 #warning TODO flip horizontal or vertical
 #warning TODO fb_logo
 #warning TODO measure performance
