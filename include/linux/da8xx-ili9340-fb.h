@@ -62,6 +62,7 @@ struct da8xx_ili9340_pdata {
 	bool						display_backlight;
 	unsigned					display_brightness;
 	bool						display_inversion;
+	unsigned					display_gamma;
 
 	void	(*cb_power_ctrl)(bool _power_up);
 	void	(*cb_backlight_ctrl)(bool _backlight);
