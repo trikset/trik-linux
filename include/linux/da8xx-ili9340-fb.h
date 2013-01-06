@@ -32,6 +32,8 @@ enum da8xx_ili9340_pdata_lcdc_lidd_bus_polarity {
 struct da8xx_ili9340_pdata {
 	int	xres;
 	int	yres;
+	bool	xflip;
+	bool	yflip;
 	enum da8xx_ili9340_pdata_lcdc_visual_mode	visual_mode;
 
 	int	screen_height;

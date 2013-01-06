@@ -139,6 +139,7 @@
 #define ILI9340_CMD_COLUMN_ADDR			0x2a
 #define ILI9340_CMD_ROW_ADDR			0x2b
 #define ILI9340_CMD_MEMORY_WRITE		0x2c
+#define ILI9340_CMD_MEMORY_ACCESS_CTRL		0x36
 #define ILI9340_CMD_IDLE_OFF			0x38
 #define ILI9340_CMD_IDLE_ON			0x39
 #define ILI9340_CMD_PIXEL_FORMAT		0x3a
@@ -154,6 +155,8 @@
 #define ILI9340_CMD_ROW_ADDR__LOWBYTE		0, (8)
 #define ILI9340_CMD_ROW_ADDR__HIGHBYTE		0, (8)
 #define ILI9340_CMD_PIXEL_FORMAT__DBI		0, (3)
+#define ILI9340_CMD_MEMORY_ACCESS_CTRL__MX	6, (1)
+#define ILI9340_CMD_MEMORY_ACCESS_CTRL__MY	7, (1)
 #define ILI9340_CMD_DISPLAY_CTRL__BCTRL		5, (1)
 #define ILI9340_CMD_DISPLAY_CTRL__DD		3, (1)
 #define ILI9340_CMD_IFACE_CTRL__WEMODE		0, (1)
@@ -215,6 +218,7 @@ struct da8xx_ili9340_par {
 	atomic_t			display_brightness;
 	atomic_t			display_inversion;
 	atomic_t			display_gamma;
+	atomic_t			display_flip;
 
 	loff_t				lidd_reg_cs_conf;
 	loff_t				lidd_reg_cs_addr;
@@ -309,6 +313,8 @@ static ssize_t		sysfs_inversion_show(struct device* _fbdev, struct device_attrib
 static ssize_t		sysfs_inversion_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 static ssize_t		sysfs_gamma_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 static ssize_t		sysfs_gamma_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
+static ssize_t		sysfs_flip_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
+static ssize_t		sysfs_flip_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 static ssize_t		sysfs_perf_count_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 
 
@@ -318,6 +324,7 @@ static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(brightness,	S_IRUGO|S_IWUSR,	&sysfs_brightness_show,		&sysfs_brightness_store),
 	__ATTR(inversion,	S_IRUGO|S_IWUSR,	&sysfs_inversion_show,		&sysfs_inversion_store),
 	__ATTR(gamma,		S_IRUGO|S_IWUSR,	&sysfs_gamma_show,		&sysfs_gamma_store),
+	__ATTR(flip,		S_IRUGO|S_IWUSR,	&sysfs_flip_show,		&sysfs_flip_store),
 	__ATTR(perf_count,	S_IWUSR,		&sysfs_perf_count_show,		NULL),
 };
 
@@ -588,6 +595,7 @@ static void display_redraw_work(struct work_struct* _work)
 static void lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
 	struct fb_info* info		= dev_get_drvdata(_dev);
+	unsigned flip;
 	dma_addr_t phaddr_base;
 	dma_addr_t phaddr_ceil;
 
@@ -595,6 +603,13 @@ static void lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par)
 		dev_warn(_dev, "%s: xoffset != 0\n", __func__);
 	phaddr_base = _par->fb_dma_phaddr + info->var.yoffset*info->fix.line_length;
 	phaddr_ceil = phaddr_base + info->var.yres*info->fix.line_length - 1;
+
+	flip = atomic_read(&_par->display_flip);
+	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_ACCESS_CTRL);
+	display_write_data(_dev, _par,
+			0
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MX, (flip&0x01)?1:0)
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MY, (flip&0x02)?1:0));
 
 	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_WRITE);
 
@@ -772,6 +787,40 @@ static ssize_t sysfs_gamma_store(struct device* _fbdev, struct device_attribute*
 		return ret;
 
 	atomic_set(&par->display_gamma, min(value, ILI9340_DISPLAY_MAX_GAMMA));
+
+	display_schedule_redraw(dev, par);
+	return _count;
+}
+
+static ssize_t sysfs_flip_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf)
+{
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct da8xx_ili9340_par* par	= info->par;
+	unsigned flip = atomic_read(&par->display_flip);
+
+	return snprintf(_buf, PAGE_SIZE, "%s%s\n%s%s",
+			(flip&0x01)?"x":"", (flip&0x02)?"y":"",
+			(flip&0x01)?"Horizontal flip\n":"",
+			(flip&0x02)?"Vertical flip\n":"");
+}
+
+static ssize_t sysfs_flip_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
+{
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct device* dev		= info->device;
+	struct da8xx_ili9340_par* par	= info->par;
+	size_t idx = 0;
+	unsigned value = 0;
+
+	for (idx = 0; idx < _count; ++idx)
+		switch (_buf[idx]) {
+			case 'x':
+			case 'X':	value |= 0x01;	break;
+			case 'y':
+			case 'Y':	value |= 0x02;	break;
+		}
+
+	atomic_set(&par->display_flip, value);
 
 	display_schedule_redraw(dev, par);
 	return _count;
@@ -1347,6 +1396,7 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	atomic_set(&par->display_brightness,	min(_pdata->display_brightness, ILI9340_DISPLAY_MAX_BRIGHTNESS));
 	atomic_set(&par->display_inversion,	_pdata->display_inversion?1:0);
 	atomic_set(&par->display_gamma,		min(_pdata->display_gamma, ILI9340_DISPLAY_MAX_GAMMA));
+	atomic_set(&par->display_flip,		(_pdata->xflip?0x01:0x00)|(_pdata->yflip?0x02:0x00));
 
 	par->ili9340_t_reset_to_ready_ms	= _pdata->display_t_reset_to_ready_ms;
 	par->ili9340_t_sleep_in_out_ms		= _pdata->display_t_sleep_in_out_ms;
@@ -1691,6 +1741,5 @@ module_exit(da8xx_ili9340_exit_module);
 MODULE_LICENSE("GPL");
 
 #warning TODO adaptive brightness
-#warning TODO flip horizontal or vertical
 #warning TODO fb_logo
 #warning TODO measure performance
