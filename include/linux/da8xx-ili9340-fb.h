@@ -55,8 +55,12 @@ struct da8xx_ili9340_pdata {
 	unsigned long					lcdc_t_wstrobe_ns;
 	unsigned long					lcdc_t_wsu_ns;
 
-	void (*cb_backlight_ctrl)(bool _backlight);
-	void (*cb_power_ctrl)(bool _power_up);
+	void	(*cb_power_ctrl)(bool _power_up);
+
+	unsigned					backlight_off;
+	unsigned					backlight_min;
+	unsigned					backlight_max;
+	void	(*cb_backlight_ctrl)(unsigned _backlight);
 };
 
 
