@@ -2247,7 +2247,6 @@ config FB_DA8XX_ILI9340
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	select FB_DEFERRED_IO
-	select FB_BACKLIGHT
 	---help---
 	  This is the frame buffer device driver for the TI LCD controller
 	  operating with ILI9340-based LCD.
