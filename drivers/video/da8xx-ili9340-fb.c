@@ -325,7 +325,7 @@ static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(inversion,	S_IRUGO|S_IWUSR,	&sysfs_inversion_show,		&sysfs_inversion_store),
 	__ATTR(gamma,		S_IRUGO|S_IWUSR,	&sysfs_gamma_show,		&sysfs_gamma_store),
 	__ATTR(flip,		S_IRUGO|S_IWUSR,	&sysfs_flip_show,		&sysfs_flip_store),
-	__ATTR(perf_count,	S_IWUSR,		&sysfs_perf_count_show,		NULL),
+	__ATTR(perf_count,	S_IRUSR,		&sysfs_perf_count_show,		NULL),
 };
 
 
@@ -838,7 +838,7 @@ static ssize_t sysfs_perf_count_show(struct device* _fbdev, struct device_attrib
 	unsigned long ns_per_redraw;
 
 	started_at	= CURRENT_TIME;
-	for (retry = 0; retry < 10000; ++retry) {
+	for (retry = 0; retry < 1000; ++retry) {
 		int ret;
 		display_schedule_redraw(dev, par);
 		ret = display_wait_redraw_completion(dev, par);
