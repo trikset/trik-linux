@@ -4,6 +4,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fb.h>
+#include <linux/backlight.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/ioport.h>
@@ -202,8 +203,10 @@ struct da8xx_ili9340_par {
 	unsigned			ili9340_t_reset_to_ready_ms;
 	unsigned			ili9340_t_sleep_in_out_ms;
 
-	void		(*cb_backlight_ctrl)(bool _backlight);
 	void		(*cb_power_ctrl)(bool _power_up);
+
+	struct backlight_device*	backlight_dev;
+	void		(*cb_backlight_ctrl)(unsigned _backlight);
 };
 
 static const struct fb_fix_screeninfo da8xx_ili9340_fix_init __devinitconst = {
@@ -252,7 +255,6 @@ static struct fb_deferred_io da8xx_ili9340_defio = {
 
 static ssize_t	fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos);
 static int	fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info);
-static int	fbops_blank(int _blank, struct fb_info* _info);
 static int	fbops_sync(struct fb_info* _info);
 
 static struct fb_ops da8xx_ili9340_fbops = {
@@ -263,8 +265,17 @@ static struct fb_ops da8xx_ili9340_fbops = {
 	.fb_copyarea	= &sys_copyarea,
 	.fb_imageblit	= &sys_imageblit,
 	.fb_pan_display	= &fbops_pan_display,
-	.fb_blank	= &fbops_blank,
 	.fb_sync	= &fbops_sync,
+};
+
+static int	blops_update_status(struct backlight_device* _bldev);
+static int	blops_get_brightness(struct backlight_device* _bldev);
+static int	blops_check_fb(struct backlight_device* _bldev, struct fb_info* _info);
+
+static struct backlight_ops da8xx_ili9340_blops = {
+	.update_status	= &blops_update_status,
+	.get_brightness	= &blops_get_brightness,
+	.check_fb	= &blops_check_fb,
 };
 
 static void		lcdc_schedule_redraw(struct device* _dev, struct da8xx_ili9340_par* _par);
@@ -384,15 +395,6 @@ static int fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _in
 	return 0;
 }
 
-static int fbops_blank(int _blank, struct fb_info* _info)
-{
-	struct device* dev		= _info->device;
-	dev_dbg(dev, "%s: called\n", __func__);
-#warning TODO backlight control?
-	dev_dbg(dev, "%s: done\n", __func__);
-	return 0;
-}
-
 static int fbops_sync(struct fb_info* _info)
 {
 	int ret;
@@ -414,6 +416,34 @@ static void defio_redraw(struct fb_info* _info, struct list_head* _pagelist)
 	struct da8xx_ili9340_par* par	= _info->par;
 
 	lcdc_schedule_redraw(dev, par);
+}
+
+
+
+
+static int blops_update_status(struct backlight_device* _bldev)
+{
+	struct da8xx_ili9340_par* par	= bl_get_data(_bldev);
+
+	if (_bldev->props.power != FB_BLANK_UNBLANK ||
+	    _bldev->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
+		par->cb_backlight_ctrl(0);
+	else
+		par->cb_backlight_ctrl(_bldev->props.brightness);
+
+	return 0;
+}
+
+static int blops_get_brightness(struct backlight_device* _bldev)
+{
+	return _bldev->props.brightness;
+}
+
+static int blops_check_fb(struct backlight_device* _bldev, struct fb_info* _info)
+{
+	struct da8xx_ili9340_par* par	= bl_get_data(_bldev);
+
+	return par->fb_info == _info;
 }
 
 
@@ -1064,6 +1094,61 @@ static void __devinitexit da8xx_ili9340_lcdc_shutdown(struct platform_device* _p
 
 
 
+static int __devinit da8xx_ili9340_backlight_init(struct platform_device* _pdevice, struct da8xx_ili9340_pdata* _pdata)
+{
+	int ret					= -EINVAL;
+	struct device* dev			= &_pdevice->dev;
+	struct fb_info* info			= platform_get_drvdata(_pdevice);
+	struct da8xx_ili9340_par* par		= info->par;
+	struct backlight_properties props;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+
+	par->cb_backlight_ctrl = _pdata->cb_backlight_ctrl;
+
+	memset(&props, 0, sizeof(props));
+	props.type = BACKLIGHT_RAW;
+	props.max_brightness = FB_BACKLIGHT_MAX;
+	par->backlight_dev = backlight_device_register(dev_name(dev), dev, par, &da8xx_ili9340_blops, &props);
+	if (IS_ERR(par->backlight_dev)) {
+		dev_err(dev, "%s: cannot register backlight device: %ld\n", __func__, PTR_ERR(par->backlight_dev));
+		ret = -ENODEV;
+		goto exit;
+	}
+
+	fb_bl_default_curve(info, _pdata->backlight_off, _pdata->backlight_min, _pdata->backlight_max);
+
+	backlight_update_status(par->backlight_dev);
+
+	dev_dbg(dev, "%s: done\n", __func__);
+
+	return 0;
+
+
+ //exit_backlight_unregister:
+	backlight_device_unregister(par->backlight_dev);
+ exit:
+	return ret;
+}
+
+static void __devinitexit da8xx_ili9340_backlight_shutdown(struct platform_device* _pdevice)
+{
+	struct device* dev			= &_pdevice->dev;
+	struct fb_info* info			= platform_get_drvdata(_pdevice);
+	struct da8xx_ili9340_par* par		= info->par;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+
+#warning TODO turn off backlight?
+	backlight_update_status(par->backlight_dev);
+	backlight_device_unregister(par->backlight_dev);
+
+	dev_dbg(dev, "%s: done\n", __func__);
+}
+
+
+
+
 static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice, struct da8xx_ili9340_pdata* _pdata)
 {
 	int ret					= -EINVAL;
@@ -1076,7 +1161,6 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
-	par->cb_backlight_ctrl	= _pdata->cb_backlight_ctrl;
 	par->cb_power_ctrl	= _pdata->cb_power_ctrl;
 
 #warning TODO magic const here
@@ -1161,8 +1245,6 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 
 #warning TODO setup display
 
-#warning Temporary enabling backlight this way
-	par->cb_backlight_ctrl(1);
 
 	lcdc_start_redraw_locked(dev, par);
 	// forget about lock from this point on
@@ -1201,9 +1283,6 @@ static void __devinitexit da8xx_ili9340_display_shutdown(struct platform_device*
 		dev_err(dev, "%s: cannot obtain LCD controller lock: %d\n", __func__, ret);
 		goto exit;
 	}
-
-#warning Temporary enabling backlight this way
-	par->cb_backlight_ctrl(0);
 
 	display_write_cmd(dev, par, ILI9340_CMD_DISPLAY_OFF);
 	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_IN);
@@ -1262,10 +1341,16 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 		goto exit_fb_shutdown;
 	}
 
+	ret = da8xx_ili9340_backlight_init(_pdevice, pdata);
+	if (ret) {
+		dev_err(dev, "%s: cannot initialize backlight device: %d\n", __func__, ret);
+		goto exit_lcdc_shutdown;
+	}
+
 	ret = da8xx_ili9340_display_init(_pdevice, pdata);
 	if (ret) {
 		dev_err(dev, "%s: cannot initialize da8xx display data: %d\n", __func__, ret);
-		goto exit_lcdc_shutdown;
+		goto exit_backlight_shutdown;
 	}
 
 
@@ -1284,6 +1369,8 @@ static int __devinit da8xx_ili9340_probe(struct platform_device* _pdevice)
 	unregister_framebuffer(info);
  exit_display_shutdown:
 	da8xx_ili9340_display_shutdown(_pdevice);
+ exit_backlight_shutdown:
+	da8xx_ili9340_backlight_shutdown(_pdevice);
  exit_lcdc_shutdown:
 	da8xx_ili9340_lcdc_shutdown(_pdevice);
  exit_fb_shutdown:
@@ -1304,6 +1391,7 @@ static int __devexit da8xx_ili9340_remove(struct platform_device* _pdevice)
 	unregister_framebuffer(info);
 
 	da8xx_ili9340_display_shutdown(_pdevice);
+	da8xx_ili9340_backlight_shutdown(_pdevice);
 	da8xx_ili9340_lcdc_shutdown(_pdevice);
 	da8xx_ili9340_fb_shutdown(_pdevice);
 
@@ -1361,5 +1449,6 @@ module_exit(da8xx_ili9340_exit_module);
 
 MODULE_LICENSE("GPL");
 
-#warning TODO backlight, brightness, idle mode control, maybe gamma or something
+#warning TODO brightness, idle mode control, maybe gamma or something
 #warning TODO flip horizontal or vertical
+#warning TODO fb_logo, remove fbcon, reconfigure kernel

@@ -954,9 +954,9 @@ static const short da850trik_lcd_extra_pins[] __initconst = {
 	-1
 };
 
-static void da850trik_lcd_backlight_ctrl(bool _backlight)
+static void da850trik_lcd_backlight_ctrl(unsigned _backlight)
 {
-	gpio_set_value(GPIO_TO_PIN(6, 12), _backlight);
+	gpio_set_value(GPIO_TO_PIN(6, 12), _backlight?1:0);
 }
 
 static void da850trik_lcd_power_ctrl(bool _power_up)
@@ -1012,8 +1012,13 @@ static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
 	.lcdc_t_wstrobe_ns	= 33,	// Twrl=33, Tcs=15
 	.lcdc_t_wsu_ns		= 0,	// Tast=0, no CS->WR_low timeout
 
-	.cb_backlight_ctrl	= &da850trik_lcd_backlight_ctrl,
 	.cb_power_ctrl		= &da850trik_lcd_power_ctrl,
+
+	.backlight_off		= 0,
+	.backlight_min		= 1,
+	.backlight_max		= 1,
+	.cb_backlight_ctrl	= &da850trik_lcd_backlight_ctrl,
+
 };
 
 static struct platform_device da850trik_lcdc_device = {
