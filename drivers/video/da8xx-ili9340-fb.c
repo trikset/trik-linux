@@ -133,6 +133,7 @@
 #define ILI9340_CMD_SLEEP_OUT			0x11
 #define ILI9340_CMD_INVERSION_OFF		0x20
 #define ILI9340_CMD_INVERSION_ON		0x21
+#define ILI9340_CMD_GAMMA			0x26
 #define ILI9340_CMD_DISPLAY_OFF			0x28
 #define ILI9340_CMD_DISPLAY_ON			0x29
 #define ILI9340_CMD_COLUMN_ADDR			0x2a
@@ -156,6 +157,10 @@
 #define ILI9340_CMD_IFACE_CTRL__MDT		0, (2)
 #define ILI9340_CMD_IFACE_CTRL__EPF		4, (2)
 
+
+
+#define ILI9340_DISPLAY_MAX_BRIGHTNESS		0xff
+#define ILI9340_DISPLAY_MAX_GAMMA		3
 
 
 
@@ -206,6 +211,7 @@ struct da8xx_ili9340_par {
 	atomic_t			display_backlight;
 	atomic_t			display_brightness;
 	atomic_t			display_inversion;
+	atomic_t			display_gamma;
 
 	loff_t				lidd_reg_cs_conf;
 	loff_t				lidd_reg_cs_addr;
@@ -298,6 +304,8 @@ static ssize_t		sysfs_brightness_show(struct device* _fbdev, struct device_attri
 static ssize_t		sysfs_brightness_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 static ssize_t		sysfs_inversion_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 static ssize_t		sysfs_inversion_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
+static ssize_t		sysfs_gamma_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
+static ssize_t		sysfs_gamma_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 static ssize_t		sysfs_perf_count_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 
 
@@ -306,6 +314,7 @@ static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(idle,		S_IRUGO|S_IWUSR,	&sysfs_idle_show,		&sysfs_idle_store),
 	__ATTR(brightness,	S_IRUGO|S_IWUSR,	&sysfs_brightness_show,		&sysfs_brightness_store),
 	__ATTR(inversion,	S_IRUGO|S_IWUSR,	&sysfs_inversion_show,		&sysfs_inversion_store),
+	__ATTR(gamma,		S_IRUGO|S_IWUSR,	&sysfs_gamma_show,		&sysfs_gamma_store),
 	__ATTR(perf_count,	S_IWUSR,		&sysfs_perf_count_show,		NULL),
 };
 
@@ -521,13 +530,28 @@ static void display_visibility_update(struct device* _dev, struct da8xx_ili9340_
 			_par->cb_backlight_ctrl(false);
 	} else {
 		unsigned brightness;
+		unsigned gamma;
 
 		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_ON);
-		display_write_cmd(_dev, _par, atomic_read(&_par->display_idle)==0?ILI9340_CMD_IDLE_OFF:ILI9340_CMD_IDLE_ON);
+
+		display_write_cmd(_dev, _par, atomic_read(&_par->display_idle)?ILI9340_CMD_IDLE_ON:ILI9340_CMD_IDLE_OFF);
+
 		brightness = atomic_read(&_par->display_brightness);
 		display_write_cmd(_dev, _par, ILI9340_CMD_BRIGHTNESS);
-		display_write_data(_dev, _par, min(brightness, 0xff));
-		display_write_cmd(_dev, _par, atomic_read(&_par->display_inversion)==0?ILI9340_CMD_INVERSION_OFF:ILI9340_CMD_INVERSION_ON);
+		display_write_data(_dev, _par, min(brightness, ILI9340_DISPLAY_MAX_BRIGHTNESS));
+
+		display_write_cmd(_dev, _par, atomic_read(&_par->display_inversion)?ILI9340_CMD_INVERSION_ON:ILI9340_CMD_INVERSION_OFF);
+
+		switch (atomic_read(&_par->display_gamma)) {
+			case 0:		gamma = 0x01; break;
+			case 1:		gamma = 0x02; break;
+			case 2:		gamma = 0x04; break;
+			case 3:		gamma = 0x08; break;
+			default:	gamma = 0x01; break;
+		}
+		display_write_cmd(_dev, _par, ILI9340_CMD_GAMMA);
+		display_write_data(_dev, _par, gamma);
+
 		if (_par->cb_backlight_ctrl)
 			_par->cb_backlight_ctrl(atomic_read(&_par->display_backlight));
 	}
@@ -632,7 +656,7 @@ static ssize_t sysfs_backlight_store(struct device* _fbdev, struct device_attrib
 	if (ret)
 		return ret;
 
-	atomic_set(&par->display_backlight, value);
+	atomic_set(&par->display_backlight, value?1:0);
 
 	display_schedule_redraw(dev, par);
 	return _count;
@@ -658,7 +682,7 @@ static ssize_t sysfs_idle_store(struct device* _fbdev, struct device_attribute* 
 	if (ret)
 		return ret;
 
-	atomic_set(&par->display_idle, value);
+	atomic_set(&par->display_idle, value?1:0);
 
 	display_schedule_redraw(dev, par);
 	return _count;
@@ -684,7 +708,7 @@ static ssize_t sysfs_brightness_store(struct device* _fbdev, struct device_attri
 	if (ret)
 		return ret;
 
-	atomic_set(&par->display_brightness, value);
+	atomic_set(&par->display_brightness, min(value, ILI9340_DISPLAY_MAX_BRIGHTNESS));
 
 	display_schedule_redraw(dev, par);
 	return _count;
@@ -710,7 +734,33 @@ static ssize_t sysfs_inversion_store(struct device* _fbdev, struct device_attrib
 	if (ret)
 		return ret;
 
-	atomic_set(&par->display_inversion, value);
+	atomic_set(&par->display_inversion, value?1:0);
+
+	display_schedule_redraw(dev, par);
+	return _count;
+}
+
+static ssize_t sysfs_gamma_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf)
+{
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct da8xx_ili9340_par* par	= info->par;
+
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_gamma));
+}
+
+static ssize_t sysfs_gamma_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
+{
+	int ret;
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct device* dev		= info->device;
+	struct da8xx_ili9340_par* par	= info->par;
+	unsigned value;
+
+	ret = kstrtouint(_buf, 0, &value);
+	if (ret)
+		return ret;
+
+	atomic_set(&par->display_gamma, min(value, ILI9340_DISPLAY_MAX_GAMMA));
 
 	display_schedule_redraw(dev, par);
 	return _count;
@@ -1281,10 +1331,11 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	init_waitqueue_head(&par->display_redraw_completion);
 
 	atomic_set(&par->display_on,		1);
-	atomic_set(&par->display_idle,		_pdata->display_idle);
-	atomic_set(&par->display_backlight,	_pdata->display_backlight);
-	atomic_set(&par->display_brightness,	_pdata->display_brightness);
-	atomic_set(&par->display_inversion,	_pdata->display_inversion);
+	atomic_set(&par->display_idle,		_pdata->display_idle?1:0);
+	atomic_set(&par->display_backlight,	_pdata->display_backlight?1:0);
+	atomic_set(&par->display_brightness,	min(_pdata->display_brightness, ILI9340_DISPLAY_MAX_BRIGHTNESS));
+	atomic_set(&par->display_inversion,	_pdata->display_inversion?1:0);
+	atomic_set(&par->display_gamma,		min(_pdata->display_gamma, ILI9340_DISPLAY_MAX_GAMMA));
 
 	par->ili9340_t_reset_to_ready_ms	= _pdata->display_t_reset_to_ready_ms;
 	par->ili9340_t_sleep_in_out_ms		= _pdata->display_t_sleep_in_out_ms;
