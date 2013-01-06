@@ -965,7 +965,7 @@ static void da850trik_lcd_power_ctrl(bool _power_up)
 		gpio_set_value(GPIO_TO_PIN(8, 10), 0);
 		udelay(10);
 		gpio_set_value(GPIO_TO_PIN(8, 10), 1);
-		mdelay(5);
+		udelay(5000);
 	} else {
 		gpio_set_value(GPIO_TO_PIN(8, 10), 0);
 	}
