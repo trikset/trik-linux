@@ -124,23 +124,6 @@
 #define DA8XX_LCDCREG_DMA_FBn_BASE__ALIGNMENT			0x4 //DMA address alignment
 
 
-#warning TODO move to header or somewhere else...
-/* Notes on timings
-   Page 216:
-   Hardware reset -> Level2 command: 120ms
-   Sleep out -> Display on sequence: 60ms
-
-   Page 211:
-   Sleep in -> power off: 120ms
-
-   Page 90, 100, 101:
-   Software reset -> any command: 5ms
-   Software reset -> sleep out: 120ms
-   Sleep in/out -> sleep out/in: 120ms
-   Sleep in/out -> any command: 5ms
-   Sleep out -> self diagnostics: 5ms
-   Sleep out -> supplier's value loaded to registers: 120ms
-*/
 
 
 #define ILI9340_CMD_NOP				0x00
@@ -169,6 +152,26 @@
 #define ILI9340_CMD_IFACE_CTRL__WEMODE		0, (1)
 #define ILI9340_CMD_IFACE_CTRL__MDT		0, (2)
 #define ILI9340_CMD_IFACE_CTRL__EPF		4, (2)
+
+
+
+
+/* Notes on timings for ILI9340-based display
+   Page 216:
+   Hardware reset -> Level2 command: 120ms
+   Sleep out -> Display on sequence: 60ms
+
+   Page 211:
+   Sleep in -> power off: 120ms
+
+   Page 90, 100, 101:
+   Software reset -> any command: 5ms
+   Software reset -> sleep out: 120ms
+   Sleep in/out -> sleep out/in: 120ms
+   Sleep in/out -> any command: 5ms
+   Sleep out -> self diagnostics: 5ms
+   Sleep out -> supplier's value loaded to registers: 120ms
+*/
 
 
 
@@ -418,10 +421,10 @@ static int fbops_blank(int _blank, struct fb_info* _info)
 
 	switch (_blank) {
 		case FB_BLANK_UNBLANK:
-			atomic_set(display_on, true);
+			atomic_set(&par->display_on, true);
 			break;
 		case FB_BLANK_POWERDOWN:
-			atomic_set(display_on, false);
+			atomic_set(&par->display_on, false);
 			break;
 		default:
 			return -EINVAL;
@@ -583,7 +586,7 @@ static void display_redraw_work_done(struct device* _dev, struct da8xx_ili9340_p
 		return;
 	}
 
-	display_visibility_update(dev, par);
+	display_visibility_update(_dev, _par);
 
 	lcdc_unlock(_par);
 	_display_redraw_work_done(_dev, _par);
@@ -612,9 +615,9 @@ static ssize_t sysfs_backlight_store(struct device* _fbdev, struct device_attrib
 	struct da8xx_ili9340_par* par	= info->par;
 
 	if (_count >= 2 && !memcmp(_buf, "on", 2))
-		atmoic_set(1, &par->display_backlight);
+		atomic_set(&par->display_backlight, 1);
 	else if (_count >= 3 && !memcmp(_buf, "off", 3))
-		atmoic_set(0, &par->display_backlight);
+		atomic_set(&par->display_backlight, 0);
 	else
 		return -EINVAL;
 
@@ -642,9 +645,9 @@ static ssize_t sysfs_idle_store(struct device* _fbdev, struct device_attribute* 
 	struct da8xx_ili9340_par* par	= info->par;
 
 	if (_count >= 2 && !memcmp(_buf, "on", 2))
-		atmoic_set(1, &par->display_idle);
+		atomic_set(&par->display_idle, 1);
 	else if (_count >= 3 && !memcmp(_buf, "off", 3))
-		atmoic_set(0, &par->display_idle);
+		atomic_set(&par->display_idle, 0);
 	else
 		return -EINVAL;
 
@@ -678,8 +681,8 @@ static ssize_t sysfs_perf_count_show(struct device* _fbdev, struct device_attrib
 	return snprintf(_buf, PAGE_SIZE,
 			"It took %lu.%09lu for %u redraws\n"
 			"Single redraw takes %luns in average\n"
-			"Maximum possible FPS is %u\n",
-			(unsigned long)spent_time.tv_sec, (unsigned long)spent_time.tv_nsec,
+			"Maximum possible FPS is %lu\n",
+			(unsigned long)spent_time.tv_sec, (unsigned long)spent_time.tv_nsec, retry,
 			ns_per_redraw, (unsigned long)(NSEC_PER_SEC/ns_per_redraw));
 }
 
@@ -1216,13 +1219,13 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	par->ili9340_t_sleep_in_out_ms		= 120;
 
 	INIT_DELAYED_WORK(&par->display_redraw_work, &display_redraw_work);
-	atomic_set(&par->display_redraw_requested, 0);
-	atomic_set(&par->display_redraw_ongoing, 0);
+	atomic_set(&par->display_redraw_requested,	0);
+	atomic_set(&par->display_redraw_ongoing,	0);
 	init_waitqueue_head(&par->display_redraw_completion);
 
-	atomic_set(1, &par->display_on);
-	atomic_set(0, &par->display_idle);
-	atomic_set(1, &par->display_backlight);
+	atomic_set(&par->display_on,		1);
+	atomic_set(&par->display_idle,		0);
+	atomic_set(&par->display_backlight,	1);
 
 	ret = lcdc_lock(par);
 	if (ret) {
@@ -1312,7 +1315,7 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 
 
  //exit_display_off:
-	atomic_set(0, par->display_on);
+	atomic_set(&par->display_on, 0);
 	display_visibility_update(dev, par);
  exit_sleep_in:
 	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_IN);
@@ -1342,7 +1345,7 @@ static void __devinitexit da8xx_ili9340_display_shutdown(struct platform_device*
 		goto exit;
 	}
 
-	atomic_set(0, par->display_on);
+	atomic_set(&par->display_on, 0);
 	display_visibility_update(dev, par);
 
 	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_IN);
