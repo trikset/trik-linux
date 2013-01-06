@@ -1569,5 +1569,5 @@ MODULE_LICENSE("GPL");
 
 #warning TODO brightness, idle mode control, maybe gamma or something
 #warning TODO flip horizontal or vertical
-#warning TODO fb_logo, remove fbcon, reconfigure kernel
+#warning TODO fb_logo
 #warning TODO measure performance
