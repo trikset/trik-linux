@@ -583,7 +583,7 @@ static void backlight_ctrl(struct device* _dev, struct da8xx_ili9340_par* _par, 
 
 static ssize_t sysfs_backlight_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf)
 {
-	struct fb_info* info = dev_get_drvdata(_fbdev);
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
 	if (par->cb_backlight_ctrl == NULL)
@@ -599,7 +599,8 @@ static ssize_t sysfs_backlight_show(struct device* _fbdev, struct device_attribu
 static ssize_t sysfs_backlight_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
 {
 	int ret;
-	struct fb_info* info = dev_get_drvdata(_fbdev);
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct device* dev		= info->device;
 	struct da8xx_ili9340_par* par	= info->par;
 
 	if (par->cb_backlight_ctrl == NULL)
@@ -611,10 +612,10 @@ static ssize_t sysfs_backlight_store(struct device* _fbdev, struct device_attrib
 
 	if (_count >= 2 && !memcmp(_buf, "on", 2)) {
 		ret = _count;
-		backlight_ctrl(par, true);
+		backlight_ctrl(dev, par, true);
 	} else if (_count >= 3 && !memcmp(_buf, "off", 3)) {
 		ret = _count;
-		backlight_ctrl(par, false);
+		backlight_ctrl(dev, par, false);
 	} else
 		ret = -EINVAL;
 
