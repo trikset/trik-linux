@@ -165,8 +165,8 @@
 
 
 
-#define ILI9340_DISPLAY_MAX_BRIGHTNESS		0xff
-#define ILI9340_DISPLAY_MAX_GAMMA		3
+#define ILI9340_DISPLAY_MAX_BRIGHTNESS		0xffu
+#define ILI9340_DISPLAY_MAX_GAMMA		3u
 
 
 
@@ -229,6 +229,8 @@ struct da8xx_ili9340_par {
 
 	void		(*cb_power_ctrl)(bool _power_up);
 	void		(*cb_backlight_ctrl)(bool _backlight);
+
+	unsigned long			perf_count;
 };
 
 static const struct fb_fix_screeninfo da8xx_ili9340_fix_init __devinitconst = {
@@ -316,6 +318,7 @@ static ssize_t		sysfs_gamma_store(struct device* _fbdev, struct device_attribute
 static ssize_t		sysfs_flip_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 static ssize_t		sysfs_flip_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 static ssize_t		sysfs_perf_count_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
+static ssize_t		sysfs_perf_count_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 
 
 static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
@@ -325,7 +328,7 @@ static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(inversion,	S_IRUGO|S_IWUSR,	&sysfs_inversion_show,		&sysfs_inversion_store),
 	__ATTR(gamma,		S_IRUGO|S_IWUSR,	&sysfs_gamma_show,		&sysfs_gamma_store),
 	__ATTR(flip,		S_IRUGO|S_IWUSR,	&sysfs_flip_show,		&sysfs_flip_store),
-	__ATTR(perf_count,	S_IRUSR,		&sysfs_perf_count_show,		NULL),
+	__ATTR(perf_count,	S_IRUSR|S_IWUSR,	&sysfs_perf_count_show,		&sysfs_perf_count_store),
 };
 
 
@@ -838,7 +841,7 @@ static ssize_t sysfs_perf_count_show(struct device* _fbdev, struct device_attrib
 	unsigned long ns_per_redraw;
 
 	started_at	= CURRENT_TIME;
-	for (retry = 0; retry < 1000; ++retry) {
+	for (retry = 0; retry < par->perf_count; ++retry) {
 		int ret;
 		display_schedule_redraw(dev, par);
 		ret = display_wait_redraw_completion(dev, par);
@@ -855,6 +858,19 @@ static ssize_t sysfs_perf_count_show(struct device* _fbdev, struct device_attrib
 			"Maximum possible FPS is %lu\n",
 			(unsigned long)spent_time.tv_sec, (unsigned long)spent_time.tv_nsec, retry,
 			ns_per_redraw, (unsigned long)(NSEC_PER_SEC/ns_per_redraw));
+}
+
+static ssize_t sysfs_perf_count_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
+{
+	int ret;
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct da8xx_ili9340_par* par	= info->par;
+
+	ret = kstrtoul(_buf, 0, &par->perf_count);
+	if (ret)
+		return ret;
+
+	return _count;
 }
 
 
@@ -1550,9 +1566,12 @@ static int __devinit da8xx_ili9340_sysfs_register(struct platform_device* _pdevi
 	int ret					= -EINVAL;
 	struct device* dev			= &_pdevice->dev;
 	struct fb_info* info			= platform_get_drvdata(_pdevice);
+	struct da8xx_ili9340_par* par		= info->par;
 	int sysfs_entry = 0; // not unsigned to allow simplier unrolling
 
 	dev_dbg(dev, "%s: called\n", __func__);
+
+	par->perf_count = 100;
 
 	for (sysfs_entry = 0; sysfs_entry < ARRAY_SIZE(da8xx_ili9340_sysfs_attrs); ++sysfs_entry) {
 		ret = device_create_file(info->dev, &da8xx_ili9340_sysfs_attrs[sysfs_entry]);
