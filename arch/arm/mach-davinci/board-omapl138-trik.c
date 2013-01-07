@@ -989,6 +989,7 @@ static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
 	.yres			= 320,
 	.xflip			= true,
 	.yflip			= false,
+	.xyswap			= false,
 	.visual_mode		= DA8XX_LCDC_VISUAL_565,
 	.screen_height		= 49, //48,96mm
 	.screen_width		= 37, //36,72mm

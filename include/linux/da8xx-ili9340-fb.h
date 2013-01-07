@@ -34,6 +34,7 @@ struct da8xx_ili9340_pdata {
 	int	yres;
 	bool	xflip;
 	bool	yflip;
+	bool	xyswap;
 	enum da8xx_ili9340_pdata_lcdc_visual_mode	visual_mode;
 
 	int	screen_height;
