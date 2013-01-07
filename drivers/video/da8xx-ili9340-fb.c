@@ -155,6 +155,7 @@
 #define ILI9340_CMD_ROW_ADDR__LOWBYTE		0, (8)
 #define ILI9340_CMD_ROW_ADDR__HIGHBYTE		0, (8)
 #define ILI9340_CMD_PIXEL_FORMAT__DBI		0, (3)
+#define ILI9340_CMD_MEMORY_ACCESS_CTRL__MV	5, (1)
 #define ILI9340_CMD_MEMORY_ACCESS_CTRL__MX	6, (1)
 #define ILI9340_CMD_MEMORY_ACCESS_CTRL__MY	7, (1)
 #define ILI9340_CMD_DISPLAY_CTRL__BCTRL		5, (1)
@@ -165,8 +166,14 @@
 
 
 
+
 #define ILI9340_DISPLAY_MAX_BRIGHTNESS		0xffu
 #define ILI9340_DISPLAY_MAX_GAMMA		3u
+
+#define ILI9340_DISPLAY_FLIP_X			0x01
+#define ILI9340_DISPLAY_FLIP_X			0x02
+#define ILI9340_DISPLAY_FLIP_SWAPXY		0x04
+
 
 
 
@@ -599,6 +606,7 @@ static void lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
 	struct fb_info* info		= dev_get_drvdata(_dev);
 	unsigned flip;
+	bool flipx, flipy, swapxy;
 	dma_addr_t phaddr_base;
 	dma_addr_t phaddr_ceil;
 
@@ -607,12 +615,16 @@ static void lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par)
 	phaddr_base = _par->fb_dma_phaddr + info->var.yoffset*info->fix.line_length;
 	phaddr_ceil = phaddr_base + info->var.yres*info->fix.line_length - 1;
 
-	flip = atomic_read(&_par->display_flip);
+	flip	= atomic_read(&_par->display_flip);
+	swapxy	= flip&ILI9340_DISPLAY_FLIP_SWAPXY;
+	flipx	= flip&(swapxy?ILI9340_DISPLAY_FLIP_Y:ILI9340_DISPLAY_FLIP_X);
+	flipy	= flip&(swapxy?ILI9340_DISPLAY_FLIP_X:ILI9340_DISPLAY_FLIP_Y);
 	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_ACCESS_CTRL);
 	display_write_data(_dev, _par,
 			0
-			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MX, (flip&0x01)?1:0)
-			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MY, (flip&0x02)?1:0));
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MX, flipx?1:0)
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MY, flipy?1:0)
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MV, swapxy?1:0));
 
 	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_WRITE);
 
@@ -801,10 +813,11 @@ static ssize_t sysfs_flip_show(struct device* _fbdev, struct device_attribute* _
 	struct da8xx_ili9340_par* par	= info->par;
 	unsigned flip = atomic_read(&par->display_flip);
 
-	return snprintf(_buf, PAGE_SIZE, "%s%s\n%s%s",
-			(flip&0x01)?"x":"", (flip&0x02)?"y":"",
-			(flip&0x01)?"Horizontal flip\n":"",
-			(flip&0x02)?"Vertical flip\n":"");
+	return snprintf(_buf, PAGE_SIZE, "%s%s\n%s%s%s",
+			(flip&ILI9340_DISPLAY_FLIP_X)?"x":"", (flip&ILI9340_DISPLAY_FLIP_Y)?"y":"",
+			(flip&ILI9340_DISPLAY_FLIP_X)?"Horizontal flip\n":"",
+			(flip&ILI9340_DISPLAY_FLIP_Y)?"Vertical flip\n":"",
+			(flip&ILI9340_DISPLAY_FLIP_SWAPXY)?"Internally swapped X and Y axis\n":"");
 }
 
 static ssize_t sysfs_flip_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -813,14 +826,14 @@ static ssize_t sysfs_flip_store(struct device* _fbdev, struct device_attribute* 
 	struct device* dev		= info->device;
 	struct da8xx_ili9340_par* par	= info->par;
 	size_t idx = 0;
-	unsigned value = 0;
+	unsigned value = atomic_read(&par->display_flip) & ~(ILI9340_DISPLAY_FLIP_X|ILI9340_DISPLAY_FLIP_Y); // keep xy-swap indication
 
 	for (idx = 0; idx < _count; ++idx)
 		switch (_buf[idx]) {
 			case 'x':
-			case 'X':	value |= 0x01;	break;
+			case 'X':	value |= ILI9340_DISPLAY_FLIP_X;	break;
 			case 'y':
-			case 'Y':	value |= 0x02;	break;
+			case 'Y':	value |= ILI9340_DISPLAY_FLIP_Y;	break;
 		}
 
 	atomic_set(&par->display_flip, value);
@@ -1412,7 +1425,9 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	atomic_set(&par->display_brightness,	min(_pdata->display_brightness, ILI9340_DISPLAY_MAX_BRIGHTNESS));
 	atomic_set(&par->display_inversion,	_pdata->display_inversion?1:0);
 	atomic_set(&par->display_gamma,		min(_pdata->display_gamma, ILI9340_DISPLAY_MAX_GAMMA));
-	atomic_set(&par->display_flip,		(_pdata->xflip?0x01:0x00)|(_pdata->yflip?0x02:0x00));
+	atomic_set(&par->display_flip,		 (_pdata->xflip?ILI9340_DISPLAY_FLIP_X:0x00)
+						|(_pdata->yflip?ILI9340_DISPLAY_FLIP_Y:0x00);
+						|(_pdata->xyswap?ILI9340_DISPLAY_FLIP_SWAPXY:0x00));
 
 	par->ili9340_t_reset_to_ready_ms	= _pdata->display_t_reset_to_ready_ms;
 	par->ili9340_t_sleep_in_out_ms		= _pdata->display_t_sleep_in_out_ms;
@@ -1759,6 +1774,7 @@ module_exit(da8xx_ili9340_exit_module);
 
 MODULE_LICENSE("GPL");
 
+#warning TODO test swapxy axis
 #warning TODO adaptive brightness
 #warning TODO fb_logo
 #warning TODO optimizations: update fb settings only once when changed; avoid redrawing screen when disabled (fastpath in redraw work); unify settings/redraw usage
