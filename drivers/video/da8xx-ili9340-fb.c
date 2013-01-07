@@ -285,6 +285,9 @@ static struct fb_deferred_io da8xx_ili9340_defio = {
 };
 
 static ssize_t	fbops_write(struct fb_info* _info, const char __user* _buf, size_t _count, loff_t* _ppos);
+static void	fbops_fillrect(struct fb_info* _info, const struct fb_fillrect* _rect);
+static void	fbops_copyarea(struct fb_info* _info, const struct fb_copyarea* _region);
+static void	fbops_imageblit(struct fb_info* _info, const struct fb_image* _image);
 static int	fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info);
 static int	fbops_sync(struct fb_info* _info);
 static int	fbops_blank(int _blank, struct fb_info* _info);
@@ -293,9 +296,9 @@ static struct fb_ops da8xx_ili9340_fbops = {
 	.owner		= THIS_MODULE,
 	.fb_read	= &fb_sys_read,
 	.fb_write	= &fbops_write,
-	.fb_fillrect	= &sys_fillrect,
-	.fb_copyarea	= &sys_copyarea,
-	.fb_imageblit	= &sys_imageblit,
+	.fb_fillrect	= &fbops_fillrect,
+	.fb_copyarea	= &fbops_copyarea,
+	.fb_imageblit	= &fbops_imageblit,
 	.fb_pan_display	= &fbops_pan_display,
 	.fb_blank	= &fbops_blank,
 	.fb_sync	= &fbops_sync,
@@ -419,6 +422,39 @@ static ssize_t fbops_write(struct fb_info* _info, const char __user* _buf, size_
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return ret;
+}
+
+static void fbops_fillrect(struct fb_info* _info, const struct fb_fillrect* _rect)
+{
+	struct device* dev		= _info->device;
+	struct da8xx_ili9340_par* par	= _info->par;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+	sys_fillrect(_info, _rect);
+	display_schedule_redraw(dev, par);
+	dev_dbg(dev, "%s: done\n", __func__);
+}
+
+static void fbops_copyarea(struct fb_info* _info, const struct fb_copyarea* _region)
+{
+	struct device* dev		= _info->device;
+	struct da8xx_ili9340_par* par	= _info->par;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+	sys_copyarea(_info, _region);
+	display_schedule_redraw(dev, par);
+	dev_dbg(dev, "%s: done\n", __func__);
+}
+
+static void fbops_imageblit(struct fb_info* _info, const struct fb_image* _image)
+{
+	struct device* dev		= _info->device;
+	struct da8xx_ili9340_par* par	= _info->par;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+	sys_imageblit(_info, _image);
+	display_schedule_redraw(dev, par);
+	dev_dbg(dev, "%s: done\n", __func__);
 }
 
 static int fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info)
