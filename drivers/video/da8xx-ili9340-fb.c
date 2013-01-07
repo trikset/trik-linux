@@ -167,11 +167,10 @@
 
 
 
-#define ILI9340_DISPLAY_MAX_BRIGHTNESS		0xffu
-#define ILI9340_DISPLAY_MAX_GAMMA		3u
-
-#define ILI9340_DISPLAY_FLIP_X			0x01
-#define ILI9340_DISPLAY_FLIP_Y			0x02
+#define ILI9340_DISPLAY_CFG_BRIGHTNESS				0, (8)
+#define ILI9340_DISPLAY_CFG_GAMMA				0, (2)
+#define ILI9340_DISPLAY_CFG_FLIP_X				0, (1)
+#define ILI9340_DISPLAY_CFG_FLIP_Y				1, (1)
 
 
 
@@ -222,10 +221,10 @@ struct da8xx_ili9340_par {
 	atomic_t			display_on;
 	atomic_t			display_idle;
 	atomic_t			display_backlight;
-	atomic_t			display_brightness;
 	atomic_t			display_inversion;
 	atomic_t			display_gamma;
 	atomic_t			display_flip;
+	atomic_t			display_brightness;
 
 	loff_t				lidd_reg_cs_conf;
 	loff_t				lidd_reg_cs_addr;
@@ -620,19 +619,20 @@ static void display_visibility_update(struct device* _dev, struct da8xx_ili9340_
 		idle = atomic_read(&_par->display_idle);
 		display_write_cmd(_dev, _par, idle?ILI9340_CMD_IDLE_ON:ILI9340_CMD_IDLE_OFF);
 
-		brightness = atomic_read(&_par->display_brightness);
+		brightness	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&_par->display_brightness));
 		display_write_cmd(_dev, _par, ILI9340_CMD_BRIGHTNESS);
-		display_write_data(_dev, _par, min(brightness, ILI9340_DISPLAY_MAX_BRIGHTNESS));
+		display_write_data(_dev, _par, brightness);
 
 		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_CTRL);
 		display_write_data(_dev, _par,
 				0
-				| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__BCTRL, 1)
+#warning TEMPORARY tricking BCTRL
+				| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__BCTRL, (brightness&0x1)?1:0)
 				| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__DD, idle?1:0));
 
 		display_write_cmd(_dev, _par, atomic_read(&_par->display_inversion)?ILI9340_CMD_INVERSION_ON:ILI9340_CMD_INVERSION_OFF);
 
-		switch (atomic_read(&_par->display_gamma)) {
+		switch (REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&_par->display_gamma))) {
 			case 0:		gamma = 0x01; break;
 			case 1:		gamma = 0x02; break;
 			case 2:		gamma = 0x04; break;
@@ -668,7 +668,7 @@ static void lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
 	struct fb_info* info		= dev_get_drvdata(_dev);
 	unsigned flip;
-	bool flipx, flipy;
+	unsigned flipx, flipy;
 	dma_addr_t phaddr_base;
 	dma_addr_t phaddr_ceil;
 
@@ -678,13 +678,19 @@ static void lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par)
 	phaddr_ceil = phaddr_base + info->var.yres*info->fix.line_length - 1;
 
 	flip	= atomic_read(&_par->display_flip);
-	flipx	= flip&(_par->display_swapxy?ILI9340_DISPLAY_FLIP_Y:ILI9340_DISPLAY_FLIP_X);
-	flipy	= flip&(_par->display_swapxy?ILI9340_DISPLAY_FLIP_X:ILI9340_DISPLAY_FLIP_Y);
+	if (_par->display_swapxy) {
+		flipx	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip);
+		flipy	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip);
+	} else {
+		flipx	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip);
+		flipy	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip);
+	}
+
 	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_ACCESS_CTRL);
 	display_write_data(_dev, _par,
 			0
-			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MX, flipx?1:0)
-			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MY, flipy?1:0)
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MX, flipx)
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MY, flipy)
 			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MV, _par->display_swapxy?1:0));
 
 	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_WRITE);
@@ -795,7 +801,7 @@ static ssize_t sysfs_brightness_show(struct device* _fbdev, struct device_attrib
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_brightness));
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&par->display_brightness)));
 }
 
 static ssize_t sysfs_brightness_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -805,12 +811,13 @@ static ssize_t sysfs_brightness_store(struct device* _fbdev, struct device_attri
 	struct device* dev		= info->device;
 	struct da8xx_ili9340_par* par	= info->par;
 	unsigned value;
+	unsigned ovf = 0;
 
 	ret = kstrtouint(_buf, 0, &value);
 	if (ret)
 		return ret;
 
-	atomic_set(&par->display_brightness, min(value, ILI9340_DISPLAY_MAX_BRIGHTNESS));
+	atomic_set(&par->display_brightness, REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_BRIGHTNESS, value, ovf));
 
 	display_schedule_redraw(dev, par);
 	return _count;
@@ -847,7 +854,7 @@ static ssize_t sysfs_gamma_show(struct device* _fbdev, struct device_attribute* 
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_gamma));
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&par->display_gamma)));
 }
 
 static ssize_t sysfs_gamma_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -857,12 +864,13 @@ static ssize_t sysfs_gamma_store(struct device* _fbdev, struct device_attribute*
 	struct device* dev		= info->device;
 	struct da8xx_ili9340_par* par	= info->par;
 	unsigned value;
+	unsigned ovf = 0;
 
 	ret = kstrtouint(_buf, 0, &value);
 	if (ret)
 		return ret;
 
-	atomic_set(&par->display_gamma, min(value, ILI9340_DISPLAY_MAX_GAMMA));
+	atomic_set(&par->display_gamma, REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_GAMMA, value, ovf));
 
 	display_schedule_redraw(dev, par);
 	return _count;
@@ -875,9 +883,9 @@ static ssize_t sysfs_flip_show(struct device* _fbdev, struct device_attribute* _
 	unsigned flip = atomic_read(&par->display_flip);
 
 	return snprintf(_buf, PAGE_SIZE, "%s%s\n%s%s%s",
-			(flip&ILI9340_DISPLAY_FLIP_X)?"x":"", (flip&ILI9340_DISPLAY_FLIP_Y)?"y":"",
-			(flip&ILI9340_DISPLAY_FLIP_X)?"Horizontal flip\n":"",
-			(flip&ILI9340_DISPLAY_FLIP_Y)?"Vertical flip\n":"",
+			REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip)?"x":"", REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip)?"y":"",
+			REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip)?"Horizontal flip\n":"",
+			REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip)?"Vertical flip\n":"",
 			par->display_swapxy?"Internally swapped X and Y axis\n":"");
 }
 
@@ -892,9 +900,9 @@ static ssize_t sysfs_flip_store(struct device* _fbdev, struct device_attribute* 
 	for (idx = 0; idx < _count; ++idx)
 		switch (_buf[idx]) {
 			case 'x':
-			case 'X':	value |= ILI9340_DISPLAY_FLIP_X;	break;
+			case 'X':	value |= REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, 1);	break;
 			case 'y':
-			case 'Y':	value |= ILI9340_DISPLAY_FLIP_Y;	break;
+			case 'Y':	value |= REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, 1);	break;
 		}
 
 	atomic_set(&par->display_flip, value);
@@ -1466,6 +1474,7 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	struct device* dev			= &_pdevice->dev;
 	struct fb_info* info			= platform_get_drvdata(_pdevice);
 	struct da8xx_ili9340_par* par		= info->par;
+	unsigned ovf = 0;
 	__u16 disp_mfc, disp_ver, disp_id;
 	__u16 disp_self_diag1, disp_self_diag2;
 	__u16 disp_dbi, disp_mdt;
@@ -1486,11 +1495,11 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	atomic_set(&par->display_on,		1);
 	atomic_set(&par->display_idle,		_pdata->display_idle?1:0);
 	atomic_set(&par->display_backlight,	_pdata->display_backlight?1:0);
-	atomic_set(&par->display_brightness,	min(_pdata->display_brightness, ILI9340_DISPLAY_MAX_BRIGHTNESS));
+	atomic_set(&par->display_brightness,	REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_BRIGHTNESS, _pdata->display_brightness, ovf));
 	atomic_set(&par->display_inversion,	_pdata->display_inversion?1:0);
-	atomic_set(&par->display_gamma,		min(_pdata->display_gamma, ILI9340_DISPLAY_MAX_GAMMA));
-	atomic_set(&par->display_flip,		 (_pdata->xflip?ILI9340_DISPLAY_FLIP_X:0x00)
-						|(_pdata->yflip?ILI9340_DISPLAY_FLIP_Y:0x00));
+	atomic_set(&par->display_gamma,		REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_GAMMA, _pdata->display_gamma, ovf));
+	atomic_set(&par->display_flip,		_pdata->xflip?REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, 1):0x0
+					       |_pdata->yflip?REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, 1):0x0);
 
 	par->ili9340_t_reset_to_ready_ms	= _pdata->display_t_reset_to_ready_ms;
 	par->ili9340_t_sleep_in_out_ms		= _pdata->display_t_sleep_in_out_ms;
