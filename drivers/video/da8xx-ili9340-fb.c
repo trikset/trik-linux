@@ -172,7 +172,6 @@
 
 #define ILI9340_DISPLAY_FLIP_X			0x01
 #define ILI9340_DISPLAY_FLIP_Y			0x02
-#define ILI9340_DISPLAY_FLIP_SWAPXY		0x04
 
 
 
@@ -219,6 +218,7 @@ struct da8xx_ili9340_par {
 	atomic_t			display_redraw_ongoing;
 	wait_queue_head_t		display_redraw_completion;
 
+	bool				display_swapxy;
 	atomic_t			display_on;
 	atomic_t			display_idle;
 	atomic_t			display_backlight;
@@ -606,7 +606,7 @@ static void lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
 	struct fb_info* info		= dev_get_drvdata(_dev);
 	unsigned flip;
-	bool flipx, flipy, swapxy;
+	bool flipx, flipy;
 	dma_addr_t phaddr_base;
 	dma_addr_t phaddr_ceil;
 
@@ -616,15 +616,14 @@ static void lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par)
 	phaddr_ceil = phaddr_base + info->var.yres*info->fix.line_length - 1;
 
 	flip	= atomic_read(&_par->display_flip);
-	swapxy	= flip&ILI9340_DISPLAY_FLIP_SWAPXY;
-	flipx	= flip&(swapxy?ILI9340_DISPLAY_FLIP_Y:ILI9340_DISPLAY_FLIP_X);
-	flipy	= flip&(swapxy?ILI9340_DISPLAY_FLIP_X:ILI9340_DISPLAY_FLIP_Y);
+	flipx	= flip&(_par->display_swapxy?ILI9340_DISPLAY_FLIP_Y:ILI9340_DISPLAY_FLIP_X);
+	flipy	= flip&(_par->display_swapxy?ILI9340_DISPLAY_FLIP_X:ILI9340_DISPLAY_FLIP_Y);
 	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_ACCESS_CTRL);
 	display_write_data(_dev, _par,
 			0
 			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MX, flipx?1:0)
 			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MY, flipy?1:0)
-			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MV, swapxy?1:0));
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MV, _par->display_swapxy?1:0));
 
 	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_WRITE);
 
@@ -817,7 +816,7 @@ static ssize_t sysfs_flip_show(struct device* _fbdev, struct device_attribute* _
 			(flip&ILI9340_DISPLAY_FLIP_X)?"x":"", (flip&ILI9340_DISPLAY_FLIP_Y)?"y":"",
 			(flip&ILI9340_DISPLAY_FLIP_X)?"Horizontal flip\n":"",
 			(flip&ILI9340_DISPLAY_FLIP_Y)?"Vertical flip\n":"",
-			(flip&ILI9340_DISPLAY_FLIP_SWAPXY)?"Internally swapped X and Y axis\n":"");
+			par->display_swapxy?"Internally swapped X and Y axis\n":"");
 }
 
 static ssize_t sysfs_flip_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -826,7 +825,7 @@ static ssize_t sysfs_flip_store(struct device* _fbdev, struct device_attribute* 
 	struct device* dev		= info->device;
 	struct da8xx_ili9340_par* par	= info->par;
 	size_t idx = 0;
-	unsigned value = atomic_read(&par->display_flip) & ~(ILI9340_DISPLAY_FLIP_X|ILI9340_DISPLAY_FLIP_Y); // keep xy-swap indication
+	unsigned value = 0;
 
 	for (idx = 0; idx < _count; ++idx)
 		switch (_buf[idx]) {
@@ -1408,16 +1407,19 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	__u16 disp_mfc, disp_ver, disp_id;
 	__u16 disp_self_diag1, disp_self_diag2;
 	__u16 disp_dbi, disp_mdt;
+	__u32 disp_columns, disp_rows;
 
 	dev_dbg(dev, "%s: called\n", __func__);
 
 	par->cb_power_ctrl	= _pdata->cb_power_ctrl;
-	par->cb_backlight_ctrl = _pdata->cb_backlight_ctrl;
+	par->cb_backlight_ctrl	= _pdata->cb_backlight_ctrl;
 
 	INIT_DELAYED_WORK(&par->display_redraw_work, &display_redraw_work);
 	atomic_set(&par->display_redraw_requested,	0);
 	atomic_set(&par->display_redraw_ongoing,	0);
 	init_waitqueue_head(&par->display_redraw_completion);
+
+	par->display_swapxy	= _pdata->xyswap;
 
 	atomic_set(&par->display_on,		1);
 	atomic_set(&par->display_idle,		_pdata->display_idle?1:0);
@@ -1426,8 +1428,7 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	atomic_set(&par->display_inversion,	_pdata->display_inversion?1:0);
 	atomic_set(&par->display_gamma,		min(_pdata->display_gamma, ILI9340_DISPLAY_MAX_GAMMA));
 	atomic_set(&par->display_flip,		 (_pdata->xflip?ILI9340_DISPLAY_FLIP_X:0x00)
-						|(_pdata->yflip?ILI9340_DISPLAY_FLIP_Y:0x00)
-						|(_pdata->xyswap?ILI9340_DISPLAY_FLIP_SWAPXY:0x00));
+						|(_pdata->yflip?ILI9340_DISPLAY_FLIP_Y:0x00));
 
 	par->ili9340_t_reset_to_ready_ms	= _pdata->display_t_reset_to_ready_ms;
 	par->ili9340_t_sleep_in_out_ms		= _pdata->display_t_sleep_in_out_ms;
@@ -1477,17 +1478,24 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 		goto exit_sleep_in;
 	}
 
+	if (!par->display_swapxy) {
+		disp_columns = info->var.xres;
+		disp_rows = info->var.yres;
+	} else {
+		disp_columns = info->var.yres;
+		disp_rows = info->var.xres;
+	}
 	display_write_cmd(dev, par, ILI9340_CMD_COLUMN_ADDR);
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__HIGHBYTE,	0));
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__LOWBYTE,		0));
-	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__HIGHBYTE,	info->var.xres>>8));
-	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__LOWBYTE,		info->var.xres));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__HIGHBYTE,	disp_columns>>8));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__LOWBYTE,		disp_columns));
 
 	display_write_cmd(dev, par, ILI9340_CMD_ROW_ADDR);
-	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__HIGHBYTE,	0));
-	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__LOWBYTE,	0));
-	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__HIGHBYTE,	info->var.yres>>8));
-	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__LOWBYTE,	info->var.yres));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__HIGHBYTE,		0));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__LOWBYTE,		0));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__HIGHBYTE,		disp_rows>>8));
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_ROW_ADDR__LOWBYTE,		disp_rows));
 
 	switch (par->fb_visual_mode) {
 		case DA8XX_LCDC_VISUAL_565:	disp_dbi = 0x5;	disp_mdt = 0x0;	break;
