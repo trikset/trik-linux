@@ -228,14 +228,8 @@ struct da8xx_ili9340_par {
 	atomic_t			display_redraw_ongoing;
 	wait_queue_head_t		display_redraw_completion;
 
-	bool				display_swapxy;
-	atomic_t			display_on;
-	atomic_t			display_idle;
-	atomic_t			display_backlight;
-	atomic_t			display_inversion;
-	atomic_t			display_gamma;
-	atomic_t			display_flip;
-	atomic_t			display_brightness;
+	bool						display_swapxy;
+	struct da8xx_ili9340_par_display_settings	display_settings;
 
 	loff_t				lidd_reg_cs_conf;
 	loff_t				lidd_reg_cs_addr;
@@ -316,10 +310,11 @@ static struct fb_ops da8xx_ili9340_fbops = {
 	.fb_setcolreg	= &fbops_setcolreg,
 };
 
-static void		display_schedule_redraw(struct device* _dev, struct da8xx_ili9340_par* _par);
+static void		display_schedule_redraw(struct device* _dev, struct da8xx_ili9340_par* _par, bool _disp_settings_changed);
 static int		display_start_redraw_locked(struct device* _dev, struct da8xx_ili9340_par* _par);
 static int		display_wait_redraw_completion(struct device* _dev, struct da8xx_ili9340_par* _par);
-static void		display_visibility_update(struct device* _dev, struct da8xx_ili9340_par* _par);
+static void		display_visibility_settings_update(struct device* _dev, struct da8xx_ili9340_par* _par);
+static void		display_alignment_settings_update(struct device* _dev, struct da8xx_ili9340_par* _par);
 
 static void		display_redraw_work(struct work_struct* _work);
 static void 		lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par);
@@ -432,7 +427,7 @@ static ssize_t fbops_write(struct fb_info* _info, const char __user* _buf, size_
 	if (ret < 0)
 		return ret;
 
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, false);
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return ret;
@@ -445,7 +440,7 @@ static void fbops_fillrect(struct fb_info* _info, const struct fb_fillrect* _rec
 
 	dev_dbg(dev, "%s: called\n", __func__);
 	sys_fillrect(_info, _rect);
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, false);
 	dev_dbg(dev, "%s: done\n", __func__);
 }
 
@@ -456,7 +451,7 @@ static void fbops_copyarea(struct fb_info* _info, const struct fb_copyarea* _reg
 
 	dev_dbg(dev, "%s: called\n", __func__);
 	sys_copyarea(_info, _region);
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, false);
 	dev_dbg(dev, "%s: done\n", __func__);
 }
 
@@ -467,7 +462,7 @@ static void fbops_imageblit(struct fb_info* _info, const struct fb_image* _image
 
 	dev_dbg(dev, "%s: called\n", __func__);
 	sys_imageblit(_info, _image);
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, false);
 	dev_dbg(dev, "%s: done\n", __func__);
 }
 
@@ -484,7 +479,7 @@ static int fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _in
 
 	_info->var.yoffset = _var->yoffset;
 
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, true);
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return 0;
@@ -511,16 +506,16 @@ static int fbops_blank(int _blank, struct fb_info* _info)
 
 	switch (_blank) {
 		case FB_BLANK_UNBLANK:
-			atomic_set(&par->display_on, true);
+			atomic_set(&par->display_settings.disp_on, true);
 			break;
 		case FB_BLANK_POWERDOWN:
-			atomic_set(&par->display_on, false);
+			atomic_set(&par->display_settings.disp_on, false);
 			break;
 		default:
 			return -EINVAL;
 	}
 
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, true);
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return 0;
@@ -558,7 +553,7 @@ static void defio_redraw(struct fb_info* _info, struct list_head* _pagelist)
 	struct device* dev		= _info->device;
 	struct da8xx_ili9340_par* par	= _info->par;
 
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, false);
 }
 
 
@@ -579,11 +574,14 @@ static inline void _display_redraw_work_done(struct device* _dev, struct da8xx_i
 	}
 }
 
-static void display_schedule_redraw(struct device* _dev, struct da8xx_ili9340_par* _par)
+static void display_schedule_redraw(struct device* _dev, struct da8xx_ili9340_par* _par, bool _disp_settings_changed)
 {
 	dev_dbg(_dev, "%s: called\n", __func__);
 
 	atomic_inc(&_par->display_redraw_requested);
+	if (_disp_settings_changed)
+		atomic_inc(&_par->display_settings.changed);
+
 	if (atomic_inc_return(&_par->display_redraw_ongoing) == 1) { // i.e. it was 0 and no work were ongoing
 		dev_dbg(_dev, "%s: scheduling redraw work\n", __func__);
 		atomic_set(&_par->display_redraw_requested, 0);
@@ -614,11 +612,11 @@ static int display_wait_redraw_completion(struct device* _dev, struct da8xx_ili9
 	return ret;
 }
 
-static void display_visibility_update(struct device* _dev, struct da8xx_ili9340_par* _par)
+static void display_visibility_settings_update(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
 	lcdc_assert_locked(_par);
 
-	if (atomic_read(&_par->display_on) == 0) {
+	if (atomic_read(&_par->display_settings.disp_on) == 0) {
 		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_OFF);
 		if (_par->cb_backlight_ctrl)
 			_par->cb_backlight_ctrl(false);
@@ -629,12 +627,12 @@ static void display_visibility_update(struct device* _dev, struct da8xx_ili9340_
 
 		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_ON);
 
-		idle = atomic_read(&_par->display_idle);
+		idle = atomic_read(&_par->display_settings.disp_idle);
 		display_write_cmd(_dev, _par, idle?ILI9340_CMD_IDLE_ON:ILI9340_CMD_IDLE_OFF);
 
-		display_write_cmd(_dev, _par, atomic_read(&_par->display_inversion)?ILI9340_CMD_INVERSION_ON:ILI9340_CMD_INVERSION_OFF);
+		display_write_cmd(_dev, _par, atomic_read(&_par->display_settings.disp_inversion)?ILI9340_CMD_INVERSION_ON:ILI9340_CMD_INVERSION_OFF);
 
-		switch (REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&_par->display_gamma))) {
+		switch (REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&_par->display_settings.disp_gamma))) {
 			case 0:		gamma = 0x01; break;
 			case 1:		gamma = 0x02; break;
 			case 2:		gamma = 0x04; break;
@@ -644,7 +642,7 @@ static void display_visibility_update(struct device* _dev, struct da8xx_ili9340_
 		display_write_cmd(_dev, _par, ILI9340_CMD_GAMMA);
 		display_write_data(_dev, _par, gamma);
 
-		brightness	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&_par->display_brightness));
+		brightness	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&_par->display_settings.disp_brightness));
 		display_write_cmd(_dev, _par, ILI9340_CMD_BRIGHTNESS);
 		display_write_data(_dev, _par, brightness);
 
@@ -656,9 +654,34 @@ static void display_visibility_update(struct device* _dev, struct da8xx_ili9340_
 				| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__DD, idle?1:0));
 
 		if (_par->cb_backlight_ctrl)
-			_par->cb_backlight_ctrl(atomic_read(&_par->display_backlight));
+			_par->cb_backlight_ctrl(atomic_read(&_par->display_settings.disp_backlight));
 	}
 }
+
+static void display_alignment_settings_update(struct device* _dev, struct da8xx_ili9340_par* _par)
+{
+	unsigned flip;
+	unsigned flipx, flipy;
+
+	lcdc_assert_locked(_par);
+
+	flip	= atomic_read(&_par->display_settings.disp_flip);
+	if (_par->display_swapxy) {
+		flipx	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip);
+		flipy	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip);
+	} else {
+		flipx	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip);
+		flipy	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip);
+	}
+
+	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_ACCESS_CTRL);
+	display_write_data(_dev, _par,
+			0
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MX, flipx)
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MY, flipy)
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MV, _par->display_swapxy?1:0));
+}
+
 
 static void display_redraw_work(struct work_struct* _work)
 {
@@ -680,31 +703,18 @@ static void display_redraw_work(struct work_struct* _work)
 static void lcdc_edma_start(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
 	struct fb_info* info		= dev_get_drvdata(_dev);
-	unsigned flip;
-	unsigned flipx, flipy;
 	dma_addr_t phaddr_base;
 	dma_addr_t phaddr_ceil;
+
+	lcdc_assert_locked(_par);
 
 	if (info->var.xoffset != 0)
 		dev_warn(_dev, "%s: xoffset != 0\n", __func__);
 	phaddr_base = _par->fb_dma_phaddr + info->var.yoffset*info->fix.line_length;
 	phaddr_ceil = phaddr_base + info->var.yres*info->fix.line_length - 1;
 
-	flip	= atomic_read(&_par->display_flip);
-	if (_par->display_swapxy) {
-		flipx	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip);
-		flipy	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip);
-	} else {
-		flipx	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip);
-		flipy	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip);
-	}
-
-	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_ACCESS_CTRL);
-	display_write_data(_dev, _par,
-			0
-			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MX, flipx)
-			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MY, flipy)
-			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MV, _par->display_swapxy?1:0));
+	if (atomic_read(&_par->display_settings.changed))
+		display_alignment_settings_update(_dev, _par);
 
 	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_WRITE);
 
@@ -748,7 +758,8 @@ static void display_redraw_work_done(struct device* _dev, struct da8xx_ili9340_p
 		return;
 	}
 
-	display_visibility_update(_dev, _par);
+	if (atomic_xchg(&_par->display_settings.changed, 0))
+		display_visibility_settings_update(_dev, _par);
 
 	lcdc_unlock(_par);
 	_display_redraw_work_done(_dev, _par);
@@ -762,7 +773,7 @@ static ssize_t sysfs_idle_show(struct device* _fbdev, struct device_attribute* _
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_idle));
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_settings.disp_idle));
 }
 
 static ssize_t sysfs_idle_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -777,9 +788,9 @@ static ssize_t sysfs_idle_store(struct device* _fbdev, struct device_attribute* 
 	if (ret)
 		return ret;
 
-	atomic_set(&par->display_idle, value?1:0);
+	atomic_set(&par->display_settings.disp_idle, value?1:0);
 
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, true);
 	return _count;
 }
 
@@ -788,7 +799,7 @@ static ssize_t sysfs_inversion_show(struct device* _fbdev, struct device_attribu
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_inversion));
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_settings.disp_inversion));
 }
 
 static ssize_t sysfs_inversion_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -803,9 +814,9 @@ static ssize_t sysfs_inversion_store(struct device* _fbdev, struct device_attrib
 	if (ret)
 		return ret;
 
-	atomic_set(&par->display_inversion, value?1:0);
+	atomic_set(&par->display_settings.disp_inversion, value?1:0);
 
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, true);
 	return _count;
 }
 
@@ -814,7 +825,7 @@ static ssize_t sysfs_gamma_show(struct device* _fbdev, struct device_attribute* 
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&par->display_gamma)));
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&par->display_settings.disp_gamma)));
 }
 
 static ssize_t sysfs_gamma_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -830,9 +841,9 @@ static ssize_t sysfs_gamma_store(struct device* _fbdev, struct device_attribute*
 	if (ret)
 		return ret;
 
-	atomic_set(&par->display_gamma, REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_GAMMA, value, ovf));
+	atomic_set(&par->display_settings.disp_gamma, REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_GAMMA, value, ovf));
 
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, true);
 	return _count;
 }
 
@@ -840,7 +851,7 @@ static ssize_t sysfs_flip_show(struct device* _fbdev, struct device_attribute* _
 {
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
-	unsigned flip = atomic_read(&par->display_flip);
+	unsigned flip = atomic_read(&par->display_settings.disp_flip);
 
 	return snprintf(_buf, PAGE_SIZE, "%s%s\n%s%s%s",
 			REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip)?"x":"", REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip)?"y":"",
@@ -865,9 +876,9 @@ static ssize_t sysfs_flip_store(struct device* _fbdev, struct device_attribute* 
 			case 'Y':	value |= REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, 1);	break;
 		}
 
-	atomic_set(&par->display_flip, value);
+	atomic_set(&par->display_settings.disp_flip, value);
 
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, true);
 	return _count;
 }
 
@@ -876,7 +887,7 @@ static ssize_t sysfs_brightness_show(struct device* _fbdev, struct device_attrib
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&par->display_brightness)));
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&par->display_settings.disp_brightness)));
 }
 
 static ssize_t sysfs_brightness_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -892,9 +903,9 @@ static ssize_t sysfs_brightness_store(struct device* _fbdev, struct device_attri
 	if (ret)
 		return ret;
 
-	atomic_set(&par->display_brightness, REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_BRIGHTNESS, value, ovf));
+	atomic_set(&par->display_settings.disp_brightness, REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_BRIGHTNESS, value, ovf));
 
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, true);
 	return _count;
 }
 
@@ -903,7 +914,7 @@ static ssize_t sysfs_backlight_show(struct device* _fbdev, struct device_attribu
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_backlight));
+	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_settings.disp_backlight));
 }
 
 static ssize_t sysfs_backlight_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -918,9 +929,9 @@ static ssize_t sysfs_backlight_store(struct device* _fbdev, struct device_attrib
 	if (ret)
 		return ret;
 
-	atomic_set(&par->display_backlight, value?1:0);
+	atomic_set(&par->display_settings.disp_backlight, value?1:0);
 
-	display_schedule_redraw(dev, par);
+	display_schedule_redraw(dev, par, true);
 	return _count;
 }
 
@@ -938,7 +949,7 @@ static ssize_t sysfs_perf_count_show(struct device* _fbdev, struct device_attrib
 	started_at1	= CURRENT_TIME;
 	for (retry = 0; retry < par->perf_count; ++retry) {
 		int ret;
-		display_schedule_redraw(dev, par);
+		display_schedule_redraw(dev, par, false);
 		ret = display_wait_redraw_completion(dev, par);
 		if (ret)
 			return ret;
@@ -948,8 +959,7 @@ static ssize_t sysfs_perf_count_show(struct device* _fbdev, struct device_attrib
 	started_at2	= CURRENT_TIME;
 	for (retry = 0; retry < par->perf_count; ++retry) {
 		int ret;
-#warning Force full redraw with display state apply
-		display_schedule_redraw(dev, par);
+		display_schedule_redraw(dev, par, true);
 		ret = display_wait_redraw_completion(dev, par);
 		if (ret)
 			return ret;
@@ -1526,14 +1536,15 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 
 	par->display_swapxy	= _pdata->xyswap;
 
-	atomic_set(&par->display_on,		1);
-	atomic_set(&par->display_idle,		_pdata->display_idle?1:0);
-	atomic_set(&par->display_inversion,	_pdata->display_inversion?1:0);
-	atomic_set(&par->display_gamma,		REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_GAMMA, _pdata->display_gamma, ovf));
-	atomic_set(&par->display_flip,		_pdata->xflip?REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, 1):0x0
-					       |_pdata->yflip?REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, 1):0x0);
-	atomic_set(&par->display_brightness,	REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_BRIGHTNESS, _pdata->display_brightness, ovf));
-	atomic_set(&par->display_backlight,	_pdata->display_backlight?1:0);
+	atomic_set(&par->display_settings.changed,		1);
+	atomic_set(&par->display_settings.disp_on,		1);
+	atomic_set(&par->display_settings.disp_idle,		_pdata->display_idle?1:0);
+	atomic_set(&par->display_settings.disp_inversion,	_pdata->display_inversion?1:0);
+	atomic_set(&par->display_settings.disp_gamma,		REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_GAMMA, _pdata->display_gamma, ovf));
+	atomic_set(&par->display_settings.disp_flip,		_pdata->xflip?REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, 1):0x0
+							       |_pdata->yflip?REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, 1):0x0);
+	atomic_set(&par->display_settings.disp_brightness,	REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_BRIGHTNESS, _pdata->display_brightness, ovf));
+	atomic_set(&par->display_settings.disp_backlight,	_pdata->display_backlight?1:0);
 
 	par->ili9340_t_reset_to_ready_ms	= _pdata->display_t_reset_to_ready_ms;
 	par->ili9340_t_sleep_in_out_ms		= _pdata->display_t_sleep_in_out_ms;
@@ -1624,8 +1635,8 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 
 
  //exit_display_off:
-	atomic_set(&par->display_on, 0);
-	display_visibility_update(dev, par);
+	atomic_set(&par->display_settings.disp_on, 0);
+	display_visibility_settings_update(dev, par);
  exit_sleep_in:
 	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_IN);
 	msleep(par->ili9340_t_sleep_in_out_ms); // Sleep-in to power off delay, ch12, pg211
@@ -1654,8 +1665,8 @@ static void __devinitexit da8xx_ili9340_display_shutdown(struct platform_device*
 		goto exit;
 	}
 
-	atomic_set(&par->display_on, 0);
-	display_visibility_update(dev, par);
+	atomic_set(&par->display_settings.disp_on, 0);
+	display_visibility_settings_update(dev, par);
 
 	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_IN);
 	msleep(par->ili9340_t_sleep_in_out_ms); // Sleep-in to power off delay, ch12, pg211
@@ -1878,5 +1889,4 @@ module_exit(da8xx_ili9340_exit_module);
 
 MODULE_LICENSE("GPL");
 
-#warning TODO optimizations: update fb settings only once when changed; avoid redrawing screen when disabled (fastpath in redraw work); unify settings/redraw usage
 #warning TODO startup initialization as separate task
