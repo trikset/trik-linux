@@ -931,11 +931,11 @@ static ssize_t sysfs_perf_count_show(struct device* _fbdev, struct device_attrib
 	struct da8xx_ili9340_par* par	= info->par;
 
 	unsigned retry;
-	struct timespec started_at;
-	struct timespec spent_time;
-	unsigned long ns_per_redraw;
+	struct timespec started_at1, started_at2;
+	struct timespec spent_time1, spent_time2;
+	unsigned long ns_per_redraw1, ns_per_redraw2;
 
-	started_at	= CURRENT_TIME;
+	started_at1	= CURRENT_TIME;
 	for (retry = 0; retry < par->perf_count; ++retry) {
 		int ret;
 		display_schedule_redraw(dev, par);
@@ -943,16 +943,37 @@ static ssize_t sysfs_perf_count_show(struct device* _fbdev, struct device_attrib
 		if (ret)
 			return ret;
 	}
-	spent_time	= timespec_sub(CURRENT_TIME, started_at);
-	ns_per_redraw	=  spent_time.tv_nsec / retry; // calculate this way to avoid overflow
-	ns_per_redraw	+= spent_time.tv_sec * (NSEC_PER_SEC / retry);
+	spent_time1	= timespec_sub(CURRENT_TIME, started_at1);
+
+	started_at2	= CURRENT_TIME;
+	for (retry = 0; retry < par->perf_count; ++retry) {
+		int ret;
+#warning Force full redraw with display state apply
+		display_schedule_redraw(dev, par);
+		ret = display_wait_redraw_completion(dev, par);
+		if (ret)
+			return ret;
+	}
+	spent_time2	= timespec_sub(CURRENT_TIME, started_at2);
+
+	ns_per_redraw1	=  spent_time1.tv_nsec / par->perf_count; // calculate this way to avoid overflow
+	ns_per_redraw1	+= spent_time1.tv_sec * (NSEC_PER_SEC / par->perf_count);
+	ns_per_redraw2	=  spent_time2.tv_nsec / par->perf_count; // calculate this way to avoid overflow
+	ns_per_redraw2	+= spent_time2.tv_sec * (NSEC_PER_SEC / par->perf_count);
 
 	return snprintf(_buf, PAGE_SIZE,
-			"It took %lu.%09lu for %u redraws\n"
+			"Performance tested for %u redraw\n"
+			"It took %lu.%09lu for regular redraws\n"
 			"Single redraw takes %luns in average\n"
-			"Maximum possible FPS is %lu\n",
-			(unsigned long)spent_time.tv_sec, (unsigned long)spent_time.tv_nsec, retry,
-			ns_per_redraw, (unsigned long)(NSEC_PER_SEC/ns_per_redraw));
+			"It took %lu.%09lu for full redraws (with display settings apply)\n"
+			"Single redraw takes %luns in average\n"
+			"Maximum possible FPS is %lu (full redraw)\n",
+			(unsigned)par->perf_count,
+			(unsigned long)spent_time1.tv_sec, (unsigned long)spent_time1.tv_nsec,
+			ns_per_redraw1,
+			(unsigned long)spent_time2.tv_sec, (unsigned long)spent_time2.tv_nsec,
+			ns_per_redraw2,
+			(unsigned long)(NSEC_PER_SEC/ns_per_redraw2));
 }
 
 static ssize_t sysfs_perf_count_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -1859,4 +1880,3 @@ MODULE_LICENSE("GPL");
 
 #warning TODO optimizations: update fb settings only once when changed; avoid redrawing screen when disabled (fastpath in redraw work); unify settings/redraw usage
 #warning TODO startup initialization as separate task
-#warning TODO perf_count with display state update and without
