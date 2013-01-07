@@ -291,6 +291,7 @@ static void	fbops_imageblit(struct fb_info* _info, const struct fb_image* _image
 static int	fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info);
 static int	fbops_sync(struct fb_info* _info);
 static int	fbops_blank(int _blank, struct fb_info* _info);
+static int	fbops_setcolreg(unsigned _regno, unsigned _red, unsigned _green, unsigned _blue, unsigned _transp, struct fb_info* _info);
 
 static struct fb_ops da8xx_ili9340_fbops = {
 	.owner		= THIS_MODULE,
@@ -302,6 +303,7 @@ static struct fb_ops da8xx_ili9340_fbops = {
 	.fb_pan_display	= &fbops_pan_display,
 	.fb_blank	= &fbops_blank,
 	.fb_sync	= &fbops_sync,
+	.fb_setcolreg	= &fbops_setcolreg,
 };
 
 static void		display_schedule_redraw(struct device* _dev, struct da8xx_ili9340_par* _par);
@@ -507,6 +509,26 @@ static int fbops_blank(int _blank, struct fb_info* _info)
 	}
 
 	display_schedule_redraw(dev, par);
+	dev_dbg(dev, "%s: done\n", __func__);
+
+	return 0;
+}
+
+static int fbops_setcolreg(unsigned _regno, unsigned _red, unsigned _green, unsigned _blue, unsigned _transp, struct fb_info* _info)
+{
+	struct device* dev		= _info->device;
+	struct da8xx_ili9340_par* par	= _info->par;
+
+	dev_dbg(dev, "%s: called\n", __func__);
+
+	if (_regno >= ARRAY_SIZE(par->pseudo_palette))
+		return -ENOMEM;
+
+#warning TODO check color limits
+	par->pseudo_palette[_regno]	= (_red << _info->var.red.offset)
+					| (_green << _info->var.green.offset)
+					| (_blue << _info->var.blue.offset);
+
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return 0;
