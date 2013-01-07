@@ -4,9 +4,9 @@
 
 enum da8xx_ili9340_pdata_lcdc_visual_mode {
 	DA8XX_LCDC_VISUAL_INVALID = 0,
-	DA8XX_LCDC_VISUAL_565,
-	DA8XX_LCDC_VISUAL_888,
-	DA8XX_LCDC_VISUAL_8880,
+	DA8XX_LCDC_VISUAL_565,	// 16bps
+	DA8XX_LCDC_VISUAL_888,	// 24bps, 8bits per color, but only 6 topmost are actually used
+	DA8XX_LCDC_VISUAL_8880,	// 32bps, 8bits per color + 1 empty byte
 };
 
 enum da8xx_ili9340_pdata_lcdc_lidd_bus_mode {
