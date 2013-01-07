@@ -1546,11 +1546,6 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 					| REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__EPF, 0x0)); // in 565 mode, lowest bit is populated with topmost
 	display_write_data(dev, par, 0);
 
-
-
-#warning TODO setup display
-
-
 	display_start_redraw_locked(dev, par);
 	// forget about lock from this point on
 
