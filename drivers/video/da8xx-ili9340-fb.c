@@ -1478,13 +1478,9 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 		goto exit_sleep_in;
 	}
 
-	if (!par->display_swapxy) {
-		disp_columns = info->var.xres;
-		disp_rows = info->var.yres;
-	} else {
-		disp_columns = info->var.yres;
-		disp_rows = info->var.xres;
-	}
+	disp_columns	= info->var.xres;
+	disp_rows	= info->var.yres;
+
 	display_write_cmd(dev, par, ILI9340_CMD_COLUMN_ADDR);
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__HIGHBYTE,	0));
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_COLUMN_ADDR__LOWBYTE,		0));
@@ -1782,7 +1778,6 @@ module_exit(da8xx_ili9340_exit_module);
 
 MODULE_LICENSE("GPL");
 
-#warning TODO test swapxy axis
 #warning TODO adaptive brightness
 #warning TODO fb_logo
 #warning TODO optimizations: update fb settings only once when changed; avoid redrawing screen when disabled (fastpath in redraw work); unify settings/redraw usage
