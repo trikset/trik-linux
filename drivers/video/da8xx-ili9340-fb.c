@@ -171,7 +171,7 @@
 #define ILI9340_DISPLAY_MAX_GAMMA		3u
 
 #define ILI9340_DISPLAY_FLIP_X			0x01
-#define ILI9340_DISPLAY_FLIP_X			0x02
+#define ILI9340_DISPLAY_FLIP_Y			0x02
 #define ILI9340_DISPLAY_FLIP_SWAPXY		0x04
 
 
@@ -1426,7 +1426,7 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	atomic_set(&par->display_inversion,	_pdata->display_inversion?1:0);
 	atomic_set(&par->display_gamma,		min(_pdata->display_gamma, ILI9340_DISPLAY_MAX_GAMMA));
 	atomic_set(&par->display_flip,		 (_pdata->xflip?ILI9340_DISPLAY_FLIP_X:0x00)
-						|(_pdata->yflip?ILI9340_DISPLAY_FLIP_Y:0x00);
+						|(_pdata->yflip?ILI9340_DISPLAY_FLIP_Y:0x00)
 						|(_pdata->xyswap?ILI9340_DISPLAY_FLIP_SWAPXY:0x00));
 
 	par->ili9340_t_reset_to_ready_ms	= _pdata->display_t_reset_to_ready_ms;
