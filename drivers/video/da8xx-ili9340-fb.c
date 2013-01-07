@@ -1761,4 +1761,5 @@ MODULE_LICENSE("GPL");
 
 #warning TODO adaptive brightness
 #warning TODO fb_logo
-#warning TODO measure performance
+#warning TODO optimizations: update fb settings only once when changed; avoid redrawing screen when disabled (fastpath in redraw work); unify settings/redraw usage
+#warning TODO startup initialization as separate task
