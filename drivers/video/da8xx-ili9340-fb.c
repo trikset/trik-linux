@@ -514,6 +514,11 @@ static int fbops_blank(int _blank, struct fb_info* _info)
 	return 0;
 }
 
+static inline unsigned colreg(unsigned _value, struct fb_bitfield* _colordef)
+{
+	return (_value >> (16 - _colordef->length)) << _colordef->offset;
+}
+
 static int fbops_setcolreg(unsigned _regno, unsigned _red, unsigned _green, unsigned _blue, unsigned _transp, struct fb_info* _info)
 {
 	struct device* dev		= _info->device;
@@ -524,10 +529,9 @@ static int fbops_setcolreg(unsigned _regno, unsigned _red, unsigned _green, unsi
 	if (_regno >= ARRAY_SIZE(par->pseudo_palette))
 		return -ENOMEM;
 
-#warning TODO check color limits
-	par->pseudo_palette[_regno]	= (_red << _info->var.red.offset)
-					| (_green << _info->var.green.offset)
-					| (_blue << _info->var.blue.offset);
+	par->pseudo_palette[_regno]	= colreg(_red,	&_info->var.red)
+					| colreg(_green,&_info->var.green)
+					| colreg(_blue,	&_info->var.blue);
 
 	dev_dbg(dev, "%s: done\n", __func__);
 
@@ -1832,6 +1836,5 @@ module_exit(da8xx_ili9340_exit_module);
 MODULE_LICENSE("GPL");
 
 #warning TODO adaptive brightness
-#warning TODO fb_logo
 #warning TODO optimizations: update fb settings only once when changed; avoid redrawing screen when disabled (fastpath in redraw work); unify settings/redraw usage
 #warning TODO startup initialization as separate task
