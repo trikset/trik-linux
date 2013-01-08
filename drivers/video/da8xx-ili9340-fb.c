@@ -293,7 +293,6 @@ static void	fbops_fillrect(struct fb_info* _info, const struct fb_fillrect* _rec
 static void	fbops_copyarea(struct fb_info* _info, const struct fb_copyarea* _region);
 static void	fbops_imageblit(struct fb_info* _info, const struct fb_image* _image);
 static int	fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info);
-static int	fbops_sync(struct fb_info* _info);
 static int	fbops_blank(int _blank, struct fb_info* _info);
 static int	fbops_setcolreg(unsigned _regno, unsigned _red, unsigned _green, unsigned _blue, unsigned _transp, struct fb_info* _info);
 
@@ -306,7 +305,6 @@ static struct fb_ops da8xx_ili9340_fbops = {
 	.fb_imageblit	= &fbops_imageblit,
 	.fb_pan_display	= &fbops_pan_display,
 	.fb_blank	= &fbops_blank,
-	.fb_sync	= &fbops_sync,
 	.fb_setcolreg	= &fbops_setcolreg,
 };
 
@@ -483,18 +481,6 @@ static int fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _in
 	dev_dbg(dev, "%s: done\n", __func__);
 
 	return 0;
-}
-
-static int fbops_sync(struct fb_info* _info)
-{
-	int ret;
-	struct device* dev		= _info->device;
-	struct da8xx_ili9340_par* par	= _info->par;
-
-	dev_dbg(dev, "%s: called\n", __func__);
-	ret = display_wait_redraw_completion(dev, par);
-	dev_dbg(dev, "%s: done\n", __func__);
-	return ret;
 }
 
 static int fbops_blank(int _blank, struct fb_info* _info)
@@ -1890,3 +1876,4 @@ module_exit(da8xx_ili9340_exit_module);
 MODULE_LICENSE("GPL");
 
 #warning TODO startup initialization as separate task
+#warning TODO verbosive gamma modes?
