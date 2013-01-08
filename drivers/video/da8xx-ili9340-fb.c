@@ -634,8 +634,7 @@ static void display_visibility_settings_update(struct device* _dev, struct da8xx
 		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_CTRL);
 		display_write_data(_dev, _par,
 				0
-#warning TEMPORARY tricking BCTRL
-				| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__BCTRL, (brightness&0x1)?1:0)
+				| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__BCTRL, 1)
 				| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__DD, idle?1:0));
 
 		if (_par->cb_backlight_ctrl)
