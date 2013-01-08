@@ -28,6 +28,13 @@ enum da8xx_ili9340_pdata_lcdc_lidd_bus_polarity {
 	DA8XX_LCDC_LIDD_POL_ACTIVE_LOW,
 };
 
+enum da8xx_ili9340_pdata_display_gamma {
+	DA8XX_LCDC_DISPLAY_GAMMA_DEFAULT = 0,
+	DA8XX_LCDC_DISPLAY_GAMMA_1_0,
+	DA8XX_LCDC_DISPLAY_GAMMA_1_8,
+	DA8XX_LCDC_DISPLAY_GAMMA_2_2,
+	DA8XX_LCDC_DISPLAY_GAMMA_2_5,
+};
 
 struct da8xx_ili9340_pdata {
 	int	xres;
@@ -65,7 +72,7 @@ struct da8xx_ili9340_pdata {
 	bool						display_backlight;
 	unsigned					display_brightness;
 	bool						display_inversion;
-	unsigned					display_gamma;
+	enum da8xx_ili9340_pdata_display_gamma		display_gamma;
 
 	void	(*cb_power_ctrl)(bool _power_up);
 	void	(*cb_backlight_ctrl)(bool _backlight);
