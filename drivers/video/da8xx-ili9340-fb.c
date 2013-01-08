@@ -1597,8 +1597,26 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 		goto exit;
 	}
 
-	// Startup routine should be asyncronous for faster bootup
-#warning TODO make code below asynchronous
+
+#warning TODO consider making this code asynchronous. Read note below
+	/*
+	 * Code below may be started as a long-running work (queue_work(system_long_wq)) for faster startup.
+	 * It takes about 300ms for a normal startup due to 2*120ms delays.
+	 * Code below initializes display power and registers and then start redraw work (display_start_redraw_locked).
+	 *
+	 * At the same time this code checks if startup succeed and only registers framebuffer in this case.
+	 * Unfortunately, there is no good mechanism to 'abort' startup - if we wait for a startup completion,
+	 * then there is no speed up; if we don't, we have to 'unroll' framebuffer registration later on.
+	 *
+	 * To make this code asynchronous, a new work_struct should be added to par; initialization and flushing code
+	 * should be added to near to initialization and flushing code for redraw work. Note that flushing should
+	 * flush startup work and then redraw work.
+	 * To block framebuffer access while startup is running, startup work must run from locked context (i.e. here
+	 * is a nice place) with display_settings.changed and display_redraw_ongoing set (to block any redraw work).
+	 * At the end of startup work it might be reasonable to run lcdc_edma_start from startup work itself, without
+	 * scheduling redraw work - this way it will use redraw work's finalization code to re-run redraw if necessary.
+	 */
+
 	par->cb_power_ctrl(1);
 	msleep(par->ili9340_t_reset_to_ready_ms); // Reset/power on to registers access delay, ch13.3.1, pg216
 
@@ -1931,4 +1949,3 @@ module_exit(da8xx_ili9340_exit_module);
 
 MODULE_LICENSE("GPL");
 
-#warning TODO startup initialization as separate task
