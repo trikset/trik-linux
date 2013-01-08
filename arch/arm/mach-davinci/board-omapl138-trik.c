@@ -1021,7 +1021,7 @@ static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
 	.display_backlight		= true,
 	.display_brightness		= 0x100,
 	.display_inversion		= false,
-	.display_gamma			= 0,
+	.display_gamma			= DA8XX_LCDC_DISPLAY_GAMMA_DEFAULT,
 
 	.cb_power_ctrl		= &da850trik_lcd_power_ctrl,
 	.cb_backlight_ctrl	= &da850trik_lcd_backlight_ctrl,

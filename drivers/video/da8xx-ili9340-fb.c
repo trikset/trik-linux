@@ -33,6 +33,7 @@
 #define REGDEF_SET_VALUE(reg_def, val)		REGDEFSPLIT_SET_VALUE(reg_def, val)
 #define REGDEF_SET_VALUE_OVF(reg_def, val, ovf)	REGDEFSPLIT_SET_VALUE_OVF(reg_def, val, ovf)
 #define REGDEF_GET_VALUE(reg_def, reg_val)	REGDEFSPLIT_GET_VALUE(reg_def, reg_val)
+#define REGDEF_MAX_VALUE(reg_def)		REGDEFSPLIT_VALUE_MAX(reg_def)
 
 
 
@@ -168,7 +169,11 @@
 
 
 #define ILI9340_DISPLAY_CFG_BRIGHTNESS				0, (8)
-#define ILI9340_DISPLAY_CFG_GAMMA				0, (2)
+#define ILI9340_DISPLAY_CFG_GAMMA				0, (4)
+#define ILI9340_DISPLAY_CFG_GAMMA__1_0				0x08
+#define ILI9340_DISPLAY_CFG_GAMMA__1_8				0x02
+#define ILI9340_DISPLAY_CFG_GAMMA__2_2				0x01
+#define ILI9340_DISPLAY_CFG_GAMMA__2_5				0x04
 #define ILI9340_DISPLAY_CFG_FLIP_X				0, (1)
 #define ILI9340_DISPLAY_CFG_FLIP_Y				1, (1)
 
@@ -608,8 +613,8 @@ static void display_visibility_settings_update(struct device* _dev, struct da8xx
 			_par->cb_backlight_ctrl(false);
 	} else {
 		bool idle;
-		unsigned brightness;
-		unsigned gamma;
+		__u16 gamma;
+		__u16 brightness;
 
 		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_ON);
 
@@ -618,13 +623,7 @@ static void display_visibility_settings_update(struct device* _dev, struct da8xx
 
 		display_write_cmd(_dev, _par, atomic_read(&_par->display_settings.disp_inversion)?ILI9340_CMD_INVERSION_ON:ILI9340_CMD_INVERSION_OFF);
 
-		switch (REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&_par->display_settings.disp_gamma))) {
-			case 0:		gamma = 0x01; break;
-			case 1:		gamma = 0x02; break;
-			case 2:		gamma = 0x04; break;
-			case 3:		gamma = 0x08; break;
-			default:	gamma = 0x01; break;
-		}
+		gamma		= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&_par->display_settings.disp_gamma));
 		display_write_cmd(_dev, _par, ILI9340_CMD_GAMMA);
 		display_write_data(_dev, _par, gamma);
 
@@ -810,24 +809,42 @@ static ssize_t sysfs_gamma_show(struct device* _fbdev, struct device_attribute* 
 {
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
+	const char* gamma;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&par->display_settings.disp_gamma)));
+	switch (REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&par->display_settings.disp_gamma))) {
+		case ILI9340_DISPLAY_CFG_GAMMA__1_0:	gamma = "1.0";	break;
+		case ILI9340_DISPLAY_CFG_GAMMA__1_8:	gamma = "1.8";	break;
+		case ILI9340_DISPLAY_CFG_GAMMA__2_2:	gamma = "2.2";	break;
+		case ILI9340_DISPLAY_CFG_GAMMA__2_5:	gamma = "2.5";	break;
+		default:				gamma = "unknown";	break;
+	}
+
+	return snprintf(_buf, PAGE_SIZE,
+			"%s\n"
+			"Values accepted: 1.0 1.8 2.2 2.5\n",
+			gamma);
 }
 
 static ssize_t sysfs_gamma_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
 {
-	int ret;
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct device* dev		= info->device;
 	struct da8xx_ili9340_par* par	= info->par;
-	unsigned value;
-	unsigned ovf = 0;
 
-	ret = kstrtouint(_buf, 0, &value);
-	if (ret)
-		return ret;
-
-	atomic_set(&par->display_settings.disp_gamma, REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_GAMMA, value, ovf));
+	if (!strncmp(_buf, "1.0", 3))
+		atomic_set(&par->display_settings.disp_gamma,
+			REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, ILI9340_DISPLAY_CFG_GAMMA__1_0));
+	else if (!strncmp(_buf, "1.8", 3))
+		atomic_set(&par->display_settings.disp_gamma,
+			REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, ILI9340_DISPLAY_CFG_GAMMA__1_8));
+	else if (!strncmp(_buf, "2.2", 3))
+		atomic_set(&par->display_settings.disp_gamma,
+			REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, ILI9340_DISPLAY_CFG_GAMMA__2_2));
+	else if (!strncmp(_buf, "2.5", 3))
+		atomic_set(&par->display_settings.disp_gamma,
+			REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, ILI9340_DISPLAY_CFG_GAMMA__2_5));
+	else
+		return -EINVAL;
 
 	display_schedule_redraw(dev, par, true);
 	return _count;
@@ -1526,7 +1543,30 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	atomic_set(&par->display_settings.disp_on,		1);
 	atomic_set(&par->display_settings.disp_idle,		_pdata->display_idle?1:0);
 	atomic_set(&par->display_settings.disp_inversion,	_pdata->display_inversion?1:0);
-	atomic_set(&par->display_settings.disp_gamma,		REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_GAMMA, _pdata->display_gamma, ovf));
+	switch (_pdata->display_gamma) {
+		case DA8XX_LCDC_DISPLAY_GAMMA_1_0:
+			atomic_set(&par->display_settings.disp_gamma,
+					REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, ILI9340_DISPLAY_CFG_GAMMA__1_0));
+			break;
+		case DA8XX_LCDC_DISPLAY_GAMMA_1_8:
+			atomic_set(&par->display_settings.disp_gamma,
+					REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, ILI9340_DISPLAY_CFG_GAMMA__1_8));
+			break;
+		case DA8XX_LCDC_DISPLAY_GAMMA_DEFAULT:
+		case DA8XX_LCDC_DISPLAY_GAMMA_2_2:
+			atomic_set(&par->display_settings.disp_gamma,
+					REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, ILI9340_DISPLAY_CFG_GAMMA__2_2));
+			break;
+		case DA8XX_LCDC_DISPLAY_GAMMA_2_5:
+			atomic_set(&par->display_settings.disp_gamma,
+					REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, ILI9340_DISPLAY_CFG_GAMMA__2_5));
+			break;
+		default:
+			dev_err(dev, "%s: unknown gamma value %u\n", __func__, (unsigned)_pdata->display_gamma);
+			atomic_set(&par->display_settings.disp_gamma,
+					REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, ILI9340_DISPLAY_CFG_GAMMA__2_2));
+			break;
+	}
 	atomic_set(&par->display_settings.disp_flip,		_pdata->xflip?REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, 1):0x0
 							       |_pdata->yflip?REGDEF_SET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, 1):0x0);
 	atomic_set(&par->display_settings.disp_brightness,	REGDEF_SET_VALUE_OVF(ILI9340_DISPLAY_CFG_BRIGHTNESS, _pdata->display_brightness, ovf));
@@ -1876,4 +1916,3 @@ module_exit(da8xx_ili9340_exit_module);
 MODULE_LICENSE("GPL");
 
 #warning TODO startup initialization as separate task
-#warning TODO verbosive gamma modes?
