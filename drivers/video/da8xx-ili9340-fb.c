@@ -646,7 +646,8 @@ static void display_visibility_settings_update(struct device* _dev, struct da8xx
 static void display_alignment_settings_update(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
 	unsigned flip;
-	unsigned flipx, flipy;
+	__u16 flipx;
+	__u16 flipy;
 
 	lcdc_assert_locked(_par);
 
@@ -758,7 +759,10 @@ static ssize_t sysfs_idle_show(struct device* _fbdev, struct device_attribute* _
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_settings.disp_idle));
+	return snprintf(_buf, PAGE_SIZE,
+			"%u\n"
+			"Values accepted: 0..1\n",
+			(unsigned)atomic_read(&par->display_settings.disp_idle));
 }
 
 static ssize_t sysfs_idle_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -784,7 +788,10 @@ static ssize_t sysfs_inversion_show(struct device* _fbdev, struct device_attribu
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_settings.disp_inversion));
+	return snprintf(_buf, PAGE_SIZE,
+			"%u\n"
+			"Values accepted: 0..1\n",
+			(unsigned)atomic_read(&par->display_settings.disp_inversion));
 }
 
 static ssize_t sysfs_inversion_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -856,7 +863,10 @@ static ssize_t sysfs_flip_show(struct device* _fbdev, struct device_attribute* _
 	struct da8xx_ili9340_par* par	= info->par;
 	unsigned flip = atomic_read(&par->display_settings.disp_flip);
 
-	return snprintf(_buf, PAGE_SIZE, "%s%s\n%s%s%s",
+	return snprintf(_buf, PAGE_SIZE,
+			"%s%s\n"
+			"Values accepted: <empty> x y xy"
+			"%s%s%s",
 			REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip)?"x":"", REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip)?"y":"",
 			REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip)?"Horizontal flip\n":"",
 			REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip)?"Vertical flip\n":"",
@@ -890,7 +900,11 @@ static ssize_t sysfs_brightness_show(struct device* _fbdev, struct device_attrib
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&par->display_settings.disp_brightness)));
+	return snprintf(_buf, PAGE_SIZE,
+			"%u\n"
+			"Values accepted: 0..%u\n",
+			(unsigned)REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&par->display_settings.disp_brightness)),
+			(unsigned)REGDEF_MAX_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS));
 }
 
 static ssize_t sysfs_brightness_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
@@ -917,7 +931,10 @@ static ssize_t sysfs_backlight_show(struct device* _fbdev, struct device_attribu
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	struct da8xx_ili9340_par* par	= info->par;
 
-	return snprintf(_buf, PAGE_SIZE, "%u\n", (unsigned)atomic_read(&par->display_settings.disp_backlight));
+	return snprintf(_buf, PAGE_SIZE,
+			"%u\n"
+			"Values accepted: 0..1\n",
+			(unsigned)atomic_read(&par->display_settings.disp_backlight));
 }
 
 static ssize_t sysfs_backlight_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
