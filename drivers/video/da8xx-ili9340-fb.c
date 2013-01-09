@@ -864,7 +864,7 @@ static ssize_t sysfs_flip_show(struct device* _fbdev, struct device_attribute* _
 
 	return snprintf(_buf, PAGE_SIZE,
 			"%s%s\n"
-			"Values accepted: <empty> x y xy"
+			"Values accepted: <empty> x y xy\n"
 			"%s%s%s",
 			REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip)?"x":"", REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_Y, flip)?"y":"",
 			REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_FLIP_X, flip)?"Horizontal flip\n":"",
