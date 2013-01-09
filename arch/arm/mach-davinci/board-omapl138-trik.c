@@ -1372,7 +1372,6 @@ static __init void da850trik_led_init(void){
 	if (ret){
 		pr_warning("Could not req cfg LEDS");
 	}
-	gpio_request_one(DA850TRIK_LED_CON_PIN, GPIOF_OUT_INIT_LOW, "LED");
 
 	ret = platform_device_register(&da850trik_leds_device);
         if (ret) {
