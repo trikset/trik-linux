@@ -984,15 +984,27 @@ static struct resource da850trik_lcdc_resources[] = {
 	},
 };
 
+#define DISPLAY_LANDSCAPE
 static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
+#ifdef DISPLAY_LANDSCAPE
+	.xres			= 320,
+	.yres			= 240,
+	.xflip			= false,
+	.yflip			= false,
+	.xyswap			= true,
+	.screen_height		= 37, //36,72mm
+	.screen_width		= 49, //48,96mm
+#else
 	.xres			= 240,
 	.yres			= 320,
 	.xflip			= true,
 	.yflip			= false,
 	.xyswap			= false,
-	.visual_mode		= DA8XX_LCDC_VISUAL_565,
 	.screen_height		= 49, //48,96mm
 	.screen_width		= 37, //36,72mm
+#endif
+	.visual_mode		= DA8XX_LCDC_VISUAL_565,
+	.visual_mode_red_blue_swap	= true; // fix for NewHeaven display with messed red and blue components
 	.fps			= 50, //20ms delay between memory write and redrawing
 
 	.lcdc_lidd_mode		= DA8XX_LCDC_LIDD_MODE_8080ASYNC,

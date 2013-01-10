@@ -1073,30 +1073,21 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 
 	switch (_pdata->visual_mode) {
 		case DA8XX_LCDC_VISUAL_565: // RGB565, 16bits
-			info->var.blue.offset		= 0;
-			info->var.blue.length		= 5;
-			info->var.green.offset		= 5;
-			info->var.green.length		= 6;
 			info->var.red.offset		= 11;
 			info->var.red.length		= 5;
+			info->var.green.offset		= 5;
+			info->var.green.length		= 6;
+			info->var.blue.offset		= 0;
+			info->var.blue.length		= 5;
 			info->var.bits_per_pixel	= 16;
 			break;
-		case DA8XX_LCDC_VISUAL_888: // RGB888, 24bits
-			info->var.blue.offset		= 0;
-			info->var.blue.length		= 8;
-			info->var.green.offset		= 8;
-			info->var.green.length		= 8;
-			info->var.red.offset		= 16;
-			info->var.red.length		= 8;
-			info->var.bits_per_pixel	= 24;
-			break;
 		case DA8XX_LCDC_VISUAL_8880: // RGB888, 32bits
-			info->var.blue.offset		= 0;
-			info->var.blue.length		= 8;
-			info->var.green.offset		= 8;
-			info->var.green.length		= 8;
-			info->var.red.offset		= 16;
+			info->var.red.offset		= 8;
 			info->var.red.length		= 8;
+			info->var.green.offset		= 0;
+			info->var.green.length		= 8;
+			info->var.blue.offset		= 24;
+			info->var.blue.length		= 8;
 			info->var.bits_per_pixel	= 32;
 			break;
 		default:
@@ -1104,6 +1095,13 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 			ret = -EINVAL;
 			goto exit;
 	}
+	if (_pdata->visual_mode_red_blue_swap) {
+		struct fb_bitfield tmp;
+		tmp = info->var.red;
+		info->var.red = info->var.blue;
+		info->var.blue = tmp;
+	}
+
 	par->fb_visual_mode = _pdata->visual_mode;
 
 	info->fix.line_length		= DIV_ROUND_UP(info->var.bits_per_pixel, BITS_PER_BYTE) * info->var.xres_virtual;
@@ -1699,7 +1697,6 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 
 	switch (par->fb_visual_mode) {
 		case DA8XX_LCDC_VISUAL_565:	disp_dbi = 0x5;	disp_mdt = 0x0;	break;
-		case DA8XX_LCDC_VISUAL_888:	disp_dbi = 0x6;	disp_mdt = 0x0;	break;
 		case DA8XX_LCDC_VISUAL_8880:	disp_dbi = 0x6;	disp_mdt = 0x1;	break;
 		default:
 			dev_err(dev, "%s: unsupported visual mode\n", __func__);
