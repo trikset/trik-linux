@@ -1004,7 +1004,7 @@ static struct da8xx_ili9340_pdata da850trik_lcdc_pdata = {
 	.screen_width		= 37, //36,72mm
 #endif
 	.visual_mode		= DA8XX_LCDC_VISUAL_565,
-	.visual_mode_red_blue_swap	= true; // fix for NewHeaven display with messed red and blue components
+	.visual_mode_red_blue_swap	= true, // fix for NewHeaven display with messed red and blue components
 	.fps			= 50, //20ms delay between memory write and redrawing
 
 	.lcdc_lidd_mode		= DA8XX_LCDC_LIDD_MODE_8080ASYNC,
