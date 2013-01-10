@@ -341,6 +341,7 @@ static ssize_t		sysfs_backlight_show(struct device* _fbdev, struct device_attrib
 static ssize_t		sysfs_backlight_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 static ssize_t		sysfs_perf_count_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 static ssize_t		sysfs_perf_count_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
+static ssize_t		sysfs_color_fill_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 
 
 static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
@@ -351,6 +352,7 @@ static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(brightness,	S_IRUGO|S_IWUSR,	&sysfs_brightness_show,		&sysfs_brightness_store),
 	__ATTR(backlight,	S_IRUGO|S_IWUSR,	&sysfs_backlight_show,		&sysfs_backlight_store),
 	__ATTR(perf_count,	S_IRUSR|S_IWUSR,	&sysfs_perf_count_show,		&sysfs_perf_count_store),
+	__ATTR(color_fill,	S_IWUSR,		NULL,				&sysfs_color_fill_store),
 };
 
 
@@ -1014,6 +1016,32 @@ static ssize_t sysfs_perf_count_store(struct device* _fbdev, struct device_attri
 	ret = kstrtoul(_buf, 0, &par->perf_count);
 	if (ret)
 		return ret;
+
+	return _count;
+}
+
+static ssize_t sysfs_color_fill_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
+{
+	int ret;
+	unsigned long fill_value;
+	unsigned char fill[sizeof(fill_value)];
+	unsigned fill_size;
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	int ofs;
+
+	ret = kstrtoul(_buf, 16, &fill_value);
+	if (ret)
+		return ret;
+
+	fill_size = info->var.bits_per_pixel/BITS_PER_BYTE;
+	if (fill_size > sizeof(fill))
+		return -ENOMEM;
+
+	for (ofs = 0; ofs < fill_size; ++ofs)
+		fill[ofs] = (fill_value >> (ofs*BITS_PER_BYTE)) & ((1ul<<BITS_PER_BYTE)-1);
+
+	for (ofs = 0; ofs < info->screen_size; ofs += fill_size)
+		memcpy(info->screen_base+ofs, fill, fill_size);
 
 	return _count;
 }
