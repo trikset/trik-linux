@@ -1,28 +1,11 @@
 /*
  *   Definitions for MMA7660FC Accelerometer chip
- *
- *   Copyright (c) by Jean-Christophe Rona <rona@archos.com>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #ifndef MMA7660FC_H
 #define MMA7660FC_H
 
-#include <linux/ioctl.h>
-
+#if 0
 /*
  * MMA7660FC registers
  */
@@ -149,7 +132,7 @@ struct accel_data {
 #define MMA7660FC_IOCTL_G_PULSE_AXIS	_IOR(MMAIO, 0x0A, short)
 #define MMA7660FC_IOCTL_GP_EVENT	_IOW(MMAIO, 0x0B, int)
 #define MMA7660FC_IOCTL_G_ACCEL_DATA	_IOR(MMAIO, 0x0C, struct accel_data)
-
+#endif
 struct mma7660fc_pdata {
 	int irq;
 };
