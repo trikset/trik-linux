@@ -280,7 +280,7 @@ static const struct fb_var_screeninfo da8xx_ili9340_var_init __devinitconst = {
 	//.height, .width
 	.accel_flags	= 0,
 	//.pixclock, .left_margin, .right_margin, .upper_margin, .lower_margin, .hsync_len, .vsync_len
-	.sync		= FB_SYNC_VERT_HIGH_ACT,
+	.sync		= 0,
 	.vmode		= FB_VMODE_NONINTERLACED,
 	.rotate		= FB_ROTATE_UR,
 	.colorspace	= 0,
