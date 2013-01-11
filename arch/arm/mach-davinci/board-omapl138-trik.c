@@ -227,7 +227,6 @@ void __init da850trik_accel_init(void)
 			__func__, ret);
 		return;
 	}
-
 	da850trik_mma7660fc_pdata.irq = gpio_to_irq(DA850TRIK_ACCEL_IRQ_PIN);
 }
 
