@@ -5,7 +5,6 @@
 #ifndef MMA7660FC_H
 #define MMA7660FC_H
 
-#if 0
 /*
  * MMA7660FC registers
  */
@@ -132,7 +131,7 @@ struct accel_data {
 #define MMA7660FC_IOCTL_G_PULSE_AXIS	_IOR(MMAIO, 0x0A, short)
 #define MMA7660FC_IOCTL_GP_EVENT	_IOW(MMAIO, 0x0B, int)
 #define MMA7660FC_IOCTL_G_ACCEL_DATA	_IOR(MMAIO, 0x0C, struct accel_data)
-#endif
+
 struct mma7660fc_pdata {
 	int irq;
 };
