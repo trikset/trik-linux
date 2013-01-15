@@ -382,6 +382,8 @@ static int mma7660fc_probe(struct i2c_client *client,
                 goto exit_input_register_device_failed;
         }
 
+	return 0;
+
 exit_input_register_device_failed:
 	misc_deregister(&mma7660fc_ctrl_device);
 exit_misc_input_device:
@@ -401,7 +403,7 @@ static int mma7660fc_suspend(struct i2c_client *client, pm_message_t mesg){
 }
 static int mma7660fc_remove(struct i2c_client *client){
 	struct mma7660fc_data *data = i2c_get_clientdata(client);
-//        misc_deregister(&mma7660fc_ctrl_device);
+        misc_deregister(&mma7660fc_ctrl_device);
         input_unregister_device(data->input_dev);
         free_irq(data->pdata->irq, data->client);
         kfree(data);
