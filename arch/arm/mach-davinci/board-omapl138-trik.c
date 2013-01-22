@@ -36,7 +36,10 @@
 #include <mach/mux.h>
 #include <mach/aemif.h>
 #include <mach/spi.h>
+
 #include <linux/mma7660fc.h>
+#include <linux/bma150.h>
+
 #include <linux/wl12xx.h>
 #include <linux/da8xx-ili9340-fb.h>
 
@@ -328,6 +331,7 @@ static __init void da850trik_i2c0_init(void)
 /*
  * I2C1
  */
+
 static struct i2c_board_info __initdata da850trik_i2c1_devices[] = {
 	{
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
@@ -337,6 +341,11 @@ static struct i2c_board_info __initdata da850trik_i2c1_devices[] = {
 		.flags = I2C_CLIENT_WAKE,
 		.platform_data = &da850trik_mma7660fc_pdata,
 	},
+	{
+		I2C_BOARD_INFO("bma150",0x38),
+		.flags = I2C_CLIENT_WAKE,
+		.platform_data = NULL,
+	}
 };
 
 static struct davinci_i2c_platform_data da850trik_i2c1_pdata = {
