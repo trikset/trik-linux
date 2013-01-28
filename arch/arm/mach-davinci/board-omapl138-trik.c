@@ -344,7 +344,7 @@ static struct i2c_board_info __initdata da850trik_i2c1_devices[] = {
 	{
 		I2C_BOARD_INFO("bma150",0x38),
 		.flags = I2C_CLIENT_WAKE,
-		.platform_data = NULL,
+		.platform_data =NULL,
 	}
 };
 
@@ -748,23 +748,40 @@ static __init void da850trik_usb_init(void)
  */
 static struct mtd_partition da850trik_spiflash_part[] = {
 	[0] = {
-		.name = "U-Boot",
+		.name = "uboot",
 		.offset = 0,
 		.size = SZ_256K,
 		.mask_flags = MTD_WRITEABLE,
 	},
 	[1] = {
-		.name = "U-Boot-Env1",
+		.name = "uboot-env1",
 		.offset = MTDPART_OFS_APPEND,
-		.size = SZ_64K,
+		.size = SZ_256K,
 		.mask_flags = MTD_WRITEABLE,
 	},
 	[2] = {
-		.name = "U-Boot-Env2",
+		.name = "uboot-env2",
 		.offset = MTDPART_OFS_APPEND,
-		.size = SZ_64K,
+		.size = SZ_256K,
 		.mask_flags = MTD_WRITEABLE,
 	},
+	[3] = {
+		.name = "config-periph",
+		.offset = MTDPART_OFS_APPEND,
+                .size = SZ_256K,
+                .mask_flags = MTD_WRITEABLE,
+	},
+	[4] = {
+		.name = "kernel",
+		.offset = MTDPART_OFS_APPEND,
+		.size = SZ_2M+SZ_1M,
+	},
+	[5] = {
+		.name = "RootFS",
+		.offset = MTDPART_OFS_APPEND,
+		.size   = MTDPART_SIZ_FULL,
+	},
+
 };
 
 static struct flash_platform_data da850trik_spiflash_data = {

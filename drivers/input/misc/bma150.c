@@ -579,6 +579,7 @@ static int __devinit bma150_probe(struct i2c_client *client,
 	error = bma150_initialize(bma150, cfg);
 	if (error)
 		goto err_free_mem;
+	i2c_set_clientdata(client, bma150);
 
 	if (client->irq > 0) {
 		error = bma150_register_input_device(bma150);
@@ -601,8 +602,6 @@ static int __devinit bma150_probe(struct i2c_client *client,
 		if (error)
 			goto err_free_mem;
 	}
-
-	i2c_set_clientdata(client, bma150);
 
 	pm_runtime_enable(&client->dev);
 

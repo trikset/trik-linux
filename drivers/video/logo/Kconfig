@@ -26,6 +26,9 @@ config LOGO_LINUX_VGA16
 config LOGO_LINUX_CLUT224
 	bool "Standard 224-color Linux logo"
 	default y
+config LOGO_TRICK_CLUT224
+	bool "Trick 224-color Linux logo"
+        default y
 
 config LOGO_BLACKFIN_VGA16
 	bool "16-colour Blackfin Processor Linux logo"

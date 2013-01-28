@@ -369,7 +369,7 @@ static void mma7660fc_close(struct input_dev *dev){
     struct mma7660fc_data* i2c_data = i2c_get_clientdata(client);
     i2c_data->open_count--;
     if(i2c_data->open_count>0)
-        return ;
+        return;
     free_irq(i2c_data->pdata->irq, client);
     //mma7660fc_set_mode(client,MMA7660FC_MODE_STANDBY);
     pr_info("fc close \n");
@@ -418,7 +418,7 @@ static int mma7660fc_probe(struct i2c_client *client, const struct i2c_device_id
     //input_set_abs_params(i2c_data->input_dev, ABS_TILT_X, 0, 65535, 0, 0);
     i2c_data->input_dev->id.bustype = BUS_I2C;
     i2c_data->input_dev->dev.parent = &client->dev;
-	i2c_data->input_dev->name = "MMA7660FC Accelerometer";
+    i2c_data->input_dev->name = "MMA7660FC Accelerometer";
     i2c_data->input_dev->open = mma7660fc_open;
     i2c_data->input_dev->close = mma7660fc_close;
     res = misc_register(&mma7660fc_ctrl_device);
@@ -467,7 +467,7 @@ static int mma7660fc_probe(struct i2c_client *client, const struct i2c_device_id
 	return 0;
 
 exit_sysfs_device_failed:
-    input_unregister_device(i2c_data->input_dev);
+    	input_unregister_device(i2c_data->input_dev);
 exit_input_register_device_failed:
 	misc_deregister(&mma7660fc_ctrl_device);
 exit_misc_input_device:
@@ -487,6 +487,7 @@ static int mma7660fc_remove(struct i2c_client *client){
     struct mma7660fc_data *data = i2c_get_clientdata(client);
     if (data->open_count)
         return -EBUSY; 
+///request irq
     sysfs_remove_group(&client->dev.kobj, &mma7660fc_manage_attrs_group);
     input_unregister_device(data->input_dev);
     misc_deregister(&mma7660fc_ctrl_device);
