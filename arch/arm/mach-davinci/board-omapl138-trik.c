@@ -936,6 +936,7 @@ static struct davinci_spi_config da850trik_wlan_cfg = {
 };
 
 static struct spi_board_info da850trik_spi0_info[] = {
+#if 0
 	[DA850TRIK_SPI_FLASH] = {
 		.modalias		= "m25p80",
 		.controller_data	= &da850trik_spiflash_cfg,
@@ -945,6 +946,7 @@ static struct spi_board_info da850trik_spi0_info[] = {
 		.bus_num		= 0,
 		.chip_select		= 0,
 	},
+#endif
 	[DA850TRIK_SPI_WLAN] = {
 		.modalias		= "wl1271_spi",
 		.controller_data	= &da850trik_wlan_cfg,
@@ -960,13 +962,13 @@ static void __init da850trik_spi0_init(void)
 {
 	int ret;
 
-	da850trik_spi0_info[DA850TRIK_SPI_WLAN].irq = da850trik_wlan_data.irq;
+	//da850trik_spi0_info[DA850TRIK_SPI_WLAN].irq = da850trik_wlan_data.irq;
 
-	ret = da8xx_register_spi(0, da850trik_spi0_info,
-				 ARRAY_SIZE(da850trik_spi0_info));
-	if (ret)
-		pr_err("%s: failed to register SPI0 interface: %d\n",
-			__func__, ret);
+	//ret = da8xx_register_spi(0, da850trik_spi0_info,
+	//			 ARRAY_SIZE(da850trik_spi0_info));
+	//if (ret)
+	//	pr_err("%s: failed to register SPI0 interface: %d\n",
+	//		__func__, ret);
 }
 
 
@@ -1462,7 +1464,7 @@ static __init void da850trik_init(void)
 	da850trik_accel_init();
 	da850trik_i2c0_init();
 	da850trik_i2c1_init();
-	da850trik_spi0_init();
+	//da850trik_spi0_init();
 	da850trik_lcd_init();
 	da850trik_msp430_init();
 	if (HAS_EHRPWM) {
