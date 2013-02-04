@@ -47,9 +47,6 @@
 #define DA850TRIK_POW_CON_REG		DA850_GPIO5_14
 #define DA850TRIK_POW_CON_PIN		GPIO_TO_PIN(5, 14)
 
-#define DA850TRIK_LED_CON_REG		DA850_GPIO5_7
-#define DA850TRIK_LED_CON_PIN           GPIO_TO_PIN(5, 7)
-		
 #define DA850TRIK_MMCSD_CD_REG		DA850_GPIO4_1
 #define DA850TRIK_MMCSD_CD_PIN		GPIO_TO_PIN(4, 1)
 #define DA850TRIK_USB20_OC_REG		DA850_GPIO5_15
@@ -331,6 +328,29 @@ static __init void da850trik_i2c0_init(void)
 /*
  * I2C1
  */
+static struct bma150_cfg cfg_data = {
+	.any_motion_int=1,            /* Set to enable any-motion interrupt */
+        .hg_int=1,                    /* Set to enable high-G interrupt */
+        .lg_int=1,                    /* Set to enable low-G interrupt */
+        .any_motion_dur=0,   /* Any-motion duration */
+        .any_motion_thres=0, /* Any-motion threshold */
+        .hg_hyst=0,          /* High-G hysterisis */
+        .hg_dur=0,           /* High-G duration */
+        .hg_thres=0,         /* High-G threshold */
+        .lg_hyst=0,          /* Low-G hysterisis */
+        .lg_dur=0,           /* Low-G duration */
+        .lg_thres=0,         /* Low-G threshold */
+        .range=0,            /* BMA0150_RANGE_xxx (in G) */
+        .bandwidth=0,        /* BMA0150_BW_xxx (in Hz) */
+};
+static int bma_150irq_gpio_cfg (void)
+{
+	return 0;
+};
+static struct bma150_platform_data __initdata da850trik_bma150_pdata = {
+	.cfg = &cfg_data,
+	.irq_gpio_cfg =&bma_150irq_gpio_cfg,
+};
 
 static struct i2c_board_info __initdata da850trik_i2c1_devices[] = {
 	{
@@ -391,6 +411,7 @@ static __init void da850trik_i2c1_init(void)
 #define DA850TRIK_GPIO_KEYS_POLL_MS	200
 
 static const short da850trik_gpio_keys_pins[] __initconst = {
+	DA850_GPIO5_8,  /* sw1 */
 	DA850_GPIO3_4,	/* sw2 */
 	DA850_GPIO2_0,	/* sw3 */
 	DA850_GPIO3_14,	/* sw4 */
@@ -401,6 +422,15 @@ static const short da850trik_gpio_keys_pins[] __initconst = {
 };
 
 static struct gpio_keys_button da850trik_gpio_keys[] = {
+	{
+                .type              = EV_KEY,
+                .active_low        = 1,
+                .wakeup            = 0,
+                .debounce_interval = DA850TRIK_KEYS_DEBOUNCE_MS,
+                .gpio              = GPIO_TO_PIN(5, 8),
+                .code              = KEY_F1,
+                .desc              = "sw1",
+        },
 	{
 		.type		   = EV_KEY,
 		.active_low	   = 1,
@@ -1383,12 +1413,26 @@ static __init int da850trik_init_cpufreq(void)
 #else
 static __init int da850_evm_init_cpufreq(void) { return 0; }
 #endif
+
+
+static const short da850trik_leds_pins[] __initconst = {
+        DA850_GPIO5_7, 
+	DA850_GPIO5_9,
+        -1
+};
+
 static struct gpio_led da850trik_leds[] = {
         {
                 .active_low = 1,
-                .gpio = DA850TRIK_LED_CON_PIN, /* assigned at runtime */
+                .gpio = GPIO_TO_PIN(5,7), /* assigned at runtime */
                 .name = "led_ctrl", /* assigned at runtime */
         },
+	{
+                .active_low = 1,
+                .gpio = GPIO_TO_PIN(5,9), /* assigned at runtime */
+                .name = "led_power", /* assigned at runtime */
+        },
+
 };
 static struct gpio_led_platform_data da850trik_leds_pdata = {
         .leds = da850trik_leds,
@@ -1407,11 +1451,12 @@ static struct platform_device da850trik_leds_device = {
 static __init void da850trik_led_init(void){
 	int ret;
 
-	ret = davinci_cfg_reg(DA850TRIK_LED_CON_REG);
-	if (ret){
-		pr_warning("Could not req cfg LEDS");
-	}
-
+	ret = davinci_cfg_reg_list(da850trik_leds_pins);
+        if (ret) {
+                pr_err("%s: gpio-ledss mux setup failed: %d\n",
+                        __func__, ret);
+                return;
+        }
 	ret = platform_device_register(&da850trik_leds_device);
         if (ret) {
                 pr_warning("Could not register baseboard GPIO expander LEDS");
