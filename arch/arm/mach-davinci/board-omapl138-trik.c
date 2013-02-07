@@ -1505,10 +1505,12 @@ static __init void da850trik_init(void)
 	da850trik_usb_init();
 	da850trik_gpio_keys_init();
 	da850trik_wl1271_init();
+
+	da850trik_i2c0_init();
+        da850trik_i2c1_init();
+
 	da850trik_audio_init();
 	da850trik_accel_init();
-	da850trik_i2c0_init();
-	da850trik_i2c1_init();
 	//da850trik_spi0_init();
 	da850trik_lcd_init();
 	da850trik_msp430_init();
