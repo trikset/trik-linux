@@ -992,13 +992,13 @@ static void __init da850trik_spi0_init(void)
 {
 	int ret;
 
-	//da850trik_spi0_info[DA850TRIK_SPI_WLAN].irq = da850trik_wlan_data.irq;
+	da850trik_spi0_info[DA850TRIK_SPI_WLAN].irq = da850trik_wlan_data.irq;
 
-	//ret = da8xx_register_spi(0, da850trik_spi0_info,
-	//			 ARRAY_SIZE(da850trik_spi0_info));
-	//if (ret)
-	//	pr_err("%s: failed to register SPI0 interface: %d\n",
-	//		__func__, ret);
+	ret = da8xx_register_spi(0, da850trik_spi0_info,
+				 ARRAY_SIZE(da850trik_spi0_info));
+	if (ret)
+		pr_err("%s: failed to register SPI0 interface: %d\n",
+			__func__, ret);
 }
 
 
@@ -1511,9 +1511,11 @@ static __init void da850trik_init(void)
 
 	da850trik_audio_init();
 	da850trik_accel_init();
-	//da850trik_spi0_init();
+	da850trik_spi0_init();
 	da850trik_lcd_init();
+
 	da850trik_msp430_init();
+
 	if (HAS_EHRPWM) {
 		da850trik_pwm_init();
 	}
