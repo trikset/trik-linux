@@ -126,7 +126,56 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"LINE1R", NULL, "Line In"},
 	{"LINE2R", NULL, "Line In"},
 };
+static const struct snd_soc_dapm_widget aic3x_trick_widgets[] = {
+        SND_SOC_DAPM_HP("Headphone OUT", NULL),
+        SND_SOC_DAPM_LINE("Line Out", NULL),
+        SND_SOC_DAPM_MIC("Mic Jack", NULL),
+//	SND_SOC_DAPM_LINE("Line In", NULL),
+};
+static const struct snd_soc_dapm_route audio_trik_map[] ={
+	/* HANDSET_SPKR */
+	{"Headphone OUT", NULL, "HPROUT"},
+        {"Headphone OUT", NULL, "HPRCOM"},
 
+/**/
+	 /* Mic connected to (MIC3L | MIC3R) */
+        {"LINE2L", NULL, "Mic Bias 2V"},
+        {"LINE2R", NULL, "Mic Bias 2V"},
+        {"Mic Bias 2V", NULL, "Mic Jack"},
+
+        /* Line In connected to (LINE1L | LINE2L), (LINE1R | LINE2R) */
+
+/**/
+
+	/*Line Out*/	
+	{"Line Out",NULL,"MONO_LOUT"}
+
+};
+
+static int trick_aic3x_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_codec *codec = rtd->codec;
+        struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+        /* Add davinci-evm specific widgets */
+        snd_soc_dapm_new_controls(dapm, aic3x_trick_widgets,
+                                  ARRAY_SIZE(aic3x_trick_widgets));
+
+        /* Set up davinci-evm specific audio path audio_map */
+        snd_soc_dapm_add_routes(dapm, audio_trik_map, ARRAY_SIZE(audio_trik_map));
+
+/* not connected */
+        //snd_soc_dapm_disable_pin(dapm, "MIC3L");
+        //snd_soc_dapm_disable_pin(dapm, "MIC3R");
+	snd_soc_dapm_disable_pin(dapm, "LINE1R");
+	snd_soc_dapm_disable_pin(dapm, "LINE1L");
+
+	snd_soc_dapm_enable_pin(dapm, "Headphone OUT");
+        snd_soc_dapm_enable_pin(dapm, "Line Out");
+	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
+//	snd_soc_dapm_enable_pin(dapm, "Line In");
+	return 0;
+}
 /* Logic for a aic3x as connected on a davinci-evm */
 static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -246,9 +295,9 @@ static struct snd_soc_dai_link da850_trik_dai = {
 	.stream_name = "AIC3X",
 	.cpu_dai_name= "davinci-mcasp.0",
 	.codec_dai_name = "tlv320aic3x-hifi",
-	.codec_name = "tlv320aic3x-codec.1-0018",
+	.codec_name = "tlv320aic3x-codec.2-0018",
 	.platform_name = "davinci-pcm-audio",
-	.init = evm_aic3x_init,
+	.init = trick_aic3x_init,
 	.ops = &evm_ops,
 };
 
