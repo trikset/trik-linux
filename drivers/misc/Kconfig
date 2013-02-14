@@ -508,6 +508,12 @@ config USB_SWITCH_FSA9480
 	  The FSA9480 is fully controlled using I2C and enables USB data,
 	  stereo and mono audio, video, microphone and UART data to use
 	  a common connector port.
+config I2C_DS4420_AMPLIFIER
+	tristate "DS4420 Amplifier"
+	depends on I2C && SYSFS 
+	help
+	  The DS4420 is a  Amplifier, fully controlled using I2c and SYSFS.
+
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

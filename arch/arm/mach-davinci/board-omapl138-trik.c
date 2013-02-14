@@ -347,7 +347,7 @@ static int bma_150irq_gpio_cfg (void)
 {
 	return 0;
 };
-static struct bma150_platform_data __initdata da850trik_bma150_pdata = {
+static struct bma150_platform_data da850trik_bma150_pdata = {
 	.cfg = &cfg_data,
 	.irq_gpio_cfg =&bma_150irq_gpio_cfg,
 };
@@ -358,13 +358,14 @@ static struct i2c_board_info __initdata da850trik_i2c1_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("mma7660fc", 0x4c),
-		.flags = I2C_CLIENT_WAKE,
 		.platform_data = &da850trik_mma7660fc_pdata,
 	},
 	{
 		I2C_BOARD_INFO("bma150",0x38),
-		.flags = I2C_CLIENT_WAKE,
 		.platform_data =NULL,
+	},
+	{
+		I2C_BOARD_INFO("ds4420",0x50),
 	}
 };
 
