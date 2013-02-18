@@ -42,13 +42,13 @@ struct mma7660fc_data{
 static inline int i2c_write(struct i2c_client *client, int reg, int value){
     int ret;
     ret = i2c_smbus_write_byte_data(client, reg, value);
-    printk("mma7660fc_write: Reg = 0x%02X, Value = 0x%02X, Ret = %d\n", reg, value, ret);
+//    printk("mma7660fc_write: Reg = 0x%02X, Value = 0x%02X, Ret = %d\n", reg, value, ret);
     return ret;
 }
 static inline int i2c_read(struct i2c_client *client, int reg){
         int value;
         value = i2c_smbus_read_byte_data(client, reg);;
-        printk("mma7660fc_read: Reg = 0x%02X, Value = 0x%02X\n", reg, value);
+  //      printk("mma7660fc_read: Reg = 0x%02X, Value = 0x%02X\n", reg, value);
         return value;
 }
 static int mma7660fc_interrupt_setup(struct i2c_client* client,short events){
@@ -332,7 +332,7 @@ static void mma7660fc_irq_worker(struct work_struct *work){
             z_avg=0;
         }
     }else{
-        printk(KERN_WARNING "mma7660fc_irq_worker i2c client is broken\n");
+       // printk(KERN_WARNING "mma7660fc_irq_worker i2c client is broken\n");
     }
 }
 
@@ -403,8 +403,8 @@ static int mma7660fc_probe(struct i2c_client *client, const struct i2c_device_id
 	i2c_data->input_dev = input_allocate_device();
 	if (!i2c_data->input_dev){
                 res = -ENOMEM;
-                printk(KERN_ERR
-                       "mma7660fc_probe: Failed to allocate input device");
+                //printk(KERN_ERR
+                 //      "mma7660fc_probe: Failed to allocate input device");
                 goto exit_input_dev_alloc_failed;
         }
 	input_set_drvdata(i2c_data->input_dev,client);
@@ -424,8 +424,8 @@ static int mma7660fc_probe(struct i2c_client *client, const struct i2c_device_id
     res = misc_register(&mma7660fc_ctrl_device);
 	pr_info("misc register\n");
     if (res){
-		printk(KERN_ERR "Unregister input device %s\n",i2c_data->input_dev->name);
-		goto exit_misc_input_device;
+		//printk(KERN_ERR "Unregister input device %s\n",i2c_data->input_dev->name);
+		//goto exit_misc_input_device;
 	}
 
     i2c_write(client,REG_MODE,0);
@@ -509,9 +509,9 @@ static struct i2c_driver mma7660fc_driver = {
 
 static int __init mma7660fc_init(void){
     int res;
-	printk("mma7660fc_init\n");
+	//printk("mma7660fc_init\n");
 	if ((res = i2c_add_driver(&mma7660fc_driver))) {
-            printk("mma7660fc: Driver registration failed, module not inserted.\n");
+          //  printk("mma7660fc: Driver registration failed, module not inserted.\n");
             return res;
     }
 
@@ -520,7 +520,7 @@ static int __init mma7660fc_init(void){
 
 static void __exit mma7660fc_exit(void){
 	i2c_del_driver(&mma7660fc_driver);
-	printk("mma7660fc_exit\n");
+//	printk("mma7660fc_exit\n");
 }
 
 MODULE_DESCRIPTION("Input device driver for MMA7660FC accelerometer");
