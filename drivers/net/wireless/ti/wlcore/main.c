@@ -5540,6 +5540,8 @@ int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 
 	if (wl->platform_quirks & WL12XX_PLATFORM_QUIRK_EDGE_IRQ)
 		irqflags = IRQF_TRIGGER_RISING;
+	else if (wl->platform_quirks & WL12XX_PLATFORM_QUIRK_EDGE_IRQ_FALLING)
+		irqflags = IRQF_TRIGGER_FALLING;
 	else
 		irqflags = IRQF_TRIGGER_HIGH | IRQF_ONESHOT;
 

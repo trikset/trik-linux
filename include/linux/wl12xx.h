@@ -61,6 +61,7 @@ struct wl12xx_platform_data {
 
 /* Platform does not support level trigger interrupts */
 #define WL12XX_PLATFORM_QUIRK_EDGE_IRQ	BIT(0)
+#define WL12XX_PLATFORM_QUIRK_EDGE_IRQ_FALLING BIT(1)
 
 #ifdef CONFIG_WL12XX_PLATFORM_DATA
 
