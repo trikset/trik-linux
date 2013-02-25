@@ -174,7 +174,7 @@ static struct snd_platform_data da850trik_snd_data = {
 	.rxnumevt	= 1,
 };
 
-static void __init da850trik_audio_init(void)
+static int __init da850trik_audio_init(void)
 {
 	int ret;
 
@@ -182,25 +182,30 @@ static void __init da850trik_audio_init(void)
 	if (ret) {
 		pr_err("%s: mcasp mux setup failed: %d\n",
 			__func__, ret);
-		return;
+		return ret;
 	}
 
 	ret = davinci_cfg_reg(DA850TRIK_AUDIO_RESET_REG);
 	if (ret) {
 		pr_err("%s: audio codec reset mux setup failed: %d\n",
 			__func__, ret);
-		return;
+		return ret;
 	}
 
 	ret = gpio_request(DA850TRIK_AUDIO_RESET_PIN, "audio codec reset");
 	if (ret < 0) {
 		pr_err("%s: failed to request GPIO for audio codec reset: %d\n",
 			__func__, ret);
-		return;
+		return ret;
 	}
-	gpio_direction_output(DA850TRIK_AUDIO_RESET_PIN, 1);
-
+	ret = gpio_direction_output(DA850TRIK_AUDIO_RESET_PIN, 1);
+	if (ret < 0) {
+		pr_err("%s: failed to direction request GPIO for audio codec reset: %d\n",
+			__func__, ret);
+		return ret;
+	}
 	da8xx_register_mcasp(0, &da850trik_snd_data);
+	return ret;
 }
 
 
@@ -209,7 +214,7 @@ static void __init da850trik_audio_init(void)
  */
 static struct mma7660fc_pdata da850trik_mma7660fc_pdata;
 
-void __init da850trik_accel_init(void)
+static int __init da850trik_accel_init(void)
 {
 	int ret;
 
@@ -217,7 +222,7 @@ void __init da850trik_accel_init(void)
 	if (ret) {
 		pr_err("%s: accelerometer mux setup failed: %d\n",
 			__func__, ret);
-		return;
+		return ret;
 	}
 
 	ret = gpio_request_one(DA850TRIK_ACCEL_IRQ_PIN,
@@ -225,9 +230,11 @@ void __init da850trik_accel_init(void)
 	if (ret < 0) {
 		pr_err("%s: failed to request GPIO for accelerometer IRQ: %d\n",
 			__func__, ret);
-		return;
+		return ret;
 	}
 	da850trik_mma7660fc_pdata.irq = gpio_to_irq(DA850TRIK_ACCEL_IRQ_PIN);
+
+	return ret;
 }
 
 
@@ -250,7 +257,7 @@ static struct gpio da850trik_msp430_gpios[] __initdata = {
 #define PLL0_OSCDIV_OFFS	0x0124
 #define PLL0_CKEN_OFFS		0x0148
 
-static __init void da850trik_msp430_init(void)
+static __init int da850trik_msp430_init(void)
 {
 	int			ret;
 	unsigned __iomem	*pll0_oscel, *pll0_oscdiv, *pll0_cken;
@@ -259,7 +266,7 @@ static __init void da850trik_msp430_init(void)
 	if (ret) {
 		pr_err("%s: msp430 mux setup failed: %d\n",
 			__func__, ret);
-		return;
+		return ret;
 	}
 
 	ret = gpio_request_array(da850trik_msp430_gpios,
@@ -267,7 +274,7 @@ static __init void da850trik_msp430_init(void)
 	if (ret < 0) {
 		pr_err("%s: failed to request GPIO for msp430: %d\n",
 			__func__, ret);
-		return;
+		return ret;
 	}
 
 	gpio_set_value(DA850TRIK_MSP430_RESET_PIN, 0);
@@ -288,6 +295,7 @@ static __init void da850trik_msp430_init(void)
 	}
 	gpio_set_value(DA850TRIK_MSP430_RESET_PIN, 1);
 	msleep(10);
+	return ret;
 }
 
 
@@ -302,7 +310,7 @@ static struct davinci_i2c_platform_data da850trik_i2c0_pdata = {
 	.bus_delay	= 0,	/* usec */
 };
 
-static __init void da850trik_i2c0_init(void)
+static __init int da850trik_i2c0_init(void)
 {
 	int ret;
 
@@ -310,18 +318,19 @@ static __init void da850trik_i2c0_init(void)
 	if (ret) {
 		pr_warning("da850trik_i2c0_init: I2C0 mux setup failed: %d\n",
 				ret);
-		return;
+		return ret;
 	}
 
 	ret = da8xx_register_i2c(0, &da850trik_i2c0_pdata);
 	if (ret) {
 		pr_warning("da850trik_i2c0_init: I2C0 registration failed: %d\n",
 				ret);
-		return;
+		return ret;
 	}
 
-	i2c_register_board_info(1, da850trik_i2c0_devices,
+	ret = i2c_register_board_info(1, da850trik_i2c0_devices,
 			ARRAY_SIZE(da850trik_i2c0_devices));
+	return ret;
 }
 
 
@@ -374,7 +383,7 @@ static struct davinci_i2c_platform_data da850trik_i2c1_pdata = {
 	.bus_delay	= 0,	/* usec */
 };
 
-static __init void da850trik_i2c1_init(void)
+static __init int da850trik_i2c1_init(void)
 {
 	int ret;
 
@@ -382,18 +391,19 @@ static __init void da850trik_i2c1_init(void)
 	if (ret) {
 		pr_warning("da850trik_i2c1_init: I2C1 mux setup failed: %d\n",
 				ret);
-		return;
+		return ret;
 	}
 
 	ret = da8xx_register_i2c(1, &da850trik_i2c1_pdata);
 	if (ret) {
 		pr_warning("da850trik_i2c1_init: I2C1 registration failed: %d\n",
 				ret);
-		return;
+		return ret;
 	}
 
-	i2c_register_board_info(2, da850trik_i2c1_devices,
+	ret = i2c_register_board_info(2, da850trik_i2c1_devices,
 			ARRAY_SIZE(da850trik_i2c1_devices));
+	return ret;
 }
 
 
@@ -503,17 +513,22 @@ static struct platform_device da850trik_gpio_keys_device = {
 	}
 };
 
-static void __init da850trik_gpio_keys_init(void)
+static int __init da850trik_gpio_keys_init(void)
 {
 	int ret;
-
 	ret = davinci_cfg_reg_list(da850trik_gpio_keys_pins);
 	if (ret) {
 		pr_err("%s: gpio-keys mux setup failed: %d\n",
 			__func__, ret);
-		return;
+		return ret;
 	}
-	platform_device_register(&da850trik_gpio_keys_device);
+	ret = platform_device_register(&da850trik_gpio_keys_device);
+	if (ret) {
+		pr_err("%s: gpio-keys mux setup failed: %d\n",
+			__func__, ret);
+		return ret;
+	}
+	return ret;
 }
 
 
@@ -585,8 +600,7 @@ static int da850trik_usb11_set_power(unsigned port, int on)
 	return 0;
 }
 
-static int da850trik_usb11_get_power(unsigned port)
-{
+static int da850trik_usb11_get_power(unsigned port){
 	return da850trik_usb11_power_status;
 }
 
@@ -614,7 +628,7 @@ static irqreturn_t da850trik_usb20_ocic_irq(int irq, void *dev_id)
 	printk(KERN_ERR "%s: over-current situation detected\n", __func__);
 	return IRQ_HANDLED;
 }
-static __init void da850trik_pwm_init(void)
+static __init int da850trik_pwm_init(void)
 {
 	int ret;
 	char mask = 0;
@@ -622,13 +636,13 @@ static __init void da850trik_pwm_init(void)
         if (ret) {
                 pr_err("%s: power connection gpio setup failed: %d\n",
                         __func__, ret);
-                return;
+                return ret;
        	}
 	ret = gpio_request(DA850TRIK_POW_CON_PIN, "power connection gpio");
         if (ret < 0) {
                 pr_err("%s: failed to request GPIO for power connection gpio: %d\n",
                         __func__, ret);
-                return;
+                return ret;
         }
 	gpio_set_value(DA850TRIK_POW_CON_PIN, 1);
 
@@ -636,38 +650,47 @@ static __init void da850trik_pwm_init(void)
 	if (ret < 0) {
                 pr_err("%s: failed gpio_direction_output GPIO : %d\n",
                         __func__, ret);
-                return;
+                return ret;
         }
 
 	ret = gpio_export(DA850TRIK_POW_CON_PIN, 0);
 	if (ret < 0) {
                 pr_err("%s: failed to gpio_export power connection: %d\n",
                         __func__, ret);
-                return;
+                return ret;
         }
 
 
 	ret = davinci_cfg_reg_list(da850_ehrpwm0_pins);
-	if (ret)
+	if (ret){
 		pr_warning("da850trik_pwm_init:"
 				" ehrpwm0 mux setup failed: %d\n", ret);
+		return ret;
+	}
 	else
 		mask |=  BIT(0) | BIT(1);
+	
 	ret = davinci_cfg_reg_list(da850_ehrpwm1_pins);
-	if (ret)
+	if (ret){
 		pr_warning("da850trik_pwm_init:"
                                 " ehrpwm1 mux setup failed: %d\n", ret);
+		return ret;
+        }
         else
                 mask |= BIT(2) | BIT(3);
+
 	da850_register_ehrpwm(mask);
+	return ret;
 }
-static __init void da850trik_cap_init(void)
+static __init int da850trik_cap_init(void)
 {
+	#warning TODO rewrite 
 	int ret = 0;
 	ret = davinci_cfg_reg(DA850_ECAP0_APWM0);
-	if (ret)
+	if (ret){
 		pr_warning("da850_evm_init:ecap mux failed:%d\n"
                                                 , ret);
+	}
 	else {
 		ret = da850_register_ecap_cap(0);
 		if (ret)
@@ -694,8 +717,9 @@ static __init void da850trik_cap_init(void)
                 	pr_warning("da850trik_cap_init"
                         	    "eCAP 2 registration failed: %d\n", ret);
 	}
+	return ret;
 }
-static __init void da850trik_usb_init(void)
+static __init int da850trik_usb_init(void)
 {
 	int ret, irq;
 	u32 cfgchip2;
@@ -704,7 +728,7 @@ static __init void da850trik_usb_init(void)
 	if (ret) {
 		pr_err("%s: USB 2.0 overcurrent mux setup failed: %d\n",
 			__func__, ret);
-		return;
+		return ret;
 	}
 
 	ret = gpio_request_one(DA850TRIK_USB20_OC_PIN,
@@ -712,7 +736,7 @@ static __init void da850trik_usb_init(void)
 	if (ret < 0) {
 		pr_err("%s: failed to request GPIO for USB 2.0 "
 			"overcurrent indicator: %d\n", __func__, ret);
-		return;
+		return ret;
 	}
 
 	irq = gpio_to_irq(DA850TRIK_USB20_OC_PIN);
@@ -723,7 +747,7 @@ static __init void da850trik_usb_init(void)
 		pr_err("%s: failed to request IRQ for USB 2.0 "
 			       "overcurrent: %d\n", __func__, ret);
 		gpio_free(DA850TRIK_USB20_OC_PIN);
-		return;
+		return ret;
 	}
 
 	/*
@@ -771,6 +795,8 @@ static __init void da850trik_usb_init(void)
 	if (ret)
 		pr_err("%s: USB 1.1 registration failed: %d\n",
 			__func__, ret);
+
+	return ret;
 }
 
 
@@ -916,33 +942,6 @@ static void da850trik_bluetooth_set_power(bool power_on)
 static void __init da850trik_wl1271_init(void)
 {
 	int irq, ret;
-
-	ret = davinci_cfg_reg_list(da850trik_wl1271_pins);
-	if (ret) {
-		pr_err("%s: WLAN/BT mux setup failed: %d\n",
-			__func__, ret);
-		return;
-	}
-
-	ret = gpio_request_array(da850trik_wl1271_gpios,
-				 ARRAY_SIZE(da850trik_wl1271_gpios));
-	if (ret < 0) {
-		pr_err("%s: failed to request GPIO for WLAN/BT: %d\n",
-			__func__, ret);
-		return;
-	}
-
-	irq = gpio_to_irq(DA850TRIK_WLAN_IRQ_PIN);
-	if (irq < 0) {
-		pr_err("%s: failed to convert GPIO to IRQ for WLAN/BT: %d\n",
-			__func__, ret);
-		gpio_free(DA850TRIK_WLAN_ENABLE_PIN);
-		gpio_free(DA850TRIK_WLAN_IRQ_PIN);
-		gpio_free(DA850TRIK_BT_ENABLE_PIN);
-		return;
-	}
-
-	da850trik_wlan_data.irq = irq;
 
 	da850trik_wl1271_power_on();
 
@@ -1278,20 +1277,20 @@ static ssize_t da850trik_msp430_rst_write(struct device *dev, struct device_attr
 	return -EINVAL;
 }
 
-static const DEVICE_ATTR(mmc_card_detect,   0444, da850trik_mmc_cd_read,      NULL);
-static const DEVICE_ATTR(audio_codec,       0644, da850trik_audio_codec_read, da850trik_audio_codec_write);
+//static const DEVICE_ATTR(mmc_card_detect,   0444, da850trik_mmc_cd_read,      NULL);
+//static const DEVICE_ATTR(audio_codec,       0644, da850trik_audio_codec_read, da850trik_audio_codec_write);
 static const DEVICE_ATTR(wlan,              0644, da850trik_wlan_read,        da850trik_wlan_write);
 static const DEVICE_ATTR(bluetooth,         0644, da850trik_bluetooth_read,   da850trik_bluetooth_write);
-static const DEVICE_ATTR(msp430_test,       0644, da850trik_msp430_test_read, da850trik_msp430_test_write);
-static const DEVICE_ATTR(msp430_reset,      0644, da850trik_msp430_rst_read,  da850trik_msp430_rst_write);
+//static const DEVICE_ATTR(msp430_test,       0644, da850trik_msp430_test_read, da850trik_msp430_test_write);
+//static const DEVICE_ATTR(msp430_reset,      0644, da850trik_msp430_rst_read,  da850trik_msp430_rst_write);
 
 static const struct attribute *da850trik_manage_attrs[] = {
-	&dev_attr_mmc_card_detect.attr,
-	&dev_attr_audio_codec.attr,
+/*	&dev_attr_mmc_card_detect.attr,*/
+/*	&dev_attr_audio_codec.attr,*/
 	&dev_attr_wlan.attr,
 	&dev_attr_bluetooth.attr,
-	&dev_attr_msp430_test.attr,
-	&dev_attr_msp430_reset.attr,
+/*	&dev_attr_msp430_test.attr, */
+/*	&dev_attr_msp430_reset.attr, */
 	NULL,
 };
 
@@ -1336,12 +1335,6 @@ static struct platform_device da850trik_manage_device = {
 };
 
 module_platform_driver(da850trik_manage_driver);
-
-
-
-
-
-
 
 
 /*
@@ -1449,22 +1442,116 @@ static struct platform_device da850trik_leds_device = {
 };
 
 
-static __init void da850trik_led_init(void){
+static __init int da850trik_led_init(void){
 	int ret;
 
 	ret = davinci_cfg_reg_list(da850trik_leds_pins);
-        if (ret) {
-                pr_err("%s: gpio-ledss mux setup failed: %d\n",
-                        __func__, ret);
-                return;
-        }
+	if (ret) {
+	        pr_err("%s: gpio-ledss mux setup failed: %d\n",
+	                __func__, ret);
+	        return ret;
+	}
 	ret = platform_device_register(&da850trik_leds_device);
-        if (ret) {
-                pr_warning("Could not register baseboard GPIO expander LEDS");
-        }
+	if (ret) {
+	        pr_warning("Could not register baseboard GPIO expander LEDS");
+	}
+	return ret;
 }
 
 
+/****************************************************************************/
+static struct davinci_mmc_config da850_wl12xx_mmc_config = {
+	//.set_power	= wl12xx_set_power,
+	.wires		= 4,
+	.max_freq	= 25000000,
+	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_NONREMOVABLE |
+			  MMC_CAP_POWER_OFF_CARD,
+	.version	= MMC_CTLR_VERSION_2,
+};
+
+static const short da850_wl12xx_pins[] __initconst = {
+	DA850_MMCSD0_DAT_0, DA850_MMCSD0_DAT_1, DA850_MMCSD0_DAT_2,
+	DA850_MMCSD0_DAT_3, DA850_MMCSD0_CLK, DA850_MMCSD0_CMD,
+	-1
+};
+
+static struct wl12xx_platform_data da850_wl12xx_wlan_data __initdata = {
+	.irq			    = -1,
+	.set_power          = da850trik_wlan_set_power,
+	.board_ref_clock	= WL12XX_REFCLOCK_38_XTAL,
+	.board_tcxo_clock 	= WL12XX_TCXOCLOCK_32_736,
+	.platform_quirks =WL12XX_PLATFORM_QUIRK_EDGE_IRQ_FALLING,
+	//.platform_quirks	= WL12XX_PLATFORM_QUIRK_EDGE_IRQ,
+};
+
+static __init void da850trik_wl1271_init_test(void)
+{
+	int irq,ret = 0;
+	pr_warning("Start WL1271 \n");
+//sdio interface
+	ret = davinci_cfg_reg_list(da850trik_mmcsd0_pins);
+	if (ret) {
+		pr_err("%s: MMC/SD mux setup failed: %d\n",
+			__func__, ret);
+		return;
+	}
+// wf bt irq pins 
+	ret = davinci_cfg_reg_list(da850trik_wl1271_pins);
+	if (ret) {
+		pr_err("%s: WLAN/BT mux setup failed: %d\n",
+			__func__, ret);
+		return;
+	}
+
+	ret = gpio_request_array(da850trik_wl1271_gpios,
+				 ARRAY_SIZE(da850trik_wl1271_gpios));
+	if (ret < 0) {
+		pr_err("%s: failed to request GPIO for WLAN/BT: %d\n",
+			__func__, ret);
+		return;
+	}
+	ret = gpio_export(DA850TRIK_WLAN_ENABLE_PIN,0);
+	if (ret) {
+		pr_err("%s: failed to export GPIO for WLAN: %d\n",
+			__func__, ret);
+	}
+	ret = gpio_export(DA850TRIK_BT_ENABLE_PIN,0);
+	if (ret ) {
+		pr_err("%s: failed to export GPIO for BT: %d\n",
+			__func__, ret);
+	}
+
+	irq = gpio_to_irq(DA850TRIK_WLAN_IRQ_PIN);
+	if (irq < 0) {
+		pr_err("%s: failed to convert GPIO to IRQ for WLAN/BT: %d\n",
+			__func__, ret);
+		gpio_free(DA850TRIK_WLAN_ENABLE_PIN);
+		gpio_free(DA850TRIK_WLAN_IRQ_PIN);
+		gpio_free(DA850TRIK_BT_ENABLE_PIN);
+		return;
+	}
+
+	da850_wl12xx_wlan_data.irq = irq;
+	pr_err("irq 123\n");
+	ret = wl12xx_set_platform_data(&da850_wl12xx_wlan_data);
+	if (ret) {
+		pr_err("Could not set wl12xx data: %d\n", ret);
+		return;
+	}
+	ret = da8xx_register_mmcsd0(&da850_wl12xx_mmc_config);
+	if (ret) {
+		pr_err("wl12xx/mmc registration failed: %d\n", ret);
+		return;
+	}
+	da850trik_wl1271_power_on();
+
+	/* turn on bluetooth */
+	da850trik_bluetooth_set_power(1);	
+	da850trik_wlan_set_power(1);	
+	pr_warning("End WL1271 \n");
+	return ret;
+}
+/****************************************************************************/
 
 static __init void da850trik_init(void)
 {
@@ -1502,28 +1589,78 @@ static __init void da850trik_init(void)
 		pr_warning("%s: suspend registration failed: %d\n",
 			__func__, ret);
 
-	da850trik_mmc_init();
-	da850trik_usb_init();
-	da850trik_gpio_keys_init();
-	da850trik_wl1271_init();
+	
+	ret = da850trik_usb_init();
+	if (ret)
+		pr_warning("%s: usb registration failed: %d\n",
+			__func__, ret);
 
-	da850trik_i2c0_init();
-        da850trik_i2c1_init();
+	ret = da850trik_gpio_keys_init();
+	if (ret)
+		pr_warning("%s: gpio_keys registration failed: %d\n",
+			__func__, ret);
+	//da850trik_mmc_init();
+	
+	//da850trik_wl1271_init();
+	
+	//ret = 
+	da850trik_wl1271_init_test();
+	// if (ret)
+	// 	pr_warning("%s: W1271 registration failed: %d\n",
+	// 		__func__, ret);
 
-	da850trik_audio_init();
-	da850trik_accel_init();
-	da850trik_spi0_init();
-	da850trik_lcd_init();
 
-	da850trik_msp430_init();
+	ret = da850trik_i2c0_init();
+	if (ret)
+		pr_warning("%s: i2c0 registration failed: %d\n",
+			__func__, ret);
+
+	ret = da850trik_i2c1_init();
+	if (ret)
+		pr_warning("%s: i2c1 registration failed: %d\n",
+			__func__, ret);
+
+	ret = da850trik_audio_init();
+	if (ret)
+		pr_warning("%s: audio registration failed: %d\n",
+			__func__, ret);
+
+	ret = da850trik_accel_init();
+	if (ret)
+		pr_warning("%s: accel registration failed: %d\n",
+			__func__, ret);
+
+	//ret = da850trik_spi0_init();
+	if (ret)
+		pr_warning("%s: spi0 registration failed: %d\n",
+			__func__, ret);
+
+	ret = da850trik_lcd_init();
+	if (ret)
+		pr_warning("%s: lcd registration failed: %d\n",
+			__func__, ret);
+
+	ret = da850trik_msp430_init();
+	if (ret)
+		pr_warning("%s: msp430 registration failed: %d\n",
+			__func__, ret);
 
 	if (HAS_EHRPWM) {
-		da850trik_pwm_init();
+		ret = da850trik_pwm_init();
+		if (ret)
+		pr_warning("%s: PWM registration failed: %d\n",
+			__func__, ret);
 	}
 	if (HAS_ECAP_PWM) {
-		da850trik_cap_init();
+		ret = da850trik_cap_init();
+		if (ret)
+		pr_warning("%s: PWM registration failed: %d\n",
+			__func__, ret);
 	}
-	da850trik_led_init();
+	ret = da850trik_led_init();
+	if (ret)
+		pr_warning("%s: PWM registration failed: %d\n",__func__, ret);
+
 	platform_device_register(&da850trik_manage_device);
 }
 
