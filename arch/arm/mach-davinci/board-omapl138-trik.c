@@ -1460,8 +1460,22 @@ static __init int da850trik_led_init(void){
 
 
 /****************************************************************************/
+static void wl12xx_set_power(int index, bool power_on)
+{
+	static bool power_state;
+	pr_debug("Powering %s wl12xx", power_on ? "on" : "off");
+	if (power_on == power_state)
+		return;
+	power_state = power_on;
+	if (power_on) {
+		/* Power up sequence required for wl127x devices */
+		da850trik_wlan_set_power(1);
+	} else {
+		da850trik_wlan_set_power(0);
+	}
+}
 static struct davinci_mmc_config da850_wl12xx_mmc_config = {
-	//.set_power	= wl12xx_set_power,
+	.set_power	= wl12xx_set_power,
 	.wires		= 4,
 	.max_freq	= 25000000,
 	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_NONREMOVABLE |
@@ -1474,6 +1488,7 @@ static const short da850_wl12xx_pins[] __initconst = {
 	DA850_MMCSD0_DAT_3, DA850_MMCSD0_CLK, DA850_MMCSD0_CMD,
 	-1
 };
+
 
 static struct wl12xx_platform_data da850_wl12xx_wlan_data __initdata = {
 	.irq			    = -1,
