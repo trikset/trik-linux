@@ -594,6 +594,10 @@ static __init void da850trik_mmc_init(void)
  * USB-2.0 & USB-1.1
  */
 static int da850trik_usb11_power_status = 1;
+
+static da8xx_ocic_handler_t trik_usb_ocic_handler;
+static irqreturn_t trik_usb_ocic_irq(int irq, void *dev_id);
+
 static int da850trik_usb11_set_power(unsigned port, int on)
 {
 	da850trik_usb11_power_status = on;
@@ -606,12 +610,35 @@ static int da850trik_usb11_get_power(unsigned port){
 
 static int da850trik_usb11_get_oci(unsigned port)
 {
-	return 0;
+	int res = gpio_get_value(DA850TRIK_USB20_OC_PIN);
+	pr_err("da850trik_usb11_get_oci = %d\n",res);
+	return res;
 }
 
 static int da850trik_usb11_ocic_notify(da8xx_ocic_handler_t handler)
 {
-	return 0;
+	int irq = gpio_to_irq(DA850TRIK_USB20_OC_PIN);
+	int error = 0;
+	if (handler != NULL){
+		pr_err("da850trik_usb11_oci_notify = %d\n",irq);
+
+		 trik_usb_ocic_handler = handler;
+		 error = request_irq(irq, trik_usb_ocic_irq,
+                                        IRQF_DISABLED | IRQF_TRIGGER_RISING |
+                                        IRQF_TRIGGER_FALLING,
+                                        "OHCI over-current indicator", NULL);
+                if (error)
+                        pr_err("%s: could not request IRQ to watch "
+                                "over-current indicator changes\n", __func__);
+	}
+	else
+	{
+                free_irq(irq, NULL);
+        }
+	pr_err("da850trik_usb11_oci_notify  end\n");
+
+        return error;
+
 }
 
 static struct da8xx_ohci_root_hub da850trik_usb11_pdata = {
@@ -623,11 +650,11 @@ static struct da8xx_ohci_root_hub da850trik_usb11_pdata = {
 	.potpgt         = (3 + 1) / 2,  /* 3 ms max */
 };
 
-static irqreturn_t da850trik_usb20_ocic_irq(int irq, void *dev_id)
-{
-	printk(KERN_ERR "%s: over-current situation detected\n", __func__);
+static irqreturn_t trik_usb_ocic_irq(int irq, void *dev_id){
+	trik_usb_ocic_handler(&da850trik_usb11_pdata,1);
 	return IRQ_HANDLED;
 }
+
 static __init int da850trik_pwm_init(void)
 {
 	int ret;
@@ -719,6 +746,7 @@ static __init int da850trik_cap_init(void)
 	}
 	return ret;
 }
+
 static __init int da850trik_usb_init(void)
 {
 	int ret, irq;
@@ -738,55 +766,19 @@ static __init int da850trik_usb_init(void)
 			"overcurrent indicator: %d\n", __func__, ret);
 		return ret;
 	}
-
-	irq = gpio_to_irq(DA850TRIK_USB20_OC_PIN);
-	ret = request_irq(irq, da850trik_usb20_ocic_irq, IRQF_DISABLED |
-				    IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				    "USB 2.0 overcurrent", NULL);
-	if (ret) {
-		pr_err("%s: failed to request IRQ for USB 2.0 "
-			       "overcurrent: %d\n", __func__, ret);
-		gpio_free(DA850TRIK_USB20_OC_PIN);
-		return ret;
-	}
-
-	/*
-	 * Set up USB clock/mode in the CFGCHIP2 register.
-	 * FYI:  CFGCHIP2 is 0x0000ef00 initially.
-	 */
 	cfgchip2 = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
-
-	/* USB2.0 PHY reference clock is 24 MHz */
 	cfgchip2 &= ~CFGCHIP2_REFFREQ;
 	cfgchip2 |=  CFGCHIP2_REFFREQ_24MHZ;
 
-	/*
-	 * Select internal reference clock for USB 2.0 PHY
-	 * and use it as a clock source for USB 1.1 PHY
-	 * (this is the default setting anyway).
-	 */
 	cfgchip2 &= ~CFGCHIP2_USB1PHYCLKMUX;
 	cfgchip2 |=  CFGCHIP2_USB2PHYCLKMUX;
 
-	/*
-	 * We have to override VBUS/ID signals when MUSB is configured into the
-	 * host-only mode -- ID pin will float if no cable is connected, so the
-	 * controller won't be able to drive VBUS thinking that it's a B-device.
-	 * Otherwise, we want to use the OTG mode and enable VBUS comparators.
-	 */
 	cfgchip2 &= ~CFGCHIP2_OTGMODE;
-#ifdef	CONFIG_USB_MUSB_HOST
-	cfgchip2 |=  CFGCHIP2_FORCE_HOST_VBUS_LOW;
-#else
-	cfgchip2 |=  CFGCHIP2_SESENDEN | CFGCHIP2_VBDTCTEN;
-#endif
+	cfgchip2 |=  CFGCHIP2_FORCE_HOST;
+
 	__raw_writel(cfgchip2, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
 
-	/*
-	 * TPS2065 switch @ 5V supplies 1 A (sustains 1.5 A),
-	 * with the power on to power good time of 3 ms.
-	 */
-	ret = da8xx_register_usb20(500, 20);
+	ret = da8xx_register_usb20(1000, 3);
 	if (ret)
 		pr_err("%s: USB 2.0 registration failed: %d\n",
 			__func__, ret);
@@ -905,9 +897,10 @@ static void da850trik_wlan_set_power(bool power_on)
 {
 	if (da850trik_wlan_power_state < 0)
 		da850trik_wl1271_power_on();
-
 	if (power_on  && (da850trik_wlan_power_state == 1)) return;
 	if (!power_on && (da850trik_wlan_power_state == 0)) return;
+
+	pr_debug("da850trik_wlan_set_power \n");
 
 	da850trik_wlan_power_state = power_on ? 1 : 0;
 	if (power_on) {
@@ -931,9 +924,11 @@ static void da850trik_bluetooth_set_power(bool power_on)
 
 	da850trik_bluetooth_power_state = power_on ? 1 : 0;
 	if (power_on) {
+		pr_err("%s: BLUE POWER ON\n", __func__);
 		gpio_set_value(DA850TRIK_BT_ENABLE_PIN, 0);
 		msleep(150);
 	} else {
+		pr_err("%s: BLUE POWER OFF\n", __func__);
 		gpio_set_value(DA850TRIK_BT_ENABLE_PIN, 1);
 		msleep(150);
 	}
@@ -966,7 +961,6 @@ static struct davinci_spi_config da850trik_wlan_cfg = {
 };
 
 static struct spi_board_info da850trik_spi0_info[] = {
-#if 0
 	[DA850TRIK_SPI_FLASH] = {
 		.modalias		= "m25p80",
 		.controller_data	= &da850trik_spiflash_cfg,
@@ -976,24 +970,12 @@ static struct spi_board_info da850trik_spi0_info[] = {
 		.bus_num		= 0,
 		.chip_select		= 0,
 	},
-#endif
-	[DA850TRIK_SPI_WLAN] = {
-		.modalias		= "wl1271_spi",
-		.controller_data	= &da850trik_wlan_cfg,
-		.platform_data		= &da850trik_wlan_data,
-		.mode			= SPI_MODE_0,
-		.max_speed_hz   	= 25000000,
-		.bus_num		= 0,
-		.chip_select		= 1,
-	},
+	
 };
 
 static void __init da850trik_spi0_init(void)
 {
 	int ret;
-
-	da850trik_spi0_info[DA850TRIK_SPI_WLAN].irq = da850trik_wlan_data.irq;
-
 	ret = da8xx_register_spi(0, da850trik_spi0_info,
 				 ARRAY_SIZE(da850trik_spi0_info));
 	if (ret)
@@ -1562,7 +1544,8 @@ static __init void da850trik_wl1271_init_test(void)
 
 	/* turn on bluetooth */
 	da850trik_bluetooth_set_power(1);	
-	da850trik_wlan_set_power(1);	
+	da850trik_wlan_set_power(1);
+
 	pr_warning("End WL1271 \n");
 	return ret;
 }
