@@ -69,6 +69,16 @@ config USB_MUSB_UX500
 
 endchoice
 
+config USB_MUSB_OTG
+        tristate "DaVinci OTG"
+        depends on ARCH_DAVINCI_DA8XX
+config USB_MUSB_HOST
+        tristate "DaVinci HOST"
+        depends on ARCH_DAVINCI_DA8XX
+config USB_MUSB_PERIPHERAL
+        tristate "DaVinci PERIPHERAL"
+        depends on ARCH_DAVINCI_DA8XX
+
 choice
 	prompt 'MUSB DMA mode'
 	default USB_UX500_DMA if USB_MUSB_UX500
