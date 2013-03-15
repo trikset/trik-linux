@@ -45,11 +45,15 @@ static struct musb_hdrc_platform_data usb_data = {
 #if defined(CONFIG_USB_MUSB_OTG)
 	/* OTG requires a Mini-AB connector */
 	.mode           = MUSB_OTG,
+	#warning MUSB_OTG
 #elif defined(CONFIG_USB_MUSB_PERIPHERAL)
 	.mode           = MUSB_PERIPHERAL,
+		#warning MUSB_PERIPHERAL
 #elif defined(CONFIG_USB_MUSB_HOST)
 	.mode           = MUSB_HOST,
+		#warning MUSB_HOST
 #endif
+		#warning MUSB_DEFAULT
 	.clock		= "usb",
 	.config		= &musb_config,
 };
