@@ -32,6 +32,7 @@
 #include <mach/gpio-davinci.h>
 #include "clock.h"
 #include "mux.h"
+#include <media/davinci/vpif_types.h>
 
 /* SoC specific clock flags */
 #define DA850_CLK_ASYNC3	BIT(16)
@@ -356,6 +357,12 @@ static struct clk sata_clk = {
 	.gpsc		= 1,
 	.flags		= PSC_FORCE,
 };
+static struct clk vpif_clk = {
+        .name           = "vpif",
+        .parent         = &pll0_sysclk2,
+        .lpsc           = DA850_LPSC1_VPIF,
+        .gpsc           = 1,
+};
 
 static struct clk ehrpwm_clk = {
         .name           = "ehrpwm",
@@ -417,6 +424,7 @@ static struct clk_lookup da850_clks[] = {
 	CLK(NULL,		"usb20",	&usb20_clk),
 	CLK("spi_davinci.0",	NULL,		&spi0_clk),
 	CLK("spi_davinci.1",	NULL,		&spi1_clk),
+	CLK(NULL,               "vpif",         &vpif_clk),
 	CLK("ahci",		NULL,		&sata_clk),
 	CLK(NULL,               "ehrpwm",       &ehrpwm_clk),
         CLK(NULL,               "ecap",         &ecap_clk),
@@ -593,6 +601,7 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, GPIO2_4,		6,	12,	15,	8,	false)
 	MUX_CFG(DA850, GPIO2_6,		6,	4,	15,	8,	false)
 	MUX_CFG(DA850, GPIO2_8,		5,	28,	15,	8,	false)
+	MUX_CFG(DA850, GPIO2_13,	5,	8,	15,	8,	false)
 	MUX_CFG(DA850, GPIO2_15,	5,	0,	15,	8,	false)
 	MUX_CFG(DA850, GPIO3_4,		8,	12,	15,	8,	false)
 	MUX_CFG(DA850, GPIO3_12,	7,	12,	15,	8,	false)
@@ -632,7 +641,44 @@ static const struct mux_config da850_pins[] = {
         MUX_CFG(DA850, ECAP1_APWM1,     1,      28,     15,     4,      false)
         /* eCAP2 function */
         MUX_CFG(DA850, ECAP2_APWM2,     1,      0,      15,     4,      false)
-
+	 /* VPIF Capture */
+        MUX_CFG(DA850, VPIF_DIN0,       15,     4,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN1,       15,     0,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN2,       14,     28,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN3,       14,     24,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN4,       14,     20,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN5,       14,     16,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN6,       14,     12,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN7,       14,     8,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN8,       16,     4,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN9,       16,     0,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN10,      15,     28,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN11,      15,     24,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN12,      15,     20,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN13,      15,     16,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN14,      15,     12,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN15,      15,     8,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_CLKIN0,     14,     0,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_CLKIN1,     14,     4,      15,     1,      false)
+ 	/* VPIF Capture */
+        MUX_CFG(DA850, VPIF_DIN0,       15,     4,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN1,       15,     0,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN2,       14,     28,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN3,       14,     24,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN4,       14,     20,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN5,       14,     16,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN6,       14,     12,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN7,       14,     8,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN8,       16,     4,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN9,       16,     0,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN10,      15,     28,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN11,      15,     24,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN12,      15,     20,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN13,      15,     16,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN14,      15,     12,     15,     1,      false)
+        MUX_CFG(DA850, VPIF_DIN15,      15,     8,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_CLKIN0,     14,     0,      15,     1,      false)
+        MUX_CFG(DA850, VPIF_CLKIN1,     14,     4,      15,     1,      false)
 
 #endif
 };
@@ -654,6 +700,15 @@ const short da850_lcdcntl_pins[] __initdata = {
 	DA850_LCD_D_12, DA850_LCD_D_13, DA850_LCD_D_14, DA850_LCD_D_15,
 	DA850_LCD_PCLK, DA850_LCD_HSYNC, DA850_LCD_VSYNC, DA850_NLCD_AC_ENB_CS,
 	-1
+};
+
+const short da850_vpif_capture_pins[] __initdata = {
+        DA850_VPIF_DIN0, DA850_VPIF_DIN1, DA850_VPIF_DIN2, DA850_VPIF_DIN3,
+        DA850_VPIF_DIN4, DA850_VPIF_DIN5, DA850_VPIF_DIN6, DA850_VPIF_DIN7,
+        DA850_VPIF_DIN8, DA850_VPIF_DIN9, DA850_VPIF_DIN10, DA850_VPIF_DIN11,
+        DA850_VPIF_DIN12, DA850_VPIF_DIN13, DA850_VPIF_DIN14, DA850_VPIF_DIN15,
+        DA850_VPIF_CLKIN0, DA850_VPIF_CLKIN1,
+        -1
 };
 
 const short da850_ehrpwm0_pins[] __initdata = {
@@ -1208,7 +1263,64 @@ int __init da850_register_ecap_cap(char instance)
         else
                 return -EINVAL;
 }
+/* VPIF resource, platform data */
+static u64 da850_vpif_dma_mask = DMA_BIT_MASK(32);
 
+static struct resource da850_vpif_resource[] = {
+        {
+                .start  = DA8XX_VPIF_BASE,
+                .end    = DA8XX_VPIF_BASE + 0xfff,
+                .flags  = IORESOURCE_MEM,
+        }
+};
+static struct platform_device da850_vpif_dev = {
+        .name           = "vpif",
+        .id             = -1,
+        .dev            = {
+                        .dma_mask               = &da850_vpif_dma_mask,
+                        .coherent_dma_mask      = DMA_BIT_MASK(32),
+        },
+        .resource       = da850_vpif_resource,
+        .num_resources  = ARRAY_SIZE(da850_vpif_resource),
+};
+/* VPIF capture resource, platform data */
+static struct resource da850_vpif_capture_resource[] = {
+        {
+                .start = IRQ_DA850_VPIFINT,
+                .end   = IRQ_DA850_VPIFINT,
+                .flags = IORESOURCE_IRQ,
+        },
+        {
+                .start = IRQ_DA850_VPIFINT,
+                .end   = IRQ_DA850_VPIFINT,
+                .flags = IORESOURCE_IRQ,
+        },
+};
+
+static struct platform_device da850_vpif_capture_dev = {
+        .name           = "vpif_capture",
+        .id             = -1,
+        .dev            = {
+                .dma_mask               = &da850_vpif_dma_mask,
+                .coherent_dma_mask      = DMA_BIT_MASK(32),
+        },
+        .resource       = da850_vpif_capture_resource,
+        .num_resources  = ARRAY_SIZE(da850_vpif_capture_resource),
+};
+int __init da850_register_vpif(void)
+{
+        return platform_device_register(&da850_vpif_dev);
+}
+
+int __init da850_register_vpif_capture(struct vpif_capture_config
+                                                        *capture_config)
+{
+        da850_vpif_capture_dev.dev.platform_data = capture_config;
+        return platform_device_register(&da850_vpif_capture_dev);
+}
+
+
+/*************************************************/
 
 static int da850_round_armrate(struct clk *clk, unsigned long rate)
 {

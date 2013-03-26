@@ -26,6 +26,7 @@
 #include <linux/spi/flash.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/videodev2.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -42,6 +43,9 @@
 
 #include <linux/wl12xx.h>
 #include <linux/da8xx-ili9340-fb.h>
+#include <media/ov7670.h>
+#include <media/davinci/vpif_types.h>
+
 
 
 #define DA850TRIK_POW_CON_REG		DA850_GPIO5_14
@@ -242,7 +246,6 @@ static int __init da850trik_accel_init(void)
  * MSP430
  */
 static const short da850trik_msp430_pins[] __initconst = {
-	DA850_CLKOUT0,
 	DA850TRIK_MSP430_TEST_REG,
 	DA850TRIK_MSP430_RESET_REG,
 	-1
@@ -360,6 +363,13 @@ static struct bma150_platform_data da850trik_bma150_pdata = {
 	.cfg = &cfg_data,
 	.irq_gpio_cfg =&bma_150irq_gpio_cfg,
 };
+static struct ov7670_config ov7670_cfg  = {
+        .min_width   = 640,                  /* Filter out smaller sizes */
+        .min_height  = 480,                 /* Filter out smaller sizes */
+        .clock_speed = 20,                /* External clock speed (MHz) */
+        .use_smbus   =false,                 /* Use smbus I/O instead of I2C */
+};
+
 
 static struct i2c_board_info __initdata da850trik_i2c1_devices[] = {
 	{
@@ -375,7 +385,7 @@ static struct i2c_board_info __initdata da850trik_i2c1_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("ds4420",0x50),
-	}
+	},
 };
 
 static struct davinci_i2c_platform_data da850trik_i2c1_pdata = {
@@ -1550,7 +1560,114 @@ static __init void da850trik_wl1271_init_test(void)
 	return ret;
 }
 /****************************************************************************/
+const short da850trik_vpif_channel0_pins[] __initconst = {
+        DA850_GPIO6_13,
+        -1
+};
+const short da850trik_vpif_channel1_pins[] __initconst= {
+       DA850_GPIO2_13,
+        -1
+};
 
+static int da850_setup_vpif_input_channel_mode(int mux_mode)
+{
+	pr_warning("%s: In\n",__func__);
+        return 0;
+}
+
+int da850_vpif_setup_input_path(int ch, const char *name)
+{
+        int ret = 0;
+	pr_warning("%s: In\n",__func__);
+	return ret;
+}
+//ov7670
+#define OV7670_CH0             "ov7670-0"
+#define OV7670_CH1             "ov7670-1"
+
+static struct vpif_subdev_info da850_vpif_capture_sdev_info[] = {
+ 	{
+                .name   = "ov7670",
+                .board_info = {
+                        I2C_BOARD_INFO("ov7670", 0x21),
+                        .platform_data = (void *)&ov7670_cfg,
+                },
+                .vpif_if = {
+                        .if_type = VPIF_IF_RAW_BAYER,
+                        .hd_pol = 0,
+                        .vd_pol = 0,
+                        .fid_pol = 0,
+                },
+        }
+};
+
+static const struct vpif_input da850_ch0_inputs[] = {
+                {
+                .input = {
+                        .index = 0,
+                        .name = "Camera",
+                        .type = V4L2_INPUT_TYPE_CAMERA,
+                },
+                .subdev_name = "ov7670",
+        },
+};
+static const struct vpif_input da850_ch1_inputs[] = {
+                {
+                .input = {
+                        .index = 0,
+                        .name = "Camera",
+                        .type = V4L2_INPUT_TYPE_CAMERA,
+                },
+                .subdev_name = OV7670_CH1,
+        },
+};
+
+static struct vpif_capture_config da850_vpif_capture_config = {
+	.setup_input_channel_mode = da850_setup_vpif_input_channel_mode,
+        .setup_input_path = da850_vpif_setup_input_path,
+	.chan_config[0] = {
+               	.inputs = da850_ch0_inputs,
+		.input_count = ARRAY_SIZE(da850_ch0_inputs),
+       	},
+        .subdev_info = da850_vpif_capture_sdev_info,
+	.subdev_count = ARRAY_SIZE(da850_vpif_capture_sdev_info),
+	.card_name      = "DA850/OMAP-L138 Video Capture",
+};
+
+static __init int da850trik_vpif_init(void)
+{
+	int ret = 0;
+	ret = da850_register_vpif();
+        if (ret)
+                        pr_warning("da850_evm_init: VPIF setup failed: %d\n",
+                                   ret);
+	ret = davinci_cfg_reg_list(da850_vpif_capture_pins);
+                if (ret)
+                        pr_warning("da850_evm_init: VPIF capture mux failed:"
+                                        "%d\n", ret);
+	ret = davinci_cfg_reg_list(da850trik_vpif_channel0_pins);
+	if (ret)
+                        pr_warning("da850_evm_init: VPIF capture mux channel 0 failed"
+                                        "%d\n", ret);
+
+	ret = davinci_cfg_reg_list(da850trik_vpif_channel1_pins);
+	if (ret)
+                        pr_warning("da850_evm_init: VPIF capture mux channel 1 failed"
+                                        "%d\n", ret);
+
+	ret = gpio_request_one(GPIO_TO_PIN(6, 13), GPIOF_OUT_INIT_LOW, "VPIF channel 0 power ");
+	ret = gpio_request_one(GPIO_TO_PIN(2, 13), GPIOF_OUT_INIT_LOW, "VPIF channel 1 power ");
+	ret = gpio_export(GPIO_TO_PIN(2, 13), 0);
+	ret = gpio_export(GPIO_TO_PIN(6, 13), 0);
+
+ 	ret = da850_register_vpif_capture(&da850_vpif_capture_config);
+                if (ret)
+                        pr_warning("da850_evm_init: VPIF capture setup failed:"
+                                        "%d\n", ret);
+
+	return ret;
+}
+/***************************************************************************/
 static __init void da850trik_init(void)
 {
 	int ret;
@@ -1658,6 +1775,11 @@ static __init void da850trik_init(void)
 	ret = da850trik_led_init();
 	if (ret)
 		pr_warning("%s: PWM registration failed: %d\n",__func__, ret);
+#if 0
+	ret = da850trik_vpif_init();
+	if (ret)
+		pr_warning("%s: VPIF camera registration failed: %d \n",__func__,ret);
+#endif
 
 	platform_device_register(&da850trik_manage_device);
 }
