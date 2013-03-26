@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/davinci_emac.h>
 #include <linux/spi/spi.h>
+#include <linux/videodev2.h>
 
 #include <mach/serial.h>
 #include <mach/edma.h>
@@ -25,6 +26,9 @@
 #include <mach/usb.h>
 #include <mach/pm.h>
 #include <mach/spi.h>
+
+#include <media/davinci/vpif_types.h>
+
 
 extern void __iomem *da8xx_syscfg0_base;
 extern void __iomem *da8xx_syscfg1_base;
@@ -71,6 +75,9 @@ extern unsigned int da850_max_speed;
 #define DA8XX_AEMIF_CTL_BASE	0x68000000
 #define DA8XX_ARM_RAM_BASE	0xffff0000
 
+#define DA8XX_VPIF_BASE         0x01e17000
+#define DA8XX_SHARED_RAM_BASE   0x80000000
+
 void __init da830_init(void);
 void __init da850_init(void);
 
@@ -96,6 +103,9 @@ int __init da850_register_sata(unsigned long refclkpn);
 void __init da850_register_ehrpwm(char);
 int __init da850_register_ecap(char);
 int __init da850_register_ecap_cap(char);
+int __init da850_register_vpif(void);
+int __init da850_register_vpif_capture
+                        (struct vpif_capture_config *capture_config);
 void da8xx_restart(char mode, const char *cmd);
 
 extern struct platform_device da8xx_serial_device;
@@ -132,6 +142,8 @@ extern const short da830_ecap1_pins[];
 extern const short da830_ecap2_pins[];
 extern const short da830_eqep0_pins[];
 extern const short da830_eqep1_pins[];
+
+extern const short da850_vpif_capture_pins[];
 
 extern const short da850_i2c0_pins[];
 extern const short da850_i2c1_pins[];
