@@ -729,7 +729,7 @@ static __init int da850trik_cap_init(void)
                                                 , ret);
 	}
 	else {
-		ret = da850_register_ecap_cap(0);
+		ret = da850_register_ecap(0);
 		if (ret)
 			pr_warning("da850trik_cap_init: "
         	                    "eCAP 0 registration failed: %d\n", ret);
@@ -739,7 +739,7 @@ static __init int da850trik_cap_init(void)
                 pr_warning("da850_evm_init:ecap mux failed:%d\n"
                                                 , ret);
         else {
-		ret = da850_register_ecap_cap(1);
+		ret = da850_register_ecap(1);
         	if (ret)
                 	pr_warning("da850trik_cap_init:"
                         	    "eCAP 1 regisration failed: %d\n", ret);
@@ -749,7 +749,7 @@ static __init int da850trik_cap_init(void)
                 pr_warning("da850_evm_init:ecap mux failed:%d\n"
                                                 , ret);
         else {
-		ret = da850_register_ecap_cap(2);
+		ret = da850_register_ecap(2);
         	if (ret)
                 	pr_warning("da850trik_cap_init"
                         	    "eCAP 2 registration failed: %d\n", ret);
