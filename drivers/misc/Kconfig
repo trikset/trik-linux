@@ -513,7 +513,13 @@ config I2C_DS4420_AMPLIFIER
 	depends on I2C && SYSFS 
 	help
 	  The DS4420 is a  Amplifier, fully controlled using I2c and SYSFS.
-
+config SENSORS_L3G4200D
+        tristate "ST Micro Gyroscope"
+        default n
+        depends on I2C
+        help
+         Say yes here if you wish to include the ST Micro
+         L3G4200D gyroscope driver.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
