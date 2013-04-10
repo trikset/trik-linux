@@ -40,7 +40,7 @@
 
 #include <linux/mma7660fc.h>
 #include <linux/bma150.h>
-
+#include <linux/l3g4200d.h>
 #include <linux/wl12xx.h>
 #include <linux/da8xx-ili9340-fb.h>
 #include <media/ov7670.h>
@@ -305,14 +305,54 @@ static __init int da850trik_msp430_init(void)
 /*
  * I2C0
  */
+static struct l3g4200d_platform_data l3g4200d_pd = {
+	.poll_interval = 10,
+	.gpio_drdy = 0,
+	.ctrl_reg1 = 0x0F,
+	.ctrl_reg2 = 0x23,
+        .ctrl_reg3 = 0,
+	.ctrl_reg4 = 0x30,
+	.ctrl_reg5 = 0,
+	.reference = 0,
+
+        .fifo_ctrl_reg = 0,
+	.int1_cfg = 0,
+
+        .int1_tsh_xh = 0,
+        .int1_tsh_xl = 0,
+        .int1_tsh_yh = 0,
+        .int1_tsh_yl = 0,
+        .int1_tsh_zh = 0,
+        .int1_tsh_zl = 0,
+        .int1_duration = 0,
+};
 static struct i2c_board_info __initdata da850trik_i2c0_devices[] = {
+	{
+                I2C_BOARD_INFO("l3g4200d", 0x69),
+		.platform_data = &l3g4200d_pd,
+        },
+	{
+                I2C_BOARD_INFO("adxl34x", 0x53),
+        },
+	{
+		I2C_BOARD_INFO("bmp085",0x77),
+	},
+	{
+		I2C_BOARD_INFO("hmc5883l",0x1e),
+	}
+
 };
 
 static struct davinci_i2c_platform_data da850trik_i2c0_pdata = {
 	.bus_freq	= 100,	/* kHz */
 	.bus_delay	= 0,	/* usec */
 };
-
+static const short da850_gpio_interrupt_pins[] __initconst = {
+        DA850_GPIO8_12, DA850_GPIO8_13,
+	DA850_GPIO8_14,DA850_GPIO8_15,
+        -1
+};
+ 
 static __init int da850trik_i2c0_init(void)
 {
 	int ret;
@@ -323,7 +363,22 @@ static __init int da850trik_i2c0_init(void)
 				ret);
 		return ret;
 	}
+	ret = davinci_cfg_reg_list(da850_gpio_interrupt_pins);
+	if (ret) {
+                pr_warning("da850trik_i2c0_init: GPIO Interrupt: %d\n",
+                                ret);
+                return ret;
+        }
+	 ret = gpio_request(GPIO_TO_PIN(8,12), "Gyro interrupt");
+        if (ret < 0) {
+                pr_err("%s: failed to request GPIO Gyro interrupt: %d\n",
+                        __func__, ret);
+                return;
+        }
 
+        gpio_direction_input(GPIO_TO_PIN(8,12));
+	l3g4200d_pd.gpio_drdy = gpio_to_irq(GPIO_TO_PIN(8,12));	
+	
 	ret = da8xx_register_i2c(0, &da850trik_i2c0_pdata);
 	if (ret) {
 		pr_warning("da850trik_i2c0_init: I2C0 registration failed: %d\n",
