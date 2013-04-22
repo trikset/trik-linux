@@ -40,7 +40,7 @@
 
 #include <linux/mma7660fc.h>
 #include <linux/bma150.h>
-#include <linux/l3g4200d.h>
+#include <linux/l3g42xxd.h>
 #include <linux/wl12xx.h>
 #include <linux/da8xx-ili9340-fb.h>
 #include <media/ov7670.h>
@@ -246,6 +246,7 @@ static int __init da850trik_accel_init(void)
  * MSP430
  */
 static const short da850trik_msp430_pins[] __initconst = {
+	DA850_CLKOUT0,
 	DA850TRIK_MSP430_TEST_REG,
 	DA850TRIK_MSP430_RESET_REG,
 	-1
@@ -305,31 +306,11 @@ static __init int da850trik_msp430_init(void)
 /*
  * I2C0
  */
-static struct l3g4200d_platform_data l3g4200d_pd = {
-	.poll_interval = 10,
-	.gpio_drdy = 0,
-	.ctrl_reg1 = 0x0F,
-	.ctrl_reg2 = 0x23,
-        .ctrl_reg3 = 0,
-	.ctrl_reg4 = 0x30,
-	.ctrl_reg5 = 0,
-	.reference = 0,
-
-        .fifo_ctrl_reg = 0,
-	.int1_cfg = 0,
-
-        .int1_tsh_xh = 0,
-        .int1_tsh_xl = 0,
-        .int1_tsh_yh = 0,
-        .int1_tsh_yl = 0,
-        .int1_tsh_zh = 0,
-        .int1_tsh_zl = 0,
-        .int1_duration = 0,
-};
+static struct l3g42xxd_platform_data l3g42xxd_pd ;
 static struct i2c_board_info __initdata da850trik_i2c0_devices[] = {
 	{
-                I2C_BOARD_INFO("l3g4200d", 0x69),
-		.platform_data = &l3g4200d_pd,
+                I2C_BOARD_INFO("l3g42xxd", 0x69),
+		.platform_data = &l3g42xxd_pd,
         },
 	{
                 I2C_BOARD_INFO("adxl34x", 0x53),
@@ -369,16 +350,13 @@ static __init int da850trik_i2c0_init(void)
                                 ret);
                 return ret;
         }
-	 ret = gpio_request(GPIO_TO_PIN(8,12), "Gyro interrupt");
+	 ret = gpio_request_one(GPIO_TO_PIN(8,12),GPIOF_DIR_IN, "Gyro interrupt");
         if (ret < 0) {
                 pr_err("%s: failed to request GPIO Gyro interrupt: %d\n",
                         __func__, ret);
                 return;
         }
-
-        gpio_direction_input(GPIO_TO_PIN(8,12));
-	l3g4200d_pd.gpio_drdy = gpio_to_irq(GPIO_TO_PIN(8,12));	
-	
+	l3g42xxd_pd.gpio_drdy = gpio_to_irq(GPIO_TO_PIN(8,12));	
 	ret = da8xx_register_i2c(0, &da850trik_i2c0_pdata);
 	if (ret) {
 		pr_warning("da850trik_i2c0_init: I2C0 registration failed: %d\n",
@@ -665,23 +643,30 @@ static irqreturn_t trik_usb_ocic_irq(int irq, void *dev_id);
 
 static int da850trik_usb11_set_power(unsigned port, int on)
 {
+	 pr_err("%s - port = %d ( %d )  \n",__func__,port,on);
+
 	da850trik_usb11_power_status = on;
 	return 0;
 }
 
 static int da850trik_usb11_get_power(unsigned port){
+	 pr_err("%s -port  %d  \n",__func__,port);
+	if (port == 1 ){
+		return 1;
+	}
 	return da850trik_usb11_power_status;
 }
 
 static int da850trik_usb11_get_oci(unsigned port)
 {
-	int res = gpio_get_value(DA850TRIK_USB20_OC_PIN);
-	pr_err("da850trik_usb11_get_oci = %d\n",res);
-	return res;
+//	int res = gpio_get_value(DA850TRIK_USB20_OC_PIN);
+	pr_err("%s -port (%d)\n",__func__,port);
+	return 0;
 }
 
 static int da850trik_usb11_ocic_notify(da8xx_ocic_handler_t handler)
 {
+	return 0;
 	int irq = gpio_to_irq(DA850TRIK_USB20_OC_PIN);
 	int error = 0;
 	if (handler != NULL){
@@ -843,7 +828,7 @@ static __init int da850trik_usb_init(void)
 
 	__raw_writel(cfgchip2, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
 
-	ret = da8xx_register_usb20(1000, 3);
+	ret = da8xx_register_usb20(500, 20);
 	if (ret)
 		pr_err("%s: USB 2.0 registration failed: %d\n",
 			__func__, ret);
@@ -1328,16 +1313,16 @@ static ssize_t da850trik_msp430_rst_write(struct device *dev, struct device_attr
 //static const DEVICE_ATTR(audio_codec,       0644, da850trik_audio_codec_read, da850trik_audio_codec_write);
 static const DEVICE_ATTR(wlan,              0644, da850trik_wlan_read,        da850trik_wlan_write);
 static const DEVICE_ATTR(bluetooth,         0644, da850trik_bluetooth_read,   da850trik_bluetooth_write);
-//static const DEVICE_ATTR(msp430_test,       0644, da850trik_msp430_test_read, da850trik_msp430_test_write);
-//static const DEVICE_ATTR(msp430_reset,      0644, da850trik_msp430_rst_read,  da850trik_msp430_rst_write);
+static const DEVICE_ATTR(msp430_test,       0644, da850trik_msp430_test_read, da850trik_msp430_test_write);
+static const DEVICE_ATTR(msp430_reset,      0644, da850trik_msp430_rst_read,  da850trik_msp430_rst_write);
 
 static const struct attribute *da850trik_manage_attrs[] = {
 /*	&dev_attr_mmc_card_detect.attr,*/
 /*	&dev_attr_audio_codec.attr,*/
 	&dev_attr_wlan.attr,
 	&dev_attr_bluetooth.attr,
-/*	&dev_attr_msp430_test.attr, */
-/*	&dev_attr_msp430_reset.attr, */
+	&dev_attr_msp430_test.attr,
+	&dev_attr_msp430_reset.attr,
 	NULL,
 };
 
