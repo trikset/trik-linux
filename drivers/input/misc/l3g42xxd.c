@@ -49,15 +49,39 @@
 #define L3G4200D_INTERRUPT_THRESH_Z_L   0x37
 #define L3G4200D_INTERRUPT_DURATION     0x38
 
+#define PM_MASK                         0x08
+
+#define I2C_RETRY_DELAY                 5
+#define I2C_RETRIES                     5
+#define AUTO_INCREMENT                  0x80
 
 struct l3g42xxd_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 //	struct input_polled_dev *input_polled;
-	struct platform_device* platform_device;
+	struct platform_device *platform_device;
 	struct work_struct irq_work;
-	struct l3g4xxd_pdata* pdata;
+	struct l3g42xxd_platform_data *pdata;
 };
+
+struct gyro_val {
+        s16 x;
+        s16 y;
+        s16 z;
+};
+
+/*input parametrs 
+ *
+ *dps = 250;500;2000;
+ *hz = 100;200;400;800;
+ */
+/**Function to work with device**/
+
+//static int l3g42xxd_i2c_read (struct i2c_client* client,u8 reg){
+
+//}
+
+
 static const struct i2c_device_id l3g42xxd_id[] = {
         {"l3g42xxd", 0},
         {},
@@ -88,11 +112,166 @@ static struct miscdevice l3g42xxd_misc_device = {
         .fops = &l3g42xxd_misc_fops,
 };
 
+
+static int l3g42xxd_i2c_read(struct l3g42xxd_data *gyro, u8 * buf, int len)
+{
+        int err;
+        int tries = 0;
+        struct i2c_msg msgs[] = {
+                {
+                        .addr = gyro->client->addr,
+                        .flags = gyro->client->flags & I2C_M_TEN,
+                        .len = 1,
+                        .buf = buf,
+                },
+                {
+                        .addr = gyro->client->addr,
+                        .flags = (gyro->client->flags & I2C_M_TEN) | I2C_M_RD,
+                        .len = len,
+                        .buf = buf,
+                },
+        };
+
+        do {
+                err = i2c_transfer(gyro->client->adapter, msgs, 2);
+                if (err != 2)
+                        msleep_interruptible(I2C_RETRY_DELAY);
+        } while ((err != 2) && (++tries < I2C_RETRIES));
+
+        if (err != 2) {
+                dev_err(&gyro->client->dev, "read transfer error\n");
+                err = -EIO;
+        } else {
+                err = 0;
+        }
+
+        return err;
+}
+static int l3g42xxd_i2c_write(struct l3g42xxd_data *gyro, u8 * buf, int len)
+{
+        int err;
+        int tries = 0;
+        struct i2c_msg msgs[] = {
+                {
+                        .addr = gyro->client->addr,
+                        .flags = gyro->client->flags & I2C_M_TEN,
+                        .len = len + 1,
+                        .buf = buf,
+                },
+        };
+
+        do {
+                err = i2c_transfer(gyro->client->adapter, msgs, 1);
+                if (err != 1)
+                        msleep_interruptible(I2C_RETRY_DELAY);
+        } while ((err != 1) && (++tries < I2C_RETRIES));
+
+        if (err != 1) {
+                dev_err(&gyro->client->dev, "write transfer error\n");
+                err = -EIO;
+        } else {
+                err = 0;
+        }
+
+        return err;
+}
+
+static int l3g42xxd_get_gyro_data(struct l3g42xxd_data *gyro,
+                                         struct gyro_val *data)
+{
+ 	u8 gyro_data[6];
+        int err = -1;
+
+//  	pr_warning("%s\n",__func__);
+        /* Data bytes from hardware xL, xH, yL, yH, zL, zH */
+
+        gyro_data[0] = (AUTO_INCREMENT | L3G4200D_OUT_X_L);
+        err = l3g42xxd_i2c_read(gyro, gyro_data, 6);
+        if (err < 0)
+                return err;
+
+        data->x = (gyro_data[1] << 8) | gyro_data[0];
+        data->y = (gyro_data[3] << 8) | gyro_data[2];
+        data->z = (gyro_data[5] << 8) | gyro_data[4];
+
+	gyro_data[0] = L3G4200D_INTERRUPT_SRC;
+	l3g42xxd_i2c_read(gyro, gyro_data, 1);
+
+        return 0;
+}
+static void l3g42xxd_report_values(struct l3g42xxd_data *gyro,
+                                         struct gyro_val *data)
+{
+        input_report_abs(gyro->input_dev, ABS_X, data->x);
+        input_report_abs(gyro->input_dev, ABS_Y, data->y);
+        input_report_abs(gyro->input_dev, ABS_Z, data->z);
+        input_sync(gyro->input_dev);
+}
+
 static irqreturn_t l3g42xxd_irq_callback(int irq, void *dev_id){
+	struct l3g42xxd_data* gyro = dev_id;
+        if(gyro)
+		schedule_work(&gyro->irq_work);
 	return IRQ_HANDLED;
 }
 static void l3g42xxd_irq_worker(struct work_struct *work){
+	struct l3g42xxd_data *gyro = container_of(work, struct l3g42xxd_data, irq_work);
+	if (gyro->client){
+		int err;
+		struct gyro_val data;
+		err = l3g42xxd_get_gyro_data(gyro, &data);
+		if (err < 0)
+			pr_err("get_acceleration_data failed");
+		else
+			 l3g42xxd_report_values(gyro, &data);
+	}
+	else{
+		pr_warning("%s : i2c_client NULL\n ",__func__);
+	}
+}
+static void l3g42xxd_input_dev_shutdown(struct l3g42xxd_data* gyro)
+{
+	input_unregister_device(gyro->input_dev);
+	free_irq(gyro->pdata->gpio_drdy, gyro);
+	input_free_device(gyro->input_dev);
+}
+static int l3g42xxd_enable(struct l3g42xxd_data* gyro)
+{
+}
+static int l3g42xxd_disable(struct l3g42xxd_data* gyro)
+{
+}
+static int l3g42xxd_init_chip(struct l3g42xxd_data* gyro){
+	int err = -1;
+        u8 buf[8];
+	buf[0] = (AUTO_INCREMENT | L3G4200D_CTRL_REG1);
+	buf[1] = 0b00000111;
+	buf[2] = 0b00000000;
+	buf[3] = 0b10000000;
+	buf[4] = 0b00100000;
+	buf[5] = 0b00000000;
+	buf[6] = 0b00000000;
+	err = l3g42xxd_i2c_write(gyro, buf, 6);
+        if (err < 0)
+                return err;
+	buf[0] = (L3G4200D_FIFO_CTRL);
+        buf[1] = 0b00000000;
+        err = l3g42xxd_i2c_write(gyro, buf, 1);
+        if (err < 0)
+                return err;
+ 	buf[0] = (L3G4200D_INTERRUPT_CFG);
+        buf[1] = 0b01111111;
+        err = l3g42xxd_i2c_write(gyro, buf, 1);
+        if (err < 0)
+                return err;
 
+	buf[0] = ( L3G4200D_CTRL_REG1);
+        buf[1] = 0b00000111 | PM_MASK;
+	err = l3g42xxd_i2c_write(gyro, buf, 1);
+        if (err < 0)
+                return err;
+
+	return 0;
 }
 static int l3g42xxd_input_dev_init(struct l3g42xxd_data* gyro)
 {
@@ -103,17 +282,30 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_data* gyro)
                 dev_err(&gyro->client->dev, "input device allocate failed\n");
                 goto exit_input_device_alloc;
 	}
-	input_set_drvdata(gyro->input_dev, gyro);
-	input_set_capability(gyro->input_dev, EV_REL, REL_RX);
-        input_set_capability(gyro->input_dev, EV_REL, REL_RY);
-        input_set_capability(gyro->input_dev, EV_REL, REL_RZ);
-	gyro->input_dev->name = "gyro_l3g42xxd";
+	gyro->input_dev->name = "l3g42xxd";
+	gyro->input_dev->id.bustype = BUS_I2C;
+	gyro->input_dev->dev.parent = &gyro->client->dev;
+//	gyro->input_dev->open
+//	gyro->input_dev->close 
 
-//	err = request_irq(gyro->pdata->gpio_drdy,/
-//				      l3g42xxd_irq_callback,
-//		         (IRQF_TRIGGER_FALLING),
-//					       "l3g42xxd_irq", 
-//						     gyro);
+//#define MPU3050_MIN_VALUE       -32768
+//#define MPU3050_MAX_VALUE       32767
+
+	set_bit(EV_ABS, gyro->input_dev->evbit);
+	input_set_drvdata(gyro->input_dev, gyro);
+	input_set_abs_params(gyro->input_dev, ABS_X,
+                             -32768, 32767, 0, 0);
+ 	input_set_abs_params(gyro->input_dev, ABS_Y,
+                             -32768, 32767, 0, 0);
+ 	input_set_abs_params(gyro->input_dev, ABS_Z,
+                             -32768, 32767, 0, 0);
+
+        pr_warning("%s, gyro %p\n", __func__, gyro);
+	err = request_irq(gyro->pdata->gpio_drdy,
+				      l3g42xxd_irq_callback,
+		         (IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING),
+					       "l3g42xxd_irq",
+						     gyro);
 	if (err != 0) {
                 pr_err("%s: irq request failed: %d\n", __func__, err);
                 err = -ENODEV;
@@ -124,11 +316,24 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_data* gyro)
                 dev_err(&gyro->client->dev,
                         "unable to register input device %s\n",
                         gyro->input_dev->name);
+		err = -ENODEV;
                 goto exit_register_device;
         }
+	err = l3g42xxd_init_chip(gyro);
+	if (err < 0){
+		goto exit_init_chip;
+	}
+
+	{
+		struct gyro_val data;
+        	l3g42xxd_get_gyro_data(gyro, &data);
+	}
+
 	return 0;
+exit_init_chip:
+	input_unregister_device(gyro->input_dev);
 exit_register_device:
-//	free_irq(gyro->pdata->gpio_drdy, gyro);
+	free_irq(gyro->pdata->gpio_drdy, gyro);
 exit_irq_request:
 	input_free_device(gyro->input_dev);
 exit_input_device_alloc:
@@ -154,21 +359,38 @@ static int l3g42xxd_probe(struct i2c_client *client,
                 goto exit_no_enough_memory;
         }
 	gyro->client = client;
-	
+
+	INIT_WORK(&gyro->irq_work, l3g42xxd_irq_worker);
+
 	i2c_set_clientdata(client, gyro);
-	
 	pr_info("%s init input device\n",__func__);
 	if (client->dev.platform_data == NULL){
-		
+		err = -ENODEV;
+                goto exit_platform_data_null;
+	}
+	gyro->pdata = kzalloc(sizeof(*gyro->pdata), GFP_KERNEL);
+        if (gyro->pdata == NULL){
+		goto exit_malloc_platform_data;
 	}
 
+	memcpy(gyro->pdata, client->dev.platform_data, sizeof(*gyro->pdata));
+	err = l3g42xxd_input_dev_init(gyro);
+	if (err < 0){
+		goto exit_input_dev_init; 
+	}
 	err = misc_register(&l3g42xxd_misc_device);
         if (err < 0) {
                 dev_err(&client->dev, "l3g42xxd_device register failed\n");
                 goto exit_register_misc_device;
         }
+	return 0;
 exit_register_misc_device:
-	 kfree(gyro);
+	l3g42xxd_input_dev_shutdown(gyro);
+exit_input_dev_init:
+	kfree(gyro->pdata);
+exit_malloc_platform_data:
+exit_platform_data_null:
+	kfree(gyro);
 exit_no_enough_memory:
 exit_no_i2c_capablility:
         return err;
@@ -177,6 +399,9 @@ static int __devexit l3g42xxd_remove(struct i2c_client *client)
 {
 	struct l3g42xxd_data *gyro = i2c_get_clientdata(client);
 	misc_deregister(&l3g42xxd_misc_device);
+ 	l3g42xxd_input_dev_shutdown(gyro);
+	flush_work_sync(&gyro->irq_work);
+	kfree(gyro->pdata);
 	kfree(gyro);
         return 0;
 }
