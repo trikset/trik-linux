@@ -61,6 +61,7 @@ struct l3g42xxd_data {
 //	struct input_polled_dev *input_polled;
 	struct platform_device *platform_device;
 	struct work_struct irq_work;
+	atomic_t enabled;
 	struct l3g42xxd_platform_data *pdata;
 };
 
@@ -69,17 +70,6 @@ struct gyro_val {
         s16 y;
         s16 z;
 };
-
-/*input parametrs 
- *
- *dps = 250;500;2000;
- *hz = 100;200;400;800;
- */
-/**Function to work with device**/
-
-//static int l3g42xxd_i2c_read (struct i2c_client* client,u8 reg){
-
-//}
 
 
 static const struct i2c_device_id l3g42xxd_id[] = {
@@ -237,9 +227,56 @@ static void l3g42xxd_input_dev_shutdown(struct l3g42xxd_data* gyro)
 }
 static int l3g42xxd_enable(struct l3g42xxd_data* gyro)
 {
+	if (!atomic_cmpxchg(&gyro->enabled, 0, 1))
+	{
+		int err;
+		u8 buf[2];
+		//enable_irq(gyro->pdata->gpio_drdy);
+		buf[0] = (L3G4200D_CTRL_REG1);
+		err = l3g42xxd_i2c_read(gyro, buf, 1);
+		if (err < 0) {
+                	dev_err(&gyro->client->dev, "read register control_1 failed\n");
+                	buf[1] = 0b00000111;
+        	}
+      		buf[1] = buf[1] | PM_MASK;
+	        err = l3g42xxd_i2c_write(gyro, buf, 1);
+        	if (err < 0){
+			atomic_set(&gyro->enabled, 0);
+                	return err;
+		}
+		enable_irq(gyro->pdata->gpio_drdy);
+		{
+                	struct gyro_val data;
+                	l3g42xxd_get_gyro_data(gyro, &data);
+        	}
+	}
+	return 0;
+
 }
 static int l3g42xxd_disable(struct l3g42xxd_data* gyro)
 {
+	if (!atomic_cmpxchg(&gyro->enabled, 1, 0)) 
+        {
+		int err ;
+                u8 buf[2];
+                //enable_irq(gyro->pdata->gpio_drdy);
+		buf[0] = (L3G4200D_CTRL_REG1);
+                err = l3g42xxd_i2c_read(gyro, buf, 1);
+                if (err < 0) {
+                        dev_err(&gyro->client->dev, "read register control_1 failed\n");
+                        buf[1] = 0b00000111;
+                }
+                buf[0] = (L3G4200D_CTRL_REG1);
+                buf[1] = 0b00000111 & ~PM_MASK;
+                err = l3g42xxd_i2c_write(gyro, buf, 1);
+                if (err < 0){
+                        atomic_set(&gyro->enabled, 1);
+                        return err;
+                }
+		disable_irq(gyro->pdata->gpio_drdy);
+        }
+	return 0;
+
 }
 static int l3g42xxd_init_chip(struct l3g42xxd_data* gyro){
 	int err = -1;
@@ -264,15 +301,23 @@ static int l3g42xxd_init_chip(struct l3g42xxd_data* gyro){
         err = l3g42xxd_i2c_write(gyro, buf, 1);
         if (err < 0)
                 return err;
-
-	buf[0] = ( L3G4200D_CTRL_REG1);
-        buf[1] = 0b00000111 | PM_MASK;
-	err = l3g42xxd_i2c_write(gyro, buf, 1);
-        if (err < 0)
-                return err;
-
 	return 0;
 }
+static int l3g42xxd_open(struct input_dev *dev)
+{
+	struct l3g42xxd_data *gyro = input_get_drvdata(dev);
+	if (gyro)
+		l3g42xxd_enable(gyro);
+        return 0;
+}
+
+static void l3g42xxd_close(struct input_dev *dev)
+{
+	 struct l3g42xxd_data *gyro = input_get_drvdata(dev);
+	if (gyro)
+		l3g42xxd_disable(gyro);
+}
+
 static int l3g42xxd_input_dev_init(struct l3g42xxd_data* gyro)
 {
 	int err;
@@ -285,11 +330,8 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_data* gyro)
 	gyro->input_dev->name = "l3g42xxd";
 	gyro->input_dev->id.bustype = BUS_I2C;
 	gyro->input_dev->dev.parent = &gyro->client->dev;
-//	gyro->input_dev->open
-//	gyro->input_dev->close 
-
-//#define MPU3050_MIN_VALUE       -32768
-//#define MPU3050_MAX_VALUE       32767
+	gyro->input_dev->open = l3g42xxd_open;
+	gyro->input_dev->close  = l3g42xxd_close;
 
 	set_bit(EV_ABS, gyro->input_dev->evbit);
 	input_set_drvdata(gyro->input_dev, gyro);
@@ -324,10 +366,10 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_data* gyro)
 		goto exit_init_chip;
 	}
 
-	{
-		struct gyro_val data;
-        	l3g42xxd_get_gyro_data(gyro, &data);
-	}
+//	{
+//		struct gyro_val data;
+//        	l3g42xxd_get_gyro_data(gyro, &data);
+//	}
 
 	return 0;
 exit_init_chip:
@@ -361,7 +403,7 @@ static int l3g42xxd_probe(struct i2c_client *client,
 	gyro->client = client;
 
 	INIT_WORK(&gyro->irq_work, l3g42xxd_irq_worker);
-
+	atomic_set(&gyro->enabled, 0);
 	i2c_set_clientdata(client, gyro);
 	pr_info("%s init input device\n",__func__);
 	if (client->dev.platform_data == NULL){

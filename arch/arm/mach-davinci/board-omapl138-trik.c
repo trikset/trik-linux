@@ -313,7 +313,7 @@ static struct i2c_board_info __initdata da850trik_i2c0_devices[] = {
 		.platform_data = &l3g42xxd_pd,
         },
 	{
-                I2C_BOARD_INFO("adxl34x", 0x53),
+               I2C_BOARD_INFO("adxl34x", 0x53),
         },
 	{
 		I2C_BOARD_INFO("bmp085",0x77),
@@ -356,8 +356,16 @@ static __init int da850trik_i2c0_init(void)
                         __func__, ret);
                 return;
         }
+ 	ret = gpio_request_one(GPIO_TO_PIN(8,13),GPIOF_DIR_IN, "Gyro interrupt");
+        if (ret < 0) {
+                pr_err("%s: failed to request GPIO Gyro interrupt: %d\n",
+                        __func__, ret);
+                return;
+        }
+
 	l3g42xxd_pd.gpio_drdy = gpio_to_irq(GPIO_TO_PIN(8,12));	
 	ret = da8xx_register_i2c(0, &da850trik_i2c0_pdata);
+	da850trik_i2c0_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(8,13));
 	if (ret) {
 		pr_warning("da850trik_i2c0_init: I2C0 registration failed: %d\n",
 				ret);
@@ -723,7 +731,7 @@ static __init int da850trik_pwm_init(void)
         }
 	gpio_set_value(DA850TRIK_POW_CON_PIN, 1);
 
-        ret = gpio_direction_output(DA850TRIK_POW_CON_PIN, 0);
+        ret = gpio_direction_output(DA850TRIK_POW_CON_PIN, 1);
 	if (ret < 0) {
                 pr_err("%s: failed gpio_direction_output GPIO : %d\n",
                         __func__, ret);
@@ -1764,6 +1772,18 @@ static __init void da850trik_init(void)
 	// 	pr_warning("%s: W1271 registration failed: %d\n",
 	// 		__func__, ret);
 
+ 	if (HAS_EHRPWM) {
+                ret = da850trik_pwm_init();
+                if (ret)
+                pr_warning("%s: PWM registration failed: %d\n",
+                        __func__, ret);
+        }
+        if (HAS_ECAP_PWM) {
+                ret = da850trik_cap_init();
+                if (ret)
+                pr_warning("%s: PWM registration failed: %d\n",
+                        __func__, ret);
+        }
 
 	ret = da850trik_i2c0_init();
 	if (ret)
@@ -1800,18 +1820,6 @@ static __init void da850trik_init(void)
 		pr_warning("%s: msp430 registration failed: %d\n",
 			__func__, ret);
 
-	if (HAS_EHRPWM) {
-		ret = da850trik_pwm_init();
-		if (ret)
-		pr_warning("%s: PWM registration failed: %d\n",
-			__func__, ret);
-	}
-	if (HAS_ECAP_PWM) {
-		ret = da850trik_cap_init();
-		if (ret)
-		pr_warning("%s: PWM registration failed: %d\n",
-			__func__, ret);
-	}
 	ret = da850trik_led_init();
 	if (ret)
 		pr_warning("%s: PWM registration failed: %d\n",__func__, ret);
