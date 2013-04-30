@@ -114,13 +114,12 @@ static struct platform_device da850_pm_device = {
  * UART0 & UART1
  */
 static const short da850trik_uart_pins[] __initconst = {
-	DA850_UART0_RXD, DA850_UART0_TXD, DA850_NUART0_CTS, DA850_NUART0_RTS,
-	DA850_UART1_RXD, DA850_UART1_TXD,
+	DA850_UART0_RXD, DA850_UART0_TXD,
 	-1
 };
 
 static struct davinci_uart_config da850trik_uart_config __initdata = {
-	.enabled_uarts = 0x3,
+	.enabled_uarts = 0x7,
 };
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
@@ -129,7 +128,7 @@ static int __init da850trik_console_init(void)
 	if (!machine_is_omapl138_trikboard())
 		return 0;
 
-	return add_preferred_console("ttyS", 1, "115200");
+	return add_preferred_console("ttyS", 0, "115200");
 }
 console_initcall(da850trik_console_init);
 #endif
@@ -605,7 +604,7 @@ static struct davinci_mmc_config da850trik_mmc_config = {
 	.version	= MMC_CTLR_VERSION_2,
 };
 
-static __init void da850trik_mmc_init(void)
+static __init int da850trik_mmc_init(void)
 {
 	int ret;
 
@@ -636,8 +635,9 @@ static __init void da850trik_mmc_init(void)
 		pr_err("%s: MMC/SD registration failed: %d\n",
 			__func__, ret);
 		gpio_free(DA850TRIK_MMCSD_CD_PIN);
-		return;
+		return ret;
 	}
+	return 0;
 }
 
 
@@ -1762,12 +1762,15 @@ static __init void da850trik_init(void)
 	if (ret)
 		pr_warning("%s: gpio_keys registration failed: %d\n",
 			__func__, ret);
-	//da850trik_mmc_init();
+	ret = da850trik_mmc_init();
+	if (ret)
+		pr_warning("%s: mmc init failed: %d\n", __func__, ret);
+
 	
 	//da850trik_wl1271_init();
 	
 	//ret = 
-	da850trik_wl1271_init_test();
+//	da850trik_wl1271_init_test();
 	// if (ret)
 	// 	pr_warning("%s: W1271 registration failed: %d\n",
 	// 		__func__, ret);
