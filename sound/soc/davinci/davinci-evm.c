@@ -54,8 +54,8 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 		sysclk = 12288000;
 
 	else if (machine_is_davinci_da830_evm() ||
-				machine_is_davinci_da850_evm() ||
-				machine_is_omapl138_trikboard())
+		 machine_is_davinci_da850_evm() ||
+		 machine_is_davinci_da850_trik())
 		sysclk = 24576000;
 
 	else
