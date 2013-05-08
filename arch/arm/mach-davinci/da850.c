@@ -632,57 +632,57 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, GPIO8_15,        18,     8,     15,     8,      false)
 	MUX_CFG(DA850, RTC_ALARM,	0,	28,	15,	2,	false)
  	/* eHRPWM0 function */
-        MUX_CFG(DA850,  EHRPWM0_A,      3,      0,      15,     2,      false) //???
-        MUX_CFG(DA850,  EHRPWM0_B,      3,      4,      15,     2,      false)
-        MUX_CFG(DA850,  EHRPWM0_TZ,     1,      0,      15,     2,      false)
-        /* eHRPWM1 function */
-        MUX_CFG(DA850,  EHRPWM1_A,      5,      0,      15,     2,      false)
-        MUX_CFG(DA850,  EHRPWM1_B,      5,      4,      15,     2,      false)
-        MUX_CFG(DA850,  EHRPWM1_TZ,     2,      0,      15,     8,      false)
-        /* eCAP0 function */
-        MUX_CFG(DA850, ECAP0_APWM0,     2,      28,     15,     2,      false)
-        /* eCAP1 function */
-        MUX_CFG(DA850, ECAP1_APWM1,     1,      28,     15,     4,      false)
-        /* eCAP2 function */
-        MUX_CFG(DA850, ECAP2_APWM2,     1,      0,      15,     4,      false)
+	MUX_CFG(DA850,  EHRPWM0_A,      3,      0,      15,     2,      false) //???
+	MUX_CFG(DA850,  EHRPWM0_B,      3,      4,      15,     2,      false)
+	MUX_CFG(DA850,  EHRPWM0_TZ,     1,      0,      15,     2,      false)
+	/* eHRPWM1 function */
+	MUX_CFG(DA850,  EHRPWM1_A,      5,      0,      15,     2,      false)
+	MUX_CFG(DA850,  EHRPWM1_B,      5,      4,      15,     2,      false)
+	MUX_CFG(DA850,  EHRPWM1_TZ,     2,      0,      15,     8,      false)
+	/* eCAP0 function */
+	MUX_CFG(DA850, ECAP0_APWM0,     2,      28,     15,     2,      false)
+	/* eCAP1 function */
+	MUX_CFG(DA850, ECAP1_APWM1,     1,      28,     15,     4,      false)
+	/* eCAP2 function */
+	MUX_CFG(DA850, ECAP2_APWM2,     1,      0,      15,     4,      false)
 	 /* VPIF Capture */
-        MUX_CFG(DA850, VPIF_DIN0,       15,     4,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN1,       15,     0,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN2,       14,     28,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN3,       14,     24,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN4,       14,     20,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN5,       14,     16,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN6,       14,     12,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN7,       14,     8,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN8,       16,     4,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN9,       16,     0,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN10,      15,     28,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN11,      15,     24,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN12,      15,     20,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN13,      15,     16,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN14,      15,     12,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN15,      15,     8,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_CLKIN0,     14,     0,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_CLKIN1,     14,     4,      15,     1,      false)
- 	/* VPIF Capture */
-        MUX_CFG(DA850, VPIF_DIN0,       15,     4,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN1,       15,     0,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN2,       14,     28,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN3,       14,     24,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN4,       14,     20,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN5,       14,     16,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN6,       14,     12,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN7,       14,     8,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN8,       16,     4,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN9,       16,     0,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN10,      15,     28,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN11,      15,     24,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN12,      15,     20,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN13,      15,     16,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN14,      15,     12,     15,     1,      false)
-        MUX_CFG(DA850, VPIF_DIN15,      15,     8,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_CLKIN0,     14,     0,      15,     1,      false)
-        MUX_CFG(DA850, VPIF_CLKIN1,     14,     4,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN0,       15,     4,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN1,       15,     0,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN2,       14,     28,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN3,       14,     24,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN4,       14,     20,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN5,       14,     16,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN6,       14,     12,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN7,       14,     8,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN8,       16,     4,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN9,       16,     0,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN10,      15,     28,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN11,      15,     24,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN12,      15,     20,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN13,      15,     16,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN14,      15,     12,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN15,      15,     8,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_CLKIN0,     14,     0,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_CLKIN1,     14,     4,      15,     1,      false)
+	/* VPIF Capture */
+	MUX_CFG(DA850, VPIF_DIN0,       15,     4,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN1,       15,     0,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN2,       14,     28,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN3,       14,     24,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN4,       14,     20,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN5,       14,     16,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN6,       14,     12,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN7,       14,     8,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN8,       16,     4,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN9,       16,     0,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN10,      15,     28,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN11,      15,     24,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN12,      15,     20,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN13,      15,     16,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN14,      15,     12,     15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN15,      15,     8,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_CLKIN0,     14,     0,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_CLKIN1,     14,     4,      15,     1,      false)
 
 #endif
 };
@@ -1464,7 +1464,6 @@ void __init da850_init(void)
 {
 	unsigned int v;
 	davinci_common_init(&davinci_soc_info_da850);
-	printk("** da850_init **\n");
 	da8xx_syscfg0_base = ioremap(DA8XX_SYSCFG0_BASE, SZ_4K);
 	if (WARN(!da8xx_syscfg0_base, "Unable to map syscfg0 module"))
 		return;
@@ -1482,8 +1481,6 @@ void __init da850_init(void)
 	 */
 
 	da850_set_async3_src(1);
-	printk("*** da850_init ***\n");
-
 	/* Unlock writing to PLL0 registers */
 	v = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP0_REG));
 	v &= ~CFGCHIP0_PLL_MASTER_LOCK;
@@ -1493,6 +1490,5 @@ void __init da850_init(void)
 	v = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP3_REG));
 	v &= ~CFGCHIP3_PLL1_MASTER_LOCK;
 	__raw_writel(v, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP3_REG));
-	printk("***** da850_init *****\n");
-	
+
 }
