@@ -379,7 +379,7 @@ static int __init evm_init(void)
 	} else if (machine_is_davinci_da850_evm()) {
 		evm_snd_dev_data = &da850_snd_soc_card;
 		index = 0;
-	} else if (machine_is_omapl138_trikboard()) {
+	} else if (machine_is_davinci_da850_trik()) {
 		evm_snd_dev_data = &da850_snd_soc_card_trik;
 		index = 0;
 	} else
