@@ -510,18 +510,23 @@ static struct platform_device davinci_pcm_device = {
 	.id	= -1,
 };
 
-void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata)
+int __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata)
 {
-	platform_device_register(&davinci_pcm_device);
+	int ret;
+	ret = platform_device_register(&davinci_pcm_device);
+	if (ret){
+		return ret;
+	}
 
 	/* DA830/OMAP-L137 has 3 instances of McASP */
 	if (cpu_is_davinci_da830() && id == 1) {
 		da830_mcasp1_device.dev.platform_data = pdata;
-		platform_device_register(&da830_mcasp1_device);
+		return platform_device_register(&da830_mcasp1_device);
 	} else if (cpu_is_davinci_da850()) {
 		da850_mcasp_device.dev.platform_data = pdata;
-		platform_device_register(&da850_mcasp_device);
+		return platform_device_register(&da850_mcasp_device);
 	}
+	return 0;
 }
 
 static const struct display_panel disp_panel = {
