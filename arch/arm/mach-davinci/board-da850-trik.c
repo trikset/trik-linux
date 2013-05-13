@@ -499,6 +499,10 @@ static struct resource da850_trik_lcdc_resources[] = {
 };
 
 #warning TODO add module parameters
+static bool display_landscape = trie;
+module_param_named(display_landscape, mod_data.removable, bool, S_IRUGO);
+MODULE_PARM_DESC(removable, "true to simulate removable media");
+
 #define DISPLAY_LANDSCAPE
 static struct da8xx_ili9340_pdata da850_trik_lcdc_pdata = {
 #ifdef DISPLAY_LANDSCAPE
@@ -756,7 +760,7 @@ static const short da850_trik_wifi_pins[] __initconst = {
 	DA850_GPIO6_9, DA850_GPIO6_8, DA850_GPIO5_11,
 	-1
 };
-
+#warning TODO WiFi init
 static __init int da850_trik_wifi_init(void){
 	int ret;
 
@@ -774,6 +778,7 @@ static const short da850_trik_bluetooth_pins[] __initconst = {
 	DA850_GPIO6_10,
 	-1
 };
+#warning TODO Bluetooth init
 static __init int da850_trik_bluetooth_init(void){
 	int ret;
 
@@ -790,6 +795,7 @@ static const short da850_trik_usb_pins[] __initconst = {
 	DA850_GPIO6_1, /*MODE_B*/
 	-1
 };
+#warning TODO USB HOST & OTG MODE
 static __init int da850_trik_usb_init(void){
 	int ret;
 
@@ -806,6 +812,7 @@ static const short da850_trik_msp_pins[] __initconst = {
 	DA850_GPIO5_13,
 	-1
 };
+#warning TODO msp430 init
 static __init int da850_trik_msp430_init(void){
 	int ret;
 
