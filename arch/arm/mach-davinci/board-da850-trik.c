@@ -499,9 +499,6 @@ static struct resource da850_trik_lcdc_resources[] = {
 };
 
 #warning TODO add module parameters
-static bool display_landscape = trie;
-module_param_named(display_landscape, mod_data.removable, bool, S_IRUGO);
-MODULE_PARM_DESC(removable, "true to simulate removable media");
 
 #define DISPLAY_LANDSCAPE
 static struct da8xx_ili9340_pdata da850_trik_lcdc_pdata = {
