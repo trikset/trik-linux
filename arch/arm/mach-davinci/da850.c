@@ -646,6 +646,7 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, GPIO6_8,		13,	28,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_9,		13,	24,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_10,	13,	20,	15,	8,	false)
+	MUX_CFG(DA850, GPIO6_11,        13,     16,     15,     8,      false)
 	MUX_CFG(DA850, GPIO6_12,	13,	12,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_13,	13,	8,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_15,	13,	0,	15,	8,	false)
@@ -717,16 +718,6 @@ const short da850_vpif_capture_pins[] __initdata = {
         DA850_VPIF_DIN8, DA850_VPIF_DIN9, DA850_VPIF_DIN10, DA850_VPIF_DIN11,
         DA850_VPIF_DIN12, DA850_VPIF_DIN13, DA850_VPIF_DIN14, DA850_VPIF_DIN15,
         DA850_VPIF_CLKIN0, DA850_VPIF_CLKIN1,
-        -1
-};
-
-const short da850_ehrpwm0_pins[] __initdata = {
-         DA850_EHRPWM0_A,DA850_EHRPWM0_B,
-        -1
-};
-
-const short da850_ehrpwm1_pins[] __initdata = {
-        DA850_EHRPWM1_A,DA850_EHRPWM1_B,
         -1
 };
 
