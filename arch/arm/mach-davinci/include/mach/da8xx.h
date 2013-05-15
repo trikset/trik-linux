@@ -93,7 +93,7 @@ int da8xx_register_emac(void);
 int da8xx_register_lcdc(struct da8xx_lcdc_platform_data *pdata);
 int da8xx_register_mmcsd0(struct davinci_mmc_config *config);
 int da850_register_mmcsd1(struct davinci_mmc_config *config);
-int __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata);
+void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata);
 int da8xx_register_rtc(void);
 int da850_register_cpufreq(char *async_clk);
 int da8xx_register_cpuidle(void);
@@ -134,8 +134,7 @@ extern const short da830_mcasp2_pins[];
 extern const short da830_i2c0_pins[];
 extern const short da830_i2c1_pins[];
 extern const short da830_lcdcntl_pins[];
-extern const short da850_ehrpwm0_pins[];
-extern const short da850_ehrpwm1_pins[];
+
 extern const short da830_pwm_pins[];
 extern const short da830_ecap0_pins[];
 extern const short da830_ecap1_pins[];

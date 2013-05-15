@@ -349,6 +349,7 @@ static struct snd_soc_card da850_snd_soc_card = {
 
 static struct snd_soc_card da850_snd_soc_card_trik = {
 	.name = "DA850/OMAP-L138 TRIK",
+	.owner = THIS_MODULE,
 	.dai_link = &da850_trik_dai,
 	.num_links = 1,
 };
@@ -381,6 +382,7 @@ static int __init evm_init(void)
 		index = 0;
 	} else if (machine_is_davinci_da850_trik()) {
 		evm_snd_dev_data = &da850_snd_soc_card_trik;
+		pr_err("machine_is_davinci_da850_trik\n");
 		index = 0;
 	} else
 		return -EINVAL;
