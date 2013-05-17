@@ -1353,7 +1353,7 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 		mmc->f_max = pdata->max_freq;
 	if (pdata && pdata->caps)
 		mmc->caps |= pdata->caps;
-	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
+	mmc->ocr_avail = MMC_VDD_165_195|MMC_VDD_32_33 | MMC_VDD_33_34;
 
 	/* With no iommu coalescing pages, each phys_seg is a hw_seg.
 	 * Each hw_seg uses one EDMA parameter RAM slot, always one
