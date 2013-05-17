@@ -786,7 +786,7 @@ static void wl12xx_set_power(int index, bool power_on)
 static struct davinci_mmc_config da850_trik_wl12xx_mmc_config = {
 	.set_power	= wl12xx_set_power,
 	.wires		= 4,
-	.max_freq	= 24000000,
+	.max_freq	= 2000000,
 	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD | MMC_CAP_NONREMOVABLE,
 	.version	= MMC_CTLR_VERSION_2,
 };
