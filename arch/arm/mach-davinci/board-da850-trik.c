@@ -935,6 +935,7 @@ static __init int da850_trik_usb_init(void){
 		pr_err("%s: USB 2.0 registration failed: %d\n",__func__, ret);
 		goto register_otg;
 	}
+
 	return 0;
 register_otg:
 register_ohci:
@@ -957,7 +958,20 @@ static __init int da850_trik_msp430_init(void){
 		pr_err("%s: MSP430 mux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
+	ret = gpio_request_one(GPIO_TO_PIN(5,13),GPIOF_OUT_INIT_LOW,"MSP Reset");
+	if (ret){
+		pr_err("%s: MSP Reset gpio request failed: %d\n",__func__, ret);
+		goto request_msp_reset;
+	}
+	gpio_set_value(GPIO_TO_PIN(5,13), 0);
+	msleep(10);
+	gpio_set_value(GPIO_TO_PIN(5,13), 1);
+	msleep(10);
+
+
 	return 0;
+request_msp_reset:
+	return ret;
 }
 static const short da850_trik_gpio_extra_pins[] __initconst = {
 	DA850_GPIO3_14/**POWER12V**/,
@@ -1126,6 +1140,139 @@ request_pwr_con_failed:
 cfg_reg_pwr_con_failed:
 	return ret;
 }	
+#define TRIK_SENSOR_MAX_TIME 	5*1000*1000
+
+static ssize_t trik_sensor_d1_read(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	//DA850_GPIO3_3,	/*D1A*/
+	//DA850_GPIO3_2,	/*D1B*/
+	struct timespec start, end;
+	gpio_direction_output(GPIO_TO_PIN(3, 3),1);
+	udelay(1000);
+	gpio_direction_output(GPIO_TO_PIN(3, 3),0);
+	
+	getnstimeofday(&start);
+	do {
+		getnstimeofday(&end);
+	} while(gpio_get_value(GPIO_TO_PIN(3, 2)));
+
+	return sprintf(buf,"%lu\n", timespec_sub(end,start).tv_nsec);
+}
+static ssize_t trik_sensor_d2_read(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	//DA850_GPIO3_5,	/*D2B*/
+	//DA850_GPIO3_1,	/*D2A*/
+	struct timespec start, end;
+	gpio_direction_output(GPIO_TO_PIN(3, 1),1);
+ 	udelay(1000);
+ 	gpio_direction_output(GPIO_TO_PIN(3, 1),0);
+ 	getnstimeofday(&start);
+ 	do {
+ 		getnstimeofday(&end);
+ 	} while(gpio_get_value(GPIO_TO_PIN(3, 5)));
+	
+	return sprintf(buf,"%lu\n", timespec_sub(end,start).tv_nsec);
+}
+
+static const DEVICE_ATTR(sensor_d1,	(S_IRUSR|S_IRGRP|S_IROTH), trik_sensor_d1_read, NULL);
+static const DEVICE_ATTR(sensor_d2,	(S_IRUSR|S_IRGRP|S_IROTH), trik_sensor_d2_read,   NULL);
+
+static const struct attribute *da850_trik_manage_attrs[] = {
+	&dev_attr_sensor_d1.attr,
+	&dev_attr_sensor_d2.attr,
+    NULL,
+};
+static const short trik_sensors[] = {
+	DA850_GPIO3_3,	/*D1A*/
+	DA850_GPIO3_2,	/*D1B*/
+	DA850_GPIO3_5,	/*D2B*/
+	DA850_GPIO3_1,	/*D2A*/
+        -1
+};
+
+static void trik_sensor_init(void){
+	//init gpio
+	//
+	u32 cfgchip2 = 0;
+	int ret = 0;
+	pr_err("%s start\n",__func__);
+	cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+	cfgchip2 &= 0x0000;
+	cfgchip2 |= 0x0200;
+	__raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+
+	cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));	
+	cfgchip2 |= 0x0000;
+	__raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+
+	ret = davinci_cfg_reg_list(trik_sensors);
+        if (ret) {
+                pr_err("%s: trik_sensor mux setup failed: %d\n",
+                        __func__, ret);
+                return;
+        }
+	ret = gpio_request_one(GPIO_TO_PIN(3, 3), GPIOF_OUT_INIT_LOW, "D1A");
+    ret = gpio_request_one(GPIO_TO_PIN(3, 1), GPIOF_OUT_INIT_LOW, "D2A");
+
+    ret = gpio_request_one(GPIO_TO_PIN(3, 2), GPIOF_IN, "D1B");
+    ret = gpio_request_one(GPIO_TO_PIN(3, 5), GPIOF_IN, "D2B");
+    
+    gpio_export(GPIO_TO_PIN(3, 1),1);
+	gpio_export(GPIO_TO_PIN(3, 2),1);
+
+    gpio_export(GPIO_TO_PIN(3, 3),1);
+    gpio_export(GPIO_TO_PIN(3, 5),1);
+    
+    gpio_set_value(GPIO_TO_PIN(3, 3),0);
+	gpio_set_value(GPIO_TO_PIN(3, 1),0);
+	
+	gpio_set_value(GPIO_TO_PIN(3, 2),0);
+	gpio_set_value(GPIO_TO_PIN(3, 5),0);
+
+    pr_err("%s end\n",__func__);
+}
+
+static const struct attribute_group da850_trik_manage_attrs_group = {
+	.attrs = (struct attribute **) da850_trik_manage_attrs,
+};
+static int __devinit da850_trik_manage_probe(struct platform_device *pdev)
+{
+	int ret;
+	ret = sysfs_create_group(&pdev->dev.kobj, &da850_trik_manage_attrs_group);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Unable to export da850_trik state, "
+			            "error: %d\n", ret);
+		platform_set_drvdata(pdev, NULL);
+		return ret;
+	}
+	trik_sensor_init();
+	return 0;
+}
+
+static int __devexit da850_trik_manage_remove(struct platform_device *pdev)
+{
+	sysfs_remove_group(&pdev->dev.kobj, &da850_trik_manage_attrs_group);
+	platform_set_drvdata(pdev, NULL);
+	return 0;
+}
+
+static struct platform_driver da850_trik_manage_driver = {
+	.probe		= da850_trik_manage_probe,
+	.remove		= __devexit_p(da850_trik_manage_remove),
+	.driver		= {
+		.name	= "da850_trik",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static struct platform_device da850_trik_manage_device = {
+	.name		= "da850_trik",
+	.id		= -1,
+	.num_resources	= 0,
+};
+
+module_platform_driver(da850_trik_manage_driver);
+
 static __init void da850_trik_init(void)
 {
 	int ret;
@@ -1194,6 +1341,7 @@ static __init void da850_trik_init(void)
 	ret = da850_trik_spi0_init();
 	if (ret)
 		pr_warning("%s: spi0 bus init failed: %d\n", __func__, ret);
+
 #if 0
 	ret = da850_trik_spi1_init();
 	if (ret)
@@ -1231,9 +1379,11 @@ static __init void da850_trik_init(void)
 	if (ret){
 		pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
 	}
+
 	//pwm
 	
 	//vpif 
+	platform_device_register(&da850_trik_manage_device);
 }
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 static int __init da850_trik_console_init(void)
