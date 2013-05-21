@@ -945,14 +945,16 @@ request_usb_fault:
 }
 
 static const short da850_trik_msp_pins[] __initconst = {
-	DA850_GPIO5_6,DA850_GPIO5_5,
-	DA850_GPIO5_13,
+	DA850_GPIO5_6, /* Interrupt */
+	DA850_GPIO5_5,/* TEST_MCTRL*/
+	DA850_GPIO5_13, /*RESET_MCTRL*/
 	-1
 };
-#warning TODO msp430 init
+
+
 static __init int da850_trik_msp430_init(void){
 	int ret;
-
+	
 	ret = davinci_cfg_reg_list(da850_trik_msp_pins);
 	if (ret) {
 		pr_err("%s: MSP430 mux setup failed: %d\n", __func__, ret);
@@ -963,6 +965,18 @@ static __init int da850_trik_msp430_init(void){
 		pr_err("%s: MSP Reset gpio request failed: %d\n",__func__, ret);
 		goto request_msp_reset;
 	}
+	ret = gpio_request_one(GPIO_TO_PIN(5,5),GPIOF_OUT_INIT_LOW,"MSP Test");
+	if (ret){
+		pr_err("%s: MSP Reset gpio request failed: %d\n",__func__, ret);
+		goto request_msp_test;
+	}
+
+	ret = gpio_export(GPIO_TO_PIN(5,13),1);
+	if (ret){
+		pr_warning("%s: MSP reset gpio export failed: %d\n", __func__, ret);
+	}
+
+	
 	gpio_set_value(GPIO_TO_PIN(5,13), 0);
 	msleep(10);
 	gpio_set_value(GPIO_TO_PIN(5,13), 1);
@@ -970,6 +984,7 @@ static __init int da850_trik_msp430_init(void){
 
 
 	return 0;
+request_msp_test:
 request_msp_reset:
 	return ret;
 }
@@ -978,34 +993,43 @@ static const short da850_trik_gpio_extra_pins[] __initconst = {
 	DA850_GPIO5_9,
 	DA850_GPIO2_7/*TP9*/,
 	DA850_GPIO3_8/*PWR_LEVEL*/,
-#if 0
-	DA850_GPIO3_5,/*D2B*/
-	DA850_GPIO3_3, /*D1A*/
-	DA850_GPIO3_2, /*D1B*/
-	DA850_GPIO3_1, /*D2A*/
-#endif
-
 	-1
 };
 static __init int da850_trik_gpio_extra_init(void){
 	return 0;
 }
 
-#define PLL0_OSCEL_OFFS		0x0104
-#define PLL0_OSCDIV_OFFS	0x0124
-#define PLL0_CKEN_OFFS		0x0148
 
 static const short da850_trik_clk_pins[] __initconst = {
 	DA850_CLKOUT0,
 	-1
 };
+#define PLL0_OSCEL_OFFS		0x0104
+#define PLL0_OSCDIV_OFFS	0x0124
+#define PLL0_CKEN_OFFS		0x0148
 static __init int da850_trik_buffer_clk_init(void)
 {
 	int 	ret;
+	unsigned __iomem	*pll0_oscel, *pll0_oscdiv, *pll0_cken;
+
 	ret = davinci_cfg_reg_list(da850_trik_clk_pins);
 	if (ret) {
 		pr_err("%s: clk buffer  mux setup failed: %d\n",__func__, ret);
 		return ret;
+	}
+	if (da850_trik_pm_pdata.cpupll_reg_base) {
+		pll0_oscel  = (unsigned*)(da850_trik_pm_pdata.cpupll_reg_base + PLL0_OSCEL_OFFS);
+		pll0_oscdiv = (unsigned*)(da850_trik_pm_pdata.cpupll_reg_base + PLL0_OSCDIV_OFFS);
+		pll0_cken   = (unsigned*)(da850_trik_pm_pdata.cpupll_reg_base + PLL0_CKEN_OFFS);
+
+		/* select OBSCLK in OCSRC field of PLL0_OSCEL */
+		*pll0_oscel = 0x14;
+		/* set OD1EN=1 and RATIO=0 fields in PLL0_OSCDIV */
+		*pll0_oscel = 0x8000;
+		/* set OBSEN=1 field in PLL0_CKEN */
+		*pll0_cken |= 0x02;
+	} else {
+		pr_err("%s: failed to setup PLL0_CLKOUT\n", __func__);
 	}
 	return 0;
 }
@@ -1140,8 +1164,6 @@ request_pwr_con_failed:
 cfg_reg_pwr_con_failed:
 	return ret;
 }	
-#define TRIK_SENSOR_MAX_TIME 	5*1000*1000
-
 static ssize_t trik_sensor_d1_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	//DA850_GPIO3_3,	/*D1A*/
