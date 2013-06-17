@@ -1172,6 +1172,9 @@ static const struct musb_platform_ops tusb_ops = {
 
 	.vbus_status	= tusb_musb_vbus_status,
 	.set_vbus	= tusb_musb_set_vbus,
+
+	.dma_controller_create = tusb_dma_controller_create,
+	.dma_controller_destroy = tusb_dma_controller_destroy,
 };
 
 static u64 tusb_dmamask = DMA_BIT_MASK(32);

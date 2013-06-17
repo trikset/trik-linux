@@ -194,9 +194,55 @@ static inline void cppi_dma_controller_destroy(struct dma_controller *c)
 }
 #endif
 
-extern struct dma_controller *__init
-dma_controller_create(struct musb *, void __iomem *);
+#ifdef CONFIG_USB_INVENTRA_DMA
+extern struct dma_controller *__devinit
+inventra_dma_controller_create(struct musb *, void __iomem *);
 
-extern void dma_controller_destroy(struct dma_controller *);
+extern void inventra_dma_controller_destroy(struct dma_controller *);
+#else
+static inline struct dma_controller *__devinit
+inventra_dma_controller_create(struct musb *musb, void __iomem *mregs)
+{
+	return NULL;
+}
+
+static inline void inventra_dma_controller_destroy(struct dma_controller *c)
+{
+}
+#endif
+
+#ifdef CONFIG_USB_UX500_DMA
+extern struct dma_controller *__devinit
+ux500_dma_controller_create(struct musb *, void __iomem *);
+
+extern void ux500_dma_controller_destroy(struct dma_controller *);
+#else
+static inline struct dma_controller *__devinit
+ux500_dma_controller_create(struct musb *musb, void __iomem *mregs)
+{
+	return NULL;
+}
+
+static inline void ux500_dma_controller_destroy(struct dma_controller *c)
+{
+}
+#endif
+
+#ifdef CONFIG_USB_TUSB_OMAP_DMA
+extern struct dma_controller *__devinit
+tusb_dma_controller_create(struct musb *, void __iomem *);
+
+extern void tusb_dma_controller_destroy(struct dma_controller *);
+#else
+static inline struct dma_controller *__devinit
+tusb_dma_controller_create(struct musb *musb, void __iomem *mregs)
+{
+	return NULL;
+}
+
+static inline void tusb_dma_controller_destroy(struct dma_controller *c)
+{
+}
+#endif
 
 #endif	/* __MUSB_DMA_H__ */

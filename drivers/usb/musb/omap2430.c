@@ -438,6 +438,9 @@ static const struct musb_platform_ops omap2430_ops = {
 
 	.enable		= omap2430_musb_enable,
 	.disable	= omap2430_musb_disable,
+
+	.dma_controller_create = inventra_dma_controller_create,
+	.dma_controller_destroy = inventra_dma_controller_destroy,
 };
 
 static u64 omap2430_dmamask = DMA_BIT_MASK(32);

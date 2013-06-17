@@ -468,6 +468,9 @@ static const struct musb_platform_ops bfin_ops = {
 	.set_vbus	= bfin_musb_set_vbus,
 
 	.adjust_channel_params = bfin_musb_adjust_channel_params,
+
+	.dma_controller_create = inventra_dma_controller_create,
+	.dma_controller_destroy = inventra_dma_controller_destroy,
 };
 
 static u64 bfin_dmamask = DMA_BIT_MASK(32);
