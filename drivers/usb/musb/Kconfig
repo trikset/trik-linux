@@ -123,9 +123,7 @@ config MUSB_PIO_ONLY
 	  DMA controllers are ignored.
 
 	  Do not choose this unless DMA support for your SOC or board
-	  is unavailable (or unstable).  When DMA is enabled at compile time,
-	  you can still disable it at run time using the "use_dma=n" module
-	  parameter.
+	  is unavailable (or unstable).
 
 endchoice
 

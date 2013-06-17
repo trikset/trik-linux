@@ -1386,7 +1386,6 @@ done:
 	return 0;
 }
 
-
 /*
  * ep_config_from_hw - when MUSB_C_DYNFIFO_DEF is false
  * @param musb the controller
@@ -1679,12 +1678,6 @@ irqreturn_t musb_interrupt(struct musb *musb)
 EXPORT_SYMBOL_GPL(musb_interrupt);
 
 #ifndef CONFIG_MUSB_PIO_ONLY
-static bool __devinitdata use_dma = 1;
-
-/* "modprobe ... use_dma=0" etc */
-module_param(use_dma, bool, 0);
-MODULE_PARM_DESC(use_dma, "enable/disable use of DMA");
-
 void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit)
 {
 	u8	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
@@ -1722,9 +1715,6 @@ void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit)
 	}
 }
 EXPORT_SYMBOL_GPL(musb_dma_completion);
-
-#else
-#define use_dma			0
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -1978,6 +1968,9 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	musb->fifo_mode = musb->ops->fifo_mode;
 
+#ifndef CONFIG_MUSB_PIO_ONLY
+	musb->orig_dma_mask = dev->dma_mask;
+#endif
 	if (musb->ops->flags & MUSB_GLUE_TUSB_STYLE) {
 		musb_readb = __tusb_musb_readb;
 		musb_writeb = __tusb_musb_writeb;
@@ -2016,7 +2009,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	pm_runtime_get_sync(musb->controller);
 
 #ifndef CONFIG_MUSB_PIO_ONLY
-	if (use_dma && dev->dma_mask) {
+	if (dev->dma_mask) {
 		struct dma_controller	*c;
 
 		if (!musb->ops->dma_controller_create) {
@@ -2181,11 +2174,6 @@ fail0:
 /* all implementations (PCI bridge to FPGA, VLYNQ, etc) should just
  * bridge to a platform device; this driver then suffices.
  */
-
-#ifndef CONFIG_MUSB_PIO_ONLY
-static u64	*orig_dma_mask;
-#endif
-
 static int __devinit musb_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
@@ -2204,10 +2192,6 @@ static int __devinit musb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-#ifndef CONFIG_MUSB_PIO_ONLY
-	/* clobbered by use_dma=n */
-	orig_dma_mask = dev->dma_mask;
-#endif
 	status = musb_init_controller(dev, irq, base);
 	if (status < 0)
 		iounmap(base);
@@ -2232,7 +2216,7 @@ static int __devexit musb_remove(struct platform_device *pdev)
 	iounmap(ctrl_base);
 	device_init_wakeup(&pdev->dev, 0);
 #ifndef CONFIG_MUSB_PIO_ONLY
-	pdev->dev.dma_mask = orig_dma_mask;
+	pdev->dev.dma_mask = musb->orig_dma_mask;
 #endif
 	return 0;
 }
