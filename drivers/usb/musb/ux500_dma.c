@@ -365,7 +365,7 @@ void ux500_dma_controller_destroy(struct dma_controller *c)
 }
 EXPORT_SYMBOL(ux500_dma_controller_destroy);
 
-struct dma_controller *__init
+struct dma_controller *__devinit
 ux500_dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	struct ux500_dma_controller *controller;

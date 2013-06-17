@@ -68,16 +68,29 @@ struct musb_hw_ep;
 #define	is_dma_capable()	(0)
 #endif
 
-#ifdef CONFIG_USB_TI_CPPI_DMA
-#define	is_cppi_enabled()	1
+#ifdef CONFIG_USB_UX500_DMA
+#define	is_ux500_dma(musb)	(musb->ops->flags & MUSB_GLUE_DMA_UX500)
 #else
-#define	is_cppi_enabled()	0
+#define	is_ux500_dma(musb)	0
+#endif
+
+#ifdef CONFIG_USB_INVENTRA_DMA
+#define	is_inventra_dma(musb)	(musb->ops->flags & MUSB_GLUE_DMA_INVENTRA)
+#else
+#define	is_inventra_dma(musb)	0
+#endif
+
+#ifdef CONFIG_USB_TI_CPPI_DMA
+#define	is_cppi_enabled(musb)	(musb->ops->flags & MUSB_GLUE_DMA_CPPI)
+
+#else
+#define	is_cppi_enabled(musb)	0
 #endif
 
 #ifdef CONFIG_USB_TUSB_OMAP_DMA
-#define tusb_dma_omap()			1
+#define tusb_dma_omap(musb)	(musb->ops->flags & MUSB_GLUE_DMA_TUSB)
 #else
-#define tusb_dma_omap()			0
+#define tusb_dma_omap(musb)	0
 #endif
 
 /* Anomaly 05000456 - USB Receive Interrupt Is Not Generated in DMA Mode 1
