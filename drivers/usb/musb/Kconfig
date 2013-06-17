@@ -130,10 +130,10 @@ config MUSB_PIO_ONLY
 endchoice
 
 config  MUSB_SCHEDULE_INTR_EP
-        bool "Enable Scheduling of Interrupt Endpoint (EXPERIMENTAL)"
-        depends on EXPERIMENTAL
-        help
-          Schedule Interrupt Endpoint resources for supporting multiple
-          Interrupt URB's on a single INTR EP.  Use SOF for scheduling the EP.
+	bool "Enable Scheduling of Interrupt Endpoint (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  Schedule Interrupt Endpoint resources for supporting multiple
+	  Interrupt URB's on a single INTR EP.  Use SOF for scheduling the EP.
 
 endif # USB_MUSB_HDRC
