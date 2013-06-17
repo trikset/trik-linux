@@ -1565,7 +1565,7 @@ static void musb_gadget_fifo_flush(struct usb_ep *ep)
 	musb_ep_select(musb, mbase, (u8) epnum);
 
 	/* disable interrupts */
-	int_txe = musb_readw(musb, mbase, MUSB_INTRTXE);
+	int_txe = musb_readw(mbase, MUSB_INTRTXE);
 	musb_writew(mbase, MUSB_INTRTXE, int_txe & ~(1 << epnum));
 
 	if (musb_ep->is_in) {
