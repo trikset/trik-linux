@@ -237,10 +237,8 @@ struct musb_hw_ep {
 	void __iomem		*fifo;
 	void __iomem		*regs;
 
-#if defined(CONFIG_USB_MUSB_TUSB6010) || \
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
+	/*Fixme: the following field is only used by tusb*/
 	void __iomem		*conf;
-#endif
 
 	/* index in musb->endpoints[]  */
 	u8			epnum;
@@ -255,13 +253,13 @@ struct musb_hw_ep {
 	struct dma_channel	*tx_channel;
 	struct dma_channel	*rx_channel;
 
-#if defined(CONFIG_USB_MUSB_TUSB6010) || \
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
-	/* TUSB has "asynchronous" and "synchronous" dma modes */
+	/*
+	 * TUSB has "asynchronous" and "synchronous" dma modes
+	 * Fixme: the following three fields are only valid for TUSB.
+	 * */
 	dma_addr_t		fifo_async;
 	dma_addr_t		fifo_sync;
 	void __iomem		*fifo_sync_va;
-#endif
 
 	void __iomem		*target_regs;
 
