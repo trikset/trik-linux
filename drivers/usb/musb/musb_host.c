@@ -382,7 +382,7 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 
 	status = (urb->status == -EINPROGRESS) ? 0 : urb->status;
 
-	if (is_intr_sched() && musb->intr_ep == qh->hw_ep &&
+	if (musb_is_intr_sched() && musb->intr_ep == qh->hw_ep &&
 		urb->status == -EPROTO)
 		urb->status = -EINPROGRESS;
 

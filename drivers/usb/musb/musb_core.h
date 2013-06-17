@@ -195,9 +195,19 @@ enum musb_g_ep0_state {
 
 /******************************** TYPES *************************************/
 
+#define		MUSB_GLUE_TUSB_STYLE					0x0001
+#define		MUSB_GLUE_EP_ADDR_FLAT_MAPPING				0x0002
+#define		MUSB_GLUE_EP_ADDR_INDEXED_MAPPING			0x0004
+#define		MUSB_GLUE_DMA_INVENTRA					0x0008
+#define		MUSB_GLUE_DMA_CPPI					0x0010
+#define		MUSB_GLUE_DMA_TUSB					0x0020
+#define		MUSB_GLUE_DMA_UX500					0x0040
+#define		MUSB_GLUE_DMA_CPPI41					0x0080
+
 /**
  * struct musb_platform_ops - Operations passed to musb_core by HW glue layer
  * @fifo_mode:	which fifo_mode is taken by me
+ * @flags:	each hw glue difference information will be here
  * @init:	turns on clocks, sets up platform-specific registers, etc
  * @exit:	undoes @init
  * @set_mode:	forcefully changes operating mode
@@ -208,6 +218,8 @@ enum musb_g_ep0_state {
  */
 struct musb_platform_ops {
 	short	fifo_mode;
+	unsigned short	flags;
+
 	int	(*init)(struct musb *musb);
 	int	(*exit)(struct musb *musb);
 
