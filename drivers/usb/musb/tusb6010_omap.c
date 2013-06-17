@@ -663,7 +663,7 @@ void tusb_dma_controller_destroy(struct dma_controller *c)
 }
 EXPORT_SYMBOL(tusb_dma_controller_destroy);
 
-struct dma_controller *__init
+struct dma_controller *__devinit
 tusb_dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	void __iomem		*tbase = musb->ctrl_base;
