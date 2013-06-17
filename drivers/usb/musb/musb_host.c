@@ -1985,6 +1985,7 @@ success:
 			musb_enable_sof(musb);
 	} else if (idle)
 		musb_start_urb(musb, is_in, qh);
+
 	return 0;
 }
 
