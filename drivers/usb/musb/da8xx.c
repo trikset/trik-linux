@@ -496,6 +496,9 @@ static const struct musb_platform_ops da8xx_ops = {
 	.enable		= da8xx_musb_enable,
 	.disable	= da8xx_musb_disable,
 
+	.read_fifo	= musb_read_fifo,
+	.write_fifo	= musb_write_fifo,
+
 	.set_mode	= da8xx_musb_set_mode,
 	.try_idle	= da8xx_musb_try_idle,
 

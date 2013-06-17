@@ -420,7 +420,7 @@ static int am35x_musb_exit(struct musb *musb)
 }
 
 /* AM35x supports only 32bit read operation */
-void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
+static void am35x_musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 {
 	void __iomem *fifo = hw_ep->fifo;
 	u32		val;
@@ -458,6 +458,9 @@ static const struct musb_platform_ops am35x_ops = {
 
 	.enable		= am35x_musb_enable,
 	.disable	= am35x_musb_disable,
+
+	.read_fifo	= am35x_musb_read_fifo,
+	.write_fifo	= musb_write_fifo,
 
 	.set_mode	= am35x_musb_set_mode,
 	.try_idle	= am35x_musb_try_idle,
