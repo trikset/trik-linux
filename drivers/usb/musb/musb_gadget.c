@@ -423,14 +423,15 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			csr = musb_readw(epio, MUSB_TXCSR);
 
 			/* NOTE host side sets DMAENAB later than this; both are
-			 * OK since the transfer dma glue (between CPPI and Mentor
-			 * fifos) just tells CPPI it could start.  Data only moves
-			 * to the USB TX fifo when both fifos are ready.
+			 * OK since the transfer dma glue (between CPPI & Mentor
+			 * fifos) just tells CPPI it could start.  Data only
+			 * moves to the USB TX fifo when both fifos are ready.
 			 */
 
-			/* "mode" is irrelevant here; handle terminating ZLPs like
-			 * PIO does, since the hardware RNDIS mode seems unreliable
-			 * except for the last-packet-is-already-short case.
+			/* "mode" is irrelevant here; handle terminating ZLPs
+			 * like PIO does, since the hardware RNDIS mode seems
+			 * unreliable except for the last-packet-is-already-
+			 * short case.
 			 */
 			use_dma = use_dma && c->channel_program(
 					musb_ep->dma, musb_ep->packet_sz,
@@ -980,8 +981,8 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 			if ((request->actual < request->length)
 					&& (musb_ep->dma->actual_len
 						== musb_ep->packet_sz)) {
-				/* In double buffer case, continue to unload fifo if
-				 * there is Rx packet in FIFO.
+				/* In double buffer case, continue to unload
+				 * fifo if there is Rx packet in FIFO.
 				 **/
 				csr = musb_readw(epio, MUSB_RXCSR);
 				if ((csr & MUSB_RXCSR_RXPKTRDY) &&
