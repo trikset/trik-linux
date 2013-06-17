@@ -267,7 +267,7 @@ dump_end_info(struct musb *musb, u8 epnum, char *aBuffer, unsigned max)
 				buf += code;
 				max -= code;
 
-				if (is_cppi_enabled(musb)
+				if ((is_cppi_enabled(musb))
 						&& epnum
 						&& hw_ep->rx_channel) {
 					unsigned	cppi = epnum - 1;
@@ -355,7 +355,7 @@ dump_end_info(struct musb *musb, u8 epnum, char *aBuffer, unsigned max)
 				buf += code;
 				max -= code;
 
-				if (is_cppi_enabled(musb)
+				if ((is_cppi_enabled(musb))
 						&& epnum
 						&& hw_ep->tx_channel) {
 					unsigned	cppi = epnum - 1;
@@ -547,7 +547,7 @@ static int dump_header_stats(struct musb *musb, char *buffer)
 	buffer += code;
 #endif	/* DAVINCI */
 
-	if (is_cppi_enabled(musb))
+	if ((is_cppi_enabled(musb))
 		&& musb->dma_controller) {
 		code = sprintf(buffer,
 				"CPPI: txcr=%d txsrc=%01x txena=%01x; "
