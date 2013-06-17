@@ -120,6 +120,10 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" MUSB_DRIVER_NAME);
 
+u8 (*musb_readb)(const void __iomem *addr, unsigned offset);
+EXPORT_SYMBOL_GPL(musb_readb);
+void (*musb_writeb)(void __iomem *addr, unsigned offset, u8 data);
+EXPORT_SYMBOL_GPL(musb_writeb);
 
 /*-------------------------------------------------------------------------*/
 
@@ -131,6 +135,44 @@ static inline struct musb *dev_to_musb(struct device *dev)
 /*-------------------------------------------------------------------------*/
 
 #ifndef CONFIG_BLACKFIN
+
+/*
+ * TUSB6010 doesn't allow 8-bit access; 16-bit access is the minimum.
+ */
+static inline u8 __tusb_musb_readb(const void __iomem *addr, unsigned offset)
+{
+	u16 tmp;
+	u8 val;
+
+	tmp = __raw_readw(addr + (offset & ~1));
+	if (offset & 1)
+		val = (tmp >> 8);
+	else
+		val = tmp & 0xff;
+
+	return val;
+}
+
+static inline void __tusb_musb_writeb(void __iomem *addr, unsigned offset,
+					u8 data)
+{
+	u16 tmp;
+
+	tmp = __raw_readw(addr + (offset & ~1));
+	if (offset & 1)
+		tmp = (data << 8) | (tmp & 0xff);
+	else
+		tmp = (tmp & 0xff00) | data;
+
+	__raw_writew(tmp, addr + (offset & ~1));
+}
+
+static inline u8 __musb_readb(const void __iomem *addr, unsigned offset)
+	{ return readb(addr + offset); }
+
+static inline void __musb_writeb(void __iomem *addr, unsigned offset, u8 data)
+	{ writeb(data, addr + offset); }
+
 static int musb_ulpi_read(struct usb_phy *phy, u32 offset)
 {
 	void __iomem *addr = phy->io_priv;
@@ -213,6 +255,12 @@ out:
 	return ret;
 }
 #else
+static inline u8 __musb_readb(const void __iomem *addr, unsigned offset)
+	{ return (u8) (bfin_read16(addr + offset)); }
+
+static inline void __musb_writeb(void __iomem *addr, unsigned offset, u8 data)
+	{ bfin_write16(addr + offset, (u16) data); }
+
 #define musb_ulpi_read		NULL
 #define musb_ulpi_write		NULL
 #endif
@@ -1477,18 +1525,23 @@ static int __devinit musb_core_init(u16 musb_type, struct musb *musb)
 	for (i = 0; i < musb->nr_endpoints; i++) {
 		struct musb_hw_ep	*hw_ep = musb->endpoints + i;
 
-		hw_ep->fifo = MUSB_FIFO_OFFSET(i) + mbase;
-#if defined(CONFIG_USB_MUSB_TUSB6010) || defined (CONFIG_USB_MUSB_TUSB6010_MODULE)
-		hw_ep->fifo_async = musb->async + 0x400 + MUSB_FIFO_OFFSET(i);
-		hw_ep->fifo_sync = musb->sync + 0x400 + MUSB_FIFO_OFFSET(i);
-		hw_ep->fifo_sync_va =
-			musb->sync_va + 0x400 + MUSB_FIFO_OFFSET(i);
+		if (musb->ops->flags & MUSB_GLUE_TUSB_STYLE) {
+			hw_ep->fifo = MUSB_TUSB_FIFO_OFFSET(i) + mbase;
+			hw_ep->fifo_async = musb->async +
+					0x400 + MUSB_TUSB_FIFO_OFFSET(i);
+			hw_ep->fifo_sync = musb->sync +
+					0x400 + MUSB_TUSB_FIFO_OFFSET(i);
+			hw_ep->fifo_sync_va = musb->sync_va + 0x400 +
+					MUSB_TUSB_FIFO_OFFSET(i);
 
-		if (i == 0)
-			hw_ep->conf = mbase - 0x400 + TUSB_EP0_CONF;
-		else
-			hw_ep->conf = mbase + 0x400 + (((i - 1) & 0xf) << 2);
-#endif
+			if (i == 0)
+				hw_ep->conf = mbase - 0x400 + TUSB_EP0_CONF;
+			else
+				hw_ep->conf = mbase + 0x400 +
+						(((i - 1) & 0xf) << 2);
+		} else {
+			hw_ep->fifo = MUSB_FIFO_OFFSET(i) + mbase;
+		}
 
 		hw_ep->regs = MUSB_EP_OFFSET(musb, i, 0) + mbase;
 		hw_ep->target_regs = musb_read_target_reg_base(i, mbase);
@@ -1931,6 +1984,14 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb->ops = plat->platform_ops;
 
 	musb->fifo_mode = musb->ops->fifo_mode;
+
+	if (musb->ops->flags & MUSB_GLUE_TUSB_STYLE) {
+		musb_readb = __tusb_musb_readb;
+		musb_writeb = __tusb_musb_writeb;
+	} else {
+		musb_readb = __musb_readb;
+		musb_writeb = __musb_writeb;
+	}
 
 	/* The musb_platform_init() call:
 	 *   - adjusts musb->mregs and musb->isr if needed,

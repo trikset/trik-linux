@@ -234,12 +234,8 @@
 #define MUSB_TESTMODE		0x0F	/* 8 bit */
 
 /* Get offset for a given FIFO from musb->mregs */
-#if defined(CONFIG_USB_MUSB_TUSB6010) ||	\
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
-#define MUSB_FIFO_OFFSET(epnum)	(0x200 + ((epnum) * 0x20))
-#else
+#define MUSB_TUSB_FIFO_OFFSET(epnum)	(0x200 + ((epnum) * 0x20))
 #define MUSB_FIFO_OFFSET(epnum)	(0x20 + ((epnum) * 4))
-#endif
 
 /*
  * Additional Control Registers
