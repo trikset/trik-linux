@@ -272,7 +272,7 @@ err0:
 	return ret;
 }
 
-void /* __init_or_exit */ musb_exit_debugfs(struct musb *musb)
+void /* __devinit_or_exit */ musb_exit_debugfs(struct musb *musb)
 {
 	debugfs_remove_recursive(musb_debugfs_root);
 }
