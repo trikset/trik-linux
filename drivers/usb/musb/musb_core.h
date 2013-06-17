@@ -458,7 +458,7 @@ struct musb {
 	struct musb_hdrc_config	*config;
 
 #ifdef MUSB_CONFIG_PROC_FS
-	struct proc_dir_entry *proc_entry;
+	struct proc_dir_entry	*proc_entry;
 #endif
 	short			fifo_mode;
 };
@@ -628,7 +628,28 @@ static inline void musb_disable_sof(struct musb *musb)
 		musb->ops->dis_sof(musb);
 }
 
+static inline const char *get_dma_name(struct musb *musb)
+{
+#ifdef CONFIG_MUSB_PIO_ONLY
+	return "pio";
+#else
+	if (musb->ops->flags & MUSB_GLUE_DMA_INVENTRA)
+		return "dma-inventra";
+	else if (musb->ops->flags & MUSB_GLUE_DMA_CPPI)
+		return "dma-cppi3";
+	else if (musb->ops->flags & MUSB_GLUE_DMA_TUSB)
+		return "dma-tusb-omap";
+	else
+		return "?dma?";
+#endif
+}
+
 extern int musb_is_intr_sched(void);
 extern void musb_host_intr_schedule(struct musb *musb);
+/*-------------------------- ProcFS definitions ---------------------*/
 
+struct proc_dir_entry;
+
+extern struct proc_dir_entry *musb_debug_create(char *name, struct musb *data);
+extern void musb_debug_delete(char *name, struct musb *data);
 #endif	/* __MUSB_CORE_H__ */
