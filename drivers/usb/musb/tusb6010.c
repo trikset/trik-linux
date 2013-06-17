@@ -173,7 +173,7 @@ static inline void tusb_fifo_read_unaligned(void __iomem *fifo,
 	}
 }
 
-void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf)
+static void tusb_musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf)
 {
 	struct musb *musb = hw_ep->musb;
 	void __iomem	*ep_conf = hw_ep->conf;
@@ -223,7 +223,7 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf)
 		tusb_fifo_write_unaligned(fifo, buf, len);
 }
 
-void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *buf)
+static void tusb_musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *buf)
 {
 	struct musb *musb = hw_ep->musb;
 	void __iomem	*ep_conf = hw_ep->conf;
@@ -1162,6 +1162,9 @@ static const struct musb_platform_ops tusb_ops = {
 
 	.enable		= tusb_musb_enable,
 	.disable	= tusb_musb_disable,
+
+	.read_fifo	= tusb_musb_read_fifo,
+	.write_fifo	= tusb_musb_write_fifo,
 
 	.set_mode	= tusb_musb_set_mode,
 	.try_idle	= tusb_musb_try_idle,
