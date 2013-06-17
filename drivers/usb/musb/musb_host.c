@@ -47,6 +47,8 @@
 #include "musb_host.h"
 
 
+#define HS_HOLD_VAL 2
+#define FS_HOLD_VAL 12
 /* MUSB HOST status 22-mar-2006
  *
  * - There's still lots of partial code duplication for fault paths, so
@@ -235,6 +237,32 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 		offset = urb->iso_frame_desc[0].offset;
 		len = urb->iso_frame_desc[0].length;
 		break;
+	case USB_ENDPOINT_XFER_INT:
+		if (musb_is_intr_sched()) {
+			/*
+			 * Choose the appropriate Interval depending on
+			 * the device speed.
+			 *
+			 * High Speed bus
+			 * High speed device ---> 1 (microframe interval)
+			 * Low/Full Speed dev --> 2 (frame interval)
+			 * Full/Low speed bus/device :
+			 * 1 Frame interval
+			 */
+
+			/* Schedule on 1 ms boundary for all speeds */
+			if (USB_SPEED_HIGH == urb->dev->speed)
+				musb->hold_count = 2;
+			else {
+				if (musb->port1_status &
+					USB_PORT_STAT_HIGH_SPEED)
+					musb->hold_count = 12;
+				else
+					musb->hold_count = 1;
+			}
+			musb->hold = 1;
+		}
+		/* FALLTHROUGH */
 	default:		/* bulk, interrupt */
 		/* actual_length may be nonzero on retry paths */
 		buf = urb->transfer_buffer + urb->actual_length;
@@ -354,6 +382,10 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 
 	status = (urb->status == -EINPROGRESS) ? 0 : urb->status;
 
+	if (is_intr_sched() && musb->intr_ep == qh->hw_ep &&
+		urb->status == -EPROTO)
+		urb->status = -EINPROGRESS;
+
 	/* save toggle eagerly, for paranoia */
 	switch (qh->type) {
 	case USB_ENDPOINT_XFER_BULK:
@@ -416,16 +448,31 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 			 * de-allocated if it's tracked and allocated;
 			 * and where we'd update the schedule tree...
 			 */
+			if (musb_is_intr_sched() && hw_ep == musb->intr_ep) {
+				list_del(&qh->ring);
+				if (list_empty(is_in ? &musb->in_intr
+						: &musb->out_intr))
+					musb_disable_sof(musb);
+			}
 			kfree(qh);
 			qh = NULL;
 			break;
 		}
 	}
 
-	if (qh != NULL && qh->is_ready) {
+	/* we should not start next urb when current urb
+	 * has failed, this is because stack will unlink/dequeue
+	 * remaining urbs. Programming the next urb will endup in
+	 * urb completion because of expected error (cause of current
+	 * urb failure) interrupts and interfere with urb dequeue
+	 * initiated by stack and cause a crash.
+	 */
+	if (status == 0 && qh != NULL && qh->is_ready) {
 		dev_dbg(musb->controller, "... next ep%d %cX urb %p\n",
 		    hw_ep->epnum, is_in ? 'R' : 'T', next_urb(qh));
-		musb_start_urb(musb, is_in, qh);
+		if ((musb_is_intr_sched() && qh->type != USB_ENDPOINT_XFER_INT) ||
+			!musb_is_intr_sched())
+			musb_start_urb(musb, is_in, qh);
 	}
 }
 
@@ -703,6 +750,14 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 			len);
 
 	musb_ep_select(mbase, epnum);
+
+	if (is_out && !len) {
+	} else if (!is_out && musb_is_intr_sched() &&
+		qh->type == USB_ENDPOINT_XFER_INT) {
+		musb->hold_count = HS_HOLD_VAL;
+		if (musb->port1_status & USB_PORT_STAT_HIGH_SPEED)
+				musb->hold_count = FS_HOLD_VAL;
+	}
 
 	/* candidate for DMA? */
 	dma_controller = musb->dma_controller;
@@ -1798,6 +1853,14 @@ static int musb_schedule(
 		head = &musb->control;
 		hw_ep = musb->control_ep;
 		goto success;
+	} else if (qh->type == USB_ENDPOINT_XFER_INT) {
+		if (musb_is_intr_sched() && is_in) {
+			hw_ep = musb->intr_ep;
+			if (hw_ep) {
+				best_end = hw_ep->epnum;
+				goto success;
+			}
+		}
 	}
 
 	/* else, periodic transfers get muxed to other endpoints */
@@ -1818,6 +1881,9 @@ static int musb_schedule(
 		int	diff;
 
 		if (musb_ep_get_qh(hw_ep, is_in) != NULL)
+			continue;
+
+		if (musb_is_intr_sched() && is_in && hw_ep == musb->intr_ep)
 			continue;
 
 		if (hw_ep == musb->bulk_ep)
@@ -1883,6 +1949,23 @@ static int musb_schedule(
 	hw_ep = musb->endpoints + best_end;
 	dev_dbg(musb->controller, "qh %p periodic slot %d\n", qh, best_end);
 success:
+	if (musb_is_intr_sched() && is_in && qh->type == USB_ENDPOINT_XFER_INT) {
+		if (hw_ep == musb->intr_ep) {
+			int speed = urb->dev->speed;
+			int interval = urb->interval;
+			head = &musb->in_intr;
+
+			/* schedule the interrupt request on
+			 * next frame interupt
+			 */
+			urb->number_of_packets = interval;
+			if (musb->port1_status & USB_PORT_STAT_HIGH_SPEED) {
+				if (speed != USB_SPEED_HIGH)
+					urb->number_of_packets = interval * 8;
+			}
+		}
+	}
+
 	if (head) {
 		idle = list_empty(head);
 		list_add_tail(&qh->ring, head);
@@ -1890,7 +1973,10 @@ success:
 	}
 	qh->hw_ep = hw_ep;
 	qh->hep->hcpriv = qh;
-	if (idle)
+	if (musb_is_intr_sched() && is_in && qh->type == USB_ENDPOINT_XFER_INT) {
+		if (!list_empty(head))
+			musb_enable_sof(musb);
+	} else if (idle)
 		musb_start_urb(musb, is_in, qh);
 	return 0;
 }
@@ -1993,13 +2079,38 @@ static int musb_urb_enqueue(
 	/* Precompute RXINTERVAL/TXINTERVAL register */
 	switch (qh->type) {
 	case USB_ENDPOINT_XFER_INT:
-		/*
-		 * Full/low speeds use the  linear encoding,
-		 * high speed uses the logarithmic encoding.
-		 */
-		if (urb->dev->speed <= USB_SPEED_FULL) {
-			interval = max_t(u8, epd->bInterval, 1);
+		if (musb_is_intr_sched() && usb_pipein(urb->pipe)) {
+			/*
+			 * Choose the appropriate Interval depending on
+			 * the device speed.
+			 *
+			 * High Speed bus :
+			 *	High speed device ---> 1 (microframe interval)
+			 *	Low/Full Speed dev --> 2 (frame interval)
+			 * Full/Low speed bus/device :i
+			 * 1 Frame interval
+			 */
+
+			/* Schedule on 1 ms boundary for all speeds */
+			if (USB_SPEED_HIGH == urb->dev->speed) {
+				interval = 2;
+			} else {
+				if (musb->port1_status &
+					USB_PORT_STAT_HIGH_SPEED)
+					interval = 1;
+				else
+					interval = 2;
+			}
 			break;
+		} else {
+			/*
+			 * Full/low speeds use the  linear encoding,
+			 * high speed uses the logarithmic encoding.
+			 */
+			if (urb->dev->speed <= USB_SPEED_FULL) {
+				interval = max_t(u8, epd->bInterval, 1);
+				break;
+			}
 		}
 		/* FALLTHROUGH */
 	case USB_ENDPOINT_XFER_ISOC:
@@ -2277,6 +2388,98 @@ static void musb_h_stop(struct usb_hcd *hcd)
 {
 	musb_stop(hcd_to_musb(hcd));
 	hcd->state = HC_STATE_HALT;
+}
+
+#ifdef CONFIG_MUSB_SCHEDULE_INTR_EP
+static int use_intr_sched = 1;
+module_param(use_intr_sched, bool, 0);
+MODULE_PARM_DESC(use_intr_sched,
+	"enable/disable use of interrupt endpoint scheduling");
+#else
+#define use_intr_sched	0
+#endif
+
+int musb_is_intr_sched(void)
+{
+	return use_intr_sched;
+}
+
+void musb_host_intr_schedule(struct musb *musb)
+{
+	struct musb_hw_ep	*hw_ep = musb->intr_ep;
+	struct list_head	*intr_list = &musb->in_intr;
+	struct urb		*purb, *hurb = NULL;
+	struct musb_qh		*pqh, *hqh = NULL;
+	u16			csr = 0;
+	u8			speed;
+	u32			interval;
+
+	/*
+	 * Hold the current Interrupt Request until the IN token is placed on
+	 * the device.  Once the Hold period is over remove the REQPKT bit
+	 * for scheduling other device Interrupt requests.
+	 */
+	musb->hold_count -= musb->hold_count ? 1 : 0;
+	if (musb->hold_count == 0 && musb->hold) {
+		csr = musb_readw(hw_ep->regs, MUSB_RXCSR);
+
+		csr &= ~(MUSB_RXCSR_H_ERROR | MUSB_RXCSR_DATAERROR |
+			MUSB_RXCSR_H_RXSTALL | MUSB_RXCSR_H_REQPKT
+			| MUSB_RXCSR_RXPKTRDY);
+
+		musb_writew(hw_ep->regs, MUSB_RXCSR, csr);
+		musb->hold = 0;
+	}
+
+	list_for_each_entry(pqh, intr_list, ring) {
+		list_for_each_entry(purb, &pqh->hep->urb_list, urb_list) {
+			if (purb->number_of_packets)
+				purb->number_of_packets--;
+			/*
+			 * If a contention occurs in the same frame period
+			 * between several Interrupt requests expiring
+			 * then look for speed as the primary yardstick.
+			 * If of same speed then look for the lesser polling
+			 * interval request
+			 */
+			if (purb->number_of_packets <= 0 && !musb->hold &&
+				purb->status != -EPROTO) {
+				if (hurb) {
+					u8 hspeed = hurb->dev->speed;
+					u16 hinterval = hurb->interval;
+					if (hspeed == purb->dev->speed &&
+						hinterval > purb->interval) {
+							hurb = purb;
+							hqh = pqh;
+					} else if (purb->dev->speed > hspeed) {
+						hurb = purb;
+						hqh = pqh;
+					}
+				} else {
+					hurb = purb;
+					hqh = pqh;
+				}
+			}
+		}
+	}
+
+	if (hqh && hurb) {
+		csr = musb_readw(hw_ep->regs, MUSB_RXCSR);
+		if (csr & MUSB_RXCSR_RXPKTRDY)
+			return;
+		list_del_init(&hurb->urb_list);
+		list_add(&hurb->urb_list, &hqh->hep->urb_list);
+		speed = (u8) hurb->dev->speed;
+		interval = hurb->interval;
+
+		hurb->number_of_packets = interval;
+		if (musb->port1_status & USB_PORT_STAT_HIGH_SPEED)
+				hurb->number_of_packets = interval * 8;
+
+		musb->hold = 1;
+		hw_ep->rx_reinit = 1;
+		musb_start_urb(musb, 1, hqh);
+	}
 }
 
 static int musb_bus_suspend(struct usb_hcd *hcd)
