@@ -200,6 +200,8 @@ enum musb_g_ep0_state {
  * @vbus_status: returns vbus status if possible
  * @set_vbus:	forces vbus status
  * @adjust_channel_params: pre check for standard dma channel_program func
+ * @dma_controller_create: create dma controller for me
+ * @dma_controller_destroy: destroy dma controller
  */
 struct musb_platform_ops {
 	short		fifo_mode;
@@ -225,6 +227,10 @@ struct musb_platform_ops {
 	int	(*adjust_channel_params)(struct dma_channel *channel,
 				u16 packet_sz, u8 *mode,
 				dma_addr_t *dma_addr, u32 *len);
+
+	struct dma_controller* (*dma_controller_create)(struct musb *,
+		void __iomem *);
+	void	(*dma_controller_destroy)(struct dma_controller *);
 
 	void	(*en_sof)(struct musb *musb);
 	void	(*dis_sof)(struct musb *musb);

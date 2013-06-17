@@ -642,7 +642,7 @@ static void tusb_omap_dma_release(struct dma_channel *channel)
 	channel = NULL;
 }
 
-void dma_controller_destroy(struct dma_controller *c)
+void tusb_dma_controller_destroy(struct dma_controller *c)
 {
 	struct tusb_omap_dma	*tusb_dma;
 	int			i;
@@ -661,9 +661,10 @@ void dma_controller_destroy(struct dma_controller *c)
 
 	kfree(tusb_dma);
 }
+EXPORT_SYMBOL(tusb_dma_controller_destroy);
 
 struct dma_controller *__init
-dma_controller_create(struct musb *musb, void __iomem *base)
+tusb_dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	void __iomem		*tbase = musb->ctrl_base;
 	struct tusb_omap_dma	*tusb_dma;
@@ -721,7 +722,8 @@ dma_controller_create(struct musb *musb, void __iomem *base)
 	return &tusb_dma->controller;
 
 cleanup:
-	dma_controller_destroy(&tusb_dma->controller);
+	tusb_dma_controller_destroy(&tusb_dma->controller);
 out:
 	return NULL;
 }
+EXPORT_SYMBOL(tusb_dma_controller_create);

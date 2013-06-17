@@ -356,16 +356,17 @@ static int ux500_dma_controller_start(struct dma_controller *c)
 	return 0;
 }
 
-void dma_controller_destroy(struct dma_controller *c)
+void ux500_dma_controller_destroy(struct dma_controller *c)
 {
 	struct ux500_dma_controller *controller = container_of(c,
 			struct ux500_dma_controller, controller);
 
 	kfree(controller);
 }
+EXPORT_SYMBOL(ux500_dma_controller_destroy);
 
 struct dma_controller *__init
-dma_controller_create(struct musb *musb, void __iomem *base)
+ux500_dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	struct ux500_dma_controller *controller;
 	struct platform_device *pdev = to_platform_device(musb->controller);
@@ -391,3 +392,4 @@ dma_controller_create(struct musb *musb, void __iomem *base)
 
 	return &controller->controller;
 }
+EXPORT_SYMBOL(ux500_dma_controller_create);

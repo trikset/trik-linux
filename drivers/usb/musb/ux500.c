@@ -59,6 +59,9 @@ static const struct musb_platform_ops ux500_ops = {
 
 	.init		= ux500_musb_init,
 	.exit		= ux500_musb_exit,
+
+	.dma_controller_create = ux500_dma_controller_create,
+	.dma_controller_destroy = ux500_dma_controller_destroy,
 };
 
 static int __devinit ux500_probe(struct platform_device *pdev)

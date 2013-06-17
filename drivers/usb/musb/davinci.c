@@ -517,6 +517,9 @@ static const struct musb_platform_ops davinci_ops = {
 	.set_mode	= davinci_musb_set_mode,
 
 	.set_vbus	= davinci_musb_set_vbus,
+
+	.dma_controller_create = cppi_dma_controller_create,
+	.dma_controller_destroy = cppi_dma_controller_destroy,
 };
 
 static u64 davinci_dmamask = DMA_BIT_MASK(32);
