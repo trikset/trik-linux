@@ -202,7 +202,7 @@ enum musb_g_ep0_state {
  * @adjust_channel_params: pre check for standard dma channel_program func
  */
 struct musb_platform_ops {
-	short	fifo_mode;
+	short		fifo_mode;
 	unsigned short	flags;
 
 	int	(*init)(struct musb *musb);
@@ -226,8 +226,8 @@ struct musb_platform_ops {
 				u16 packet_sz, u8 *mode,
 				dma_addr_t *dma_addr, u32 *len);
 
-	void (*en_sof)(struct musb *musb);
-	void (*dis_sof)(struct musb *musb);
+	void	(*en_sof)(struct musb *musb);
+	void	(*dis_sof)(struct musb *musb);
 };
 
 /*
