@@ -197,6 +197,7 @@ enum musb_g_ep0_state {
 
 /**
  * struct musb_platform_ops - Operations passed to musb_core by HW glue layer
+ * @fifo_mode:	which fifo_mode is taken by me
  * @init:	turns on clocks, sets up platform-specific registers, etc
  * @exit:	undoes @init
  * @set_mode:	forcefully changes operating mode
@@ -206,6 +207,7 @@ enum musb_g_ep0_state {
  * @adjust_channel_params: pre check for standard dma channel_program func
  */
 struct musb_platform_ops {
+	short	fifo_mode;
 	int	(*init)(struct musb *musb);
 	int	(*exit)(struct musb *musb);
 
@@ -452,6 +454,7 @@ struct musb {
 #ifdef MUSB_CONFIG_PROC_FS
 	struct proc_dir_entry *proc_entry;
 #endif
+	short			fifo_mode;
 };
 
 static inline struct musb *gadget_to_musb(struct usb_gadget *g)

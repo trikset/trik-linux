@@ -450,6 +450,8 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 }
 
 static const struct musb_platform_ops am35x_ops = {
+	.fifo_mode	= 4,
+
 	.init		= am35x_musb_init,
 	.exit		= am35x_musb_exit,
 

@@ -1027,38 +1027,14 @@ static void musb_shutdown(struct platform_device *pdev)
 /*-------------------------------------------------------------------------*/
 
 /*
- * The silicon either has hard-wired endpoint configurations, or else
- * "dynamic fifo" sizing.  The driver has support for both, though at this
- * writing only the dynamic sizing is very well tested.   Since we switched
- * away from compile-time hardware parameters, we can no longer rely on
- * dead code elimination to leave only the relevant one in the object file.
- *
- * We don't currently use dynamic fifo setup capability to do anything
- * more than selecting one of a bunch of predefined configurations.
- */
-#if defined(CONFIG_USB_MUSB_TUSB6010)			\
-	|| defined(CONFIG_USB_MUSB_TUSB6010_MODULE)	\
-	|| defined(CONFIG_USB_MUSB_OMAP2PLUS)		\
-	|| defined(CONFIG_USB_MUSB_OMAP2PLUS_MODULE)	\
-	|| defined(CONFIG_USB_MUSB_AM35X)		\
-	|| defined(CONFIG_USB_MUSB_AM35X_MODULE)	\
-	|| defined(CONFIG_USB_MUSB_DSPS)		\
-	|| defined(CONFIG_USB_MUSB_DSPS_MODULE)
-static ushort __devinitdata fifo_mode = 4;
-#elif defined(CONFIG_USB_MUSB_UX500)			\
-	|| defined(CONFIG_USB_MUSB_UX500_MODULE)
-static ushort __devinitdata fifo_mode = 5;
-#else
-static ushort __devinitdata fifo_mode = 2;
-#endif
-
-/* "modprobe ... fifo_mode=1" etc */
-module_param(fifo_mode, ushort, 0);
-MODULE_PARM_DESC(fifo_mode, "initial endpoint configuration");
-
-/*
  * tables defining fifo_mode values.  define more if you like.
  * for host side, make sure both halves of ep1 are set up.
+ */
+/*
+ * reserve the endpoint with optimum fifo size for
+ * for software interrupt endpoint schedular
+ * The interrupt endpoint schedular uses single endpoint
+ * resource to schedule all the usb request
  */
 
 /* mode 0 - fits in 2KB */
@@ -1080,13 +1056,12 @@ static struct musb_fifo_cfg __devinitdata mode_1_cfg[] = {
 };
 
 /* mode 2 - fits in 4KB */
-static struct musb_fifo_cfg __devinitdata mode_2_cfg[] = { // 1024+1536+756+512=3840
+static struct musb_fifo_cfg __devinitdata mode_2_cfg[] = {
 { .hw_ep_num = 1, .style = FIFO_TX,   .maxpacket = 512, },
 { .hw_ep_num = 1, .style = FIFO_RX,   .maxpacket = 512, },
 { .hw_ep_num = 2, .style = FIFO_TX,   .maxpacket = 512, },
-{ .hw_ep_num = 2, .style = FIFO_RX,   .maxpacket = 1024, },
-{ .hw_ep_num = 3, .style = FIFO_TX,   .maxpacket = 256, },
-{ .hw_ep_num = 3, .style = FIFO_RX,   .maxpacket = 512, },
+{ .hw_ep_num = 2, .style = FIFO_RX,   .maxpacket = 512, },
+{ .hw_ep_num = 3, .style = FIFO_RXTX, .maxpacket = 256, },
 { .hw_ep_num = 4, .style = FIFO_RXTX, .maxpacket = 256, },
 };
 
@@ -1158,6 +1133,37 @@ static struct musb_fifo_cfg __devinitdata mode_5_cfg[] = {
 { .hw_ep_num = 12, .style = FIFO_TX,   .maxpacket = 32, },
 { .hw_ep_num = 12, .style = FIFO_RX,   .maxpacket = 32, },
 { .hw_ep_num = 13, .style = FIFO_RXTX, .maxpacket = 512, },
+{ .hw_ep_num = 14, .style = FIFO_RXTX, .maxpacket = 1024, },
+{ .hw_ep_num = 15, .style = FIFO_RXTX, .maxpacket = 1024, },
+};
+
+/* mode 6 - fits in 32KB */
+static struct musb_fifo_cfg __devinitdata mode_6_cfg[] = {
+{ .hw_ep_num =  1, .style = FIFO_TX,   .maxpacket = 512, .mode = BUF_DOUBLE,},
+{ .hw_ep_num =  1, .style = FIFO_RX,   .maxpacket = 512, .mode = BUF_DOUBLE,},
+{ .hw_ep_num =  2, .style = FIFO_TX,   .maxpacket = 512, .mode = BUF_DOUBLE,},
+{ .hw_ep_num =  2, .style = FIFO_RX,   .maxpacket = 512, .mode = BUF_DOUBLE,},
+{ .hw_ep_num =  3, .style = FIFO_TX,   .maxpacket = 512, .mode = BUF_DOUBLE,},
+{ .hw_ep_num =  3, .style = FIFO_RX,   .maxpacket = 512, .mode = BUF_DOUBLE,},
+{ .hw_ep_num =  4, .style = FIFO_TX,   .maxpacket = 64, },
+{ .hw_ep_num =  4, .style = FIFO_RX,   .maxpacket = 64, },
+{ .hw_ep_num =  5, .style = FIFO_TX,   .maxpacket = 64, },
+{ .hw_ep_num =  5, .style = FIFO_RX,   .maxpacket = 64, },
+{ .hw_ep_num =  6, .style = FIFO_TX,   .maxpacket = 64, },
+{ .hw_ep_num =  6, .style = FIFO_RX,   .maxpacket = 64, },
+{ .hw_ep_num =  7, .style = FIFO_TX,   .maxpacket = 64, },
+{ .hw_ep_num =  7, .style = FIFO_RX,   .maxpacket = 64, },
+{ .hw_ep_num =  8, .style = FIFO_TX,   .maxpacket = 64, },
+{ .hw_ep_num =  8, .style = FIFO_RX,   .maxpacket = 64, },
+{ .hw_ep_num =  9, .style = FIFO_TX,   .maxpacket = 64, },
+{ .hw_ep_num =  9, .style = FIFO_RX,   .maxpacket = 64, },
+{ .hw_ep_num = 10, .style = FIFO_TX,   .maxpacket = 256, },
+{ .hw_ep_num = 10, .style = FIFO_RX,   .maxpacket = 64, },
+{ .hw_ep_num = 11, .style = FIFO_TX,   .maxpacket = 256, },
+{ .hw_ep_num = 11, .style = FIFO_RX,   .maxpacket = 64, },
+{ .hw_ep_num = 12, .style = FIFO_TX,   .maxpacket = 256, },
+{ .hw_ep_num = 12, .style = FIFO_RX,   .maxpacket = 64, },
+{ .hw_ep_num = 13, .style = FIFO_RXTX, .maxpacket = 4096, },
 { .hw_ep_num = 14, .style = FIFO_RXTX, .maxpacket = 1024, },
 { .hw_ep_num = 15, .style = FIFO_RXTX, .maxpacket = 1024, },
 };
@@ -1254,15 +1260,17 @@ static int __devinit ep_config_from_table(struct musb *musb)
 	int			offset;
 	struct musb_hw_ep	*hw_ep = musb->endpoints;
 
-	if (musb->config->fifo_cfg) {
+	if (musb->config->fifo_mode)
+		musb->fifo_mode = musb->config->fifo_mode;
+	else if (musb->config->fifo_cfg) {
 		cfg = musb->config->fifo_cfg;
 		n = musb->config->fifo_cfg_size;
 		goto done;
 	}
 
-	switch (fifo_mode) {
+	switch (musb->fifo_mode) {
 	default:
-		fifo_mode = 0;
+		musb->fifo_mode = 0;
 		/* FALLTHROUGH */
 	case 0:
 		cfg = mode_0_cfg;
@@ -1288,10 +1296,14 @@ static int __devinit ep_config_from_table(struct musb *musb)
 		cfg = mode_5_cfg;
 		n = ARRAY_SIZE(mode_5_cfg);
 		break;
+	case 6:
+		cfg = mode_6_cfg;
+		n = ARRAY_SIZE(mode_6_cfg);
+		break;
 	}
 
 	printk(KERN_DEBUG "%s: setup fifo_mode %d\n",
-			musb_driver_name, fifo_mode);
+			musb_driver_name, musb->fifo_mode);
 
 
 done:
@@ -1917,6 +1929,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb->board_set_power = plat->set_power;
 	musb->min_power = plat->min_power;
 	musb->ops = plat->platform_ops;
+
+	musb->fifo_mode = musb->ops->fifo_mode;
 
 	/* The musb_platform_init() call:
 	 *   - adjusts musb->mregs and musb->isr if needed,
