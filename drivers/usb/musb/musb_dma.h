@@ -177,6 +177,22 @@ struct dma_controller {
 /* called after channel_program(), may indicate a fault */
 extern void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit);
 
+#ifdef CONFIG_USB_TI_CPPI_DMA
+extern struct dma_controller *__devinit
+cppi_dma_controller_create(struct musb *, void __iomem *);
+
+extern void cppi_dma_controller_destroy(struct dma_controller *);
+#else
+static inline struct dma_controller *__devinit
+cppi_dma_controller_create(struct musb *musb, void __iomem *mregs)
+{
+	return NULL;
+}
+
+static inline void cppi_dma_controller_destroy(struct dma_controller *c)
+{
+}
+#endif
 
 extern struct dma_controller *__init
 dma_controller_create(struct musb *, void __iomem *);
