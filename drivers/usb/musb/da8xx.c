@@ -504,8 +504,8 @@ static const struct musb_platform_ops da8xx_ops = {
 
 	.set_vbus	= da8xx_musb_set_vbus,
 
-	.en_sof = da8xx_musb_enable_sof,
-	.dis_sof = da8xx_musb_disable_sof,
+	.en_sof		= da8xx_musb_enable_sof,
+	.dis_sof	= da8xx_musb_disable_sof,
 };
 
 static u64 da8xx_dmamask = DMA_BIT_MASK(32);
