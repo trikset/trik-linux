@@ -13,6 +13,7 @@
 /*
  * DaVinci-specific definitions
  */
+#define DAVINCI_SYSTEM_MODULE_BASE	0x01c40000
 
 /* Integrated highspeed/otg PHY */
 #define USBPHY_CTL_PADDR	(DAVINCI_SYSTEM_MODULE_BASE + 0x34)
