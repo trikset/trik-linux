@@ -556,7 +556,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			|| ((is_inventra_dma(musb) || is_ux500_dma(musb))
 				&& is_dma
 				&& (!dma->desired_mode
-                                	|| (request->actual &
+					|| (request->actual &
 						(musb_ep->packet_sz - 1))))
 		) {
 			/*
