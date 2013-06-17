@@ -365,12 +365,10 @@ struct musb {
 	void __iomem		*ctrl_base;
 	void __iomem		*mregs;
 
-#if defined(CONFIG_USB_MUSB_TUSB6010) || \
-	defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
+	/*Fixme: the three fields below are only used by tusb*/
 	dma_addr_t		async;
 	dma_addr_t		sync;
 	void __iomem		*sync_va;
-#endif
 
 	/* passed down from chip/board specific irq handlers */
 	u8			int_usb;
