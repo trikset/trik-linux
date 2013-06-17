@@ -57,7 +57,6 @@ u8 tusb_get_revision(struct musb *musb)
 
 	return rev;
 }
-EXPORT_SYMBOL_GPL(tusb_get_revision);
 
 static int tusb_print_revision(struct musb *musb)
 {
@@ -1168,6 +1167,8 @@ static const struct musb_platform_ops tusb_ops = {
 
 	.set_mode	= tusb_musb_set_mode,
 	.try_idle	= tusb_musb_try_idle,
+
+	.get_hw_revision	= tusb_get_revision,
 
 	.vbus_status	= tusb_musb_vbus_status,
 	.set_vbus	= tusb_musb_set_vbus,
