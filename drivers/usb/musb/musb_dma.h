@@ -87,6 +87,12 @@ struct musb_hw_ep;
 #define	is_cppi_enabled(musb)	0
 #endif
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+#define is_cppi41_enabled(musb)	(musb->ops->flags & MUSB_GLUE_DMA_CPPI41)
+#else
+#define is_cppi41_enabled(musb)     0
+#endif
+
 #ifdef CONFIG_USB_TUSB_OMAP_DMA
 #define tusb_dma_omap(musb)	(musb->ops->flags & MUSB_GLUE_DMA_TUSB)
 #else
@@ -203,6 +209,23 @@ cppi_dma_controller_create(struct musb *musb, void __iomem *mregs)
 }
 
 static inline void cppi_dma_controller_destroy(struct dma_controller *c)
+{
+}
+#endif
+
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+extern struct dma_controller *__devinit
+cppi41_dma_controller_create(struct musb *, void __iomem *);
+
+extern void cppi41_dma_controller_destroy(struct dma_controller *);
+#else
+static inline struct dma_controller *__devinit
+cppi41_dma_controller_create(struct musb *musb, void __iomem *mregs)
+{
+	return NULL;
+}
+
+static inline void cppi41_dma_controller_destroy(struct dma_controller *c)
 {
 }
 #endif
