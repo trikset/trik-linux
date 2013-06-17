@@ -1562,7 +1562,7 @@ static void musb_gadget_fifo_flush(struct usb_ep *ep)
 	mbase = musb->mregs;
 
 	spin_lock_irqsave(&musb->lock, flags);
-	musb_ep_select(mbase, (u8) epnum);
+	musb_ep_select(musb, mbase, (u8) epnum);
 
 	/* disable interrupts */
 	int_txe = musb_readw(musb, mbase, MUSB_INTRTXE);
