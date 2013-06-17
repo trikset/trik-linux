@@ -221,6 +221,9 @@ struct musb_platform_ops {
 	int	(*adjust_channel_params)(struct dma_channel *channel,
 				u16 packet_sz, u8 *mode,
 				dma_addr_t *dma_addr, u32 *len);
+
+	void (*en_sof)(struct musb *musb);
+	void (*dis_sof)(struct musb *musb);
 };
 
 /*
@@ -337,6 +340,9 @@ struct musb {
 	 * endpoint.
 	 */
 	struct musb_hw_ep	*bulk_ep;
+	struct musb_hw_ep       *intr_ep;
+	u8			hold;
+	u8			hold_count;
 
 	struct list_head	control;	/* of musb_qh */
 	struct list_head	in_bulk;	/* of musb_qh */
@@ -592,5 +598,20 @@ static inline int musb_platform_exit(struct musb *musb)
 
 	return musb->ops->exit(musb);
 }
+
+static inline void musb_enable_sof(struct musb *musb)
+{
+	if (musb->ops->en_sof)
+		musb->ops->en_sof(musb);
+}
+
+static inline void musb_disable_sof(struct musb *musb)
+{
+	if (musb->ops->dis_sof)
+		musb->ops->dis_sof(musb);
+}
+
+extern int musb_is_intr_sched(void);
+extern void musb_host_intr_schedule(struct musb *musb);
 
 #endif	/* __MUSB_CORE_H__ */

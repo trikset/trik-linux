@@ -738,6 +738,13 @@ b_host:
 				otg_state_string(musb->xceiv->state), devctl);
 	}
 
+	if (int_usb & MUSB_INTR_SOF) {
+		dev_dbg(musb->controller, "START_OF_FRAME\n");
+		handled = IRQ_HANDLED;
+		if (musb_is_intr_sched())
+			musb_host_intr_schedule(musb);
+	}
+
 	if ((int_usb & MUSB_INTR_DISCONNECT) && !musb->ignore_disconnect) {
 		dev_dbg(musb->controller, "DISCONNECT (%s) as %s, devctl %02x\n",
 				otg_state_string(musb->xceiv->state),
@@ -1192,9 +1199,13 @@ fifo_setup(struct musb *musb, struct musb_hw_ep  *hw_ep,
 
 	/* EP0 reserved endpoint for control, bidirectional;
 	 * EP1 reserved for bulk, two unidirection halves.
+	 * EPx reserve one endpoint for interrupt endpoint
 	 */
 	if (hw_ep->epnum == 1)
 		musb->bulk_ep = hw_ep;
+	else if (musb_is_intr_sched())
+		musb->intr_ep = hw_ep;
+
 	/* REVISIT error check:  be sure ep0 can both rx and tx ... */
 	switch (cfg->style) {
 	case FIFO_TX:
