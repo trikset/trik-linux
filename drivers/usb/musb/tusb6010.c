@@ -172,7 +172,8 @@ static inline void tusb_fifo_read_unaligned(void __iomem *fifo,
 	}
 }
 
-static void tusb_musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf)
+static void tusb_musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len,
+		const u8 *buf)
 {
 	struct musb *musb = hw_ep->musb;
 	void __iomem	*ep_conf = hw_ep->conf;
