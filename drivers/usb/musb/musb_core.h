@@ -355,6 +355,8 @@ struct musb {
 	struct list_head	control;	/* of musb_qh */
 	struct list_head	in_bulk;	/* of musb_qh */
 	struct list_head	out_bulk;	/* of musb_qh */
+	struct list_head	in_intr;	/* of musb_qh */
+	struct list_head	out_intr;	/* of musb_qh */
 
 	struct timer_list	otg_timer;
 	struct notifier_block	nb;

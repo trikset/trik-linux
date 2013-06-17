@@ -1883,6 +1883,8 @@ allocate_instance(struct device *dev,
 	INIT_LIST_HEAD(&musb->control);
 	INIT_LIST_HEAD(&musb->in_bulk);
 	INIT_LIST_HEAD(&musb->out_bulk);
+	INIT_LIST_HEAD(&musb->in_intr);
+	INIT_LIST_HEAD(&musb->out_intr);
 
 	hcd->uses_new_polling = 1;
 	hcd->has_tt = 1;
