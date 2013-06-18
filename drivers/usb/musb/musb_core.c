@@ -1097,12 +1097,11 @@ static struct musb_fifo_cfg __devinitdata mode_1_cfg[] = {
 
 /* mode 2 - fits in 4KB */
 static struct musb_fifo_cfg __devinitdata mode_2_cfg[] = {
-{ .hw_ep_num = 1, .style = FIFO_TX,   .maxpacket = 512, },
-{ .hw_ep_num = 1, .style = FIFO_RX,   .maxpacket = 512, },
-{ .hw_ep_num = 2, .style = FIFO_TX,   .maxpacket = 512, },
-{ .hw_ep_num = 2, .style = FIFO_RX,   .maxpacket = 512, },
-{ .hw_ep_num = 3, .style = FIFO_RXTX, .maxpacket = 256, },
-{ .hw_ep_num = 4, .style = FIFO_RXTX, .maxpacket = 256, },
+{ .hw_ep_num = 1, .style = FIFO_TX,   .maxpacket = 512, .mode = BUF_DOUBLE, },
+{ .hw_ep_num = 1, .style = FIFO_RX,   .maxpacket = 512, .mode = BUF_DOUBLE, },
+{ .hw_ep_num = 2, .style = FIFO_RXTX, .maxpacket = 1024, },
+{ .hw_ep_num = 3, .style = FIFO_RXTX, .maxpacket = 512,  },
+{ .hw_ep_num = 4, .style = FIFO_RXTX, .maxpacket = 256,  },
 };
 
 /* mode 3 - fits in 4KB */
@@ -1364,7 +1363,7 @@ done:
 		}
 		offset = fifo_setup(musb, hw_ep + epn, cfg++, offset);
 		if (offset < 0) {
-			pr_debug("%s: mem overrun, ep %d\n",
+			pr_warn("%s: mem overrun, ep %d\n",
 					musb_driver_name, epn);
 			return -EINVAL;
 		}
@@ -1378,7 +1377,7 @@ done:
 			offset, (1 << (musb->config->ram_bits + 2)));
 
 	if (!musb->bulk_ep) {
-		pr_debug("%s: missing bulk\n", musb_driver_name);
+		pr_warn("%s: missing bulk\n", musb_driver_name);
 		return -EINVAL;
 	}
 
