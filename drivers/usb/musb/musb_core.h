@@ -642,7 +642,7 @@ static inline void musb_disable_sof(struct musb *musb)
 		musb->ops->dis_sof(musb);
 }
 
-static inline const char *get_dma_name(struct musb *musb)
+static inline const char *musb_get_dma_name(struct musb *musb)
 {
 #ifdef CONFIG_MUSB_PIO_ONLY
 	return "pio";
