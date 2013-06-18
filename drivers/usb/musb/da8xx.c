@@ -254,23 +254,23 @@ void da8xx_musb_disable_sof(struct musb *musb)
 
 static inline void phy_on(void)
 {
-	u32 cfgchip2 = __raw_readl(CFGCHIP2);
+	u32 cfgchip2 = readl(CFGCHIP2);
 
 	/*
 	 * Start the on-chip PHY and its PLL.
 	 */
 	cfgchip2 &= ~(CFGCHIP2_RESET | CFGCHIP2_PHYPWRDN | CFGCHIP2_OTGPWRDN);
 	cfgchip2 |= CFGCHIP2_PHY_PLLON;
-	__raw_writel(cfgchip2, CFGCHIP2);
+	writel(cfgchip2, CFGCHIP2);
 
 	pr_info("Waiting for USB PHY clock good...\n");
-	while (!(__raw_readl(CFGCHIP2) & CFGCHIP2_PHYCLKGD))
+	while (!(readl(CFGCHIP2) & CFGCHIP2_PHYCLKGD))
 		cpu_relax();
 }
 
 static inline void phy_off(void)
 {
-	u32 cfgchip2 = __raw_readl(CFGCHIP2);
+	u32 cfgchip2 = readl(CFGCHIP2);
 
 	/*
 	 * Ensure that USB 1.1 reference clock is not being sourced from
@@ -287,7 +287,7 @@ static inline void phy_off(void)
 	 * Power down the on-chip PHY.
 	 */
 	cfgchip2 |= CFGCHIP2_PHYPWRDN | CFGCHIP2_OTGPWRDN;
-	__raw_writel(cfgchip2, CFGCHIP2);
+	writel(cfgchip2, CFGCHIP2);
 }
 
 /*
@@ -571,7 +571,7 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 
 static int da8xx_musb_set_mode(struct musb *musb, u8 musb_mode)
 {
-	u32 cfgchip2 = __raw_readl(CFGCHIP2);
+	u32 cfgchip2 = readl(CFGCHIP2);
 
 	cfgchip2 &= ~CFGCHIP2_OTGMODE;
 	switch (musb_mode) {
@@ -588,7 +588,7 @@ static int da8xx_musb_set_mode(struct musb *musb, u8 musb_mode)
 		dev_dbg(musb->controller, "Trying to set unsupported mode %u\n", musb_mode);
 	}
 
-	__raw_writel(cfgchip2, CFGCHIP2);
+	writel(cfgchip2, CFGCHIP2);
 	return 0;
 }
 
@@ -626,7 +626,7 @@ static int da8xx_musb_init(struct musb *musb)
 
 	/* NOTE: IRQs are in mixed mode, not bypass to pure MUSB */
 	pr_debug("DA8xx OTG revision %08x, PHY %03x, control %02x\n",
-		 rev, __raw_readl(CFGCHIP2),
+		 rev, readl(CFGCHIP2),
 		 musb_readb(reg_base, DA8XX_USB_CTRL_REG));
 
 	musb->isr = da8xx_musb_interrupt;
