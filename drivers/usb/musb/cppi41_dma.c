@@ -1559,7 +1559,7 @@ static void usb_process_rx_queue(struct cppi41 *cppi, unsigned index)
 		if (unlikely(rx_ch->channel.actual_len >= rx_ch->length ||
 			     length < orig_buf_len)) {
 
-#if defined(CONFIG_SOC_OMAPTI81XX) || defined(CONFIG_SOC_OMAPAM33XX) ||\
+#if defined(CONFIG_SOC_TI81XX) || defined(CONFIG_SOC_AM33XX) ||\
 			defined(CONFIG_ARCH_DAVINCI_DA850)
 
 			struct musb_hw_ep *ep;
