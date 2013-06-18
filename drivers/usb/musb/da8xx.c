@@ -38,6 +38,8 @@
 #include <mach/usb.h>
 
 #include "musb_core.h"
+#include "cppi41.h"
+#include "cppi41_dma.h"
 
 /*
  * DA8XX specific definitions
@@ -87,6 +89,140 @@ struct da8xx_glue {
 	struct platform_device	*musb;
 	struct clk		*clk;
 };
+
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+#define CPPI41_QMGR_REG0SIZE	0x3fff
+/*
+ * CPPI 4.1 resources used for USB OTG controller module:
+ *
+ * USB   DMA  DMA  QMgr  Tx     Src
+ *       Tx   Rx         QNum   Port
+ * ---------------------------------
+ * EP0   0    0    0     16,17  1
+ * ---------------------------------
+ * EP1   1    1    0     18,19  2
+ * ---------------------------------
+ * EP2   2    2    0     20,21  3
+ * ---------------------------------
+ * EP3   3    3    0     22,23  4
+ * ---------------------------------
+ */
+
+static u16 tx_comp_q[] = { 24, 24, 24, 24 };
+static u16 rx_comp_q[] = { 26, 26, 26, 26 };
+
+/* DMA block configuration */
+static const struct cppi41_tx_ch tx_ch_info[] = {
+	[0] = {
+		.port_num       = 1,
+		.num_tx_queue   = 2,
+		.tx_queue       = { { 0, 16 }, { 0, 17 } }
+	},
+	[1] = {
+		.port_num       = 2,
+		.num_tx_queue   = 2,
+		.tx_queue       = { { 0, 18 }, { 0, 19 } }
+	},
+	[2] = {
+		.port_num       = 3,
+		.num_tx_queue   = 2,
+		.tx_queue       = { { 0, 20 }, { 0, 21 } }
+	},
+	[3] = {
+		.port_num       = 4,
+		.num_tx_queue   = 2,
+		.tx_queue       = { { 0, 22 }, { 0, 23 } }
+	}
+};
+
+#define DA8XX_USB0_CFG_BASE IO_ADDRESS(DA8XX_USB0_BASE)
+
+/* Queues 0 to 27 are pre-assigned, others are spare */
+static const u32 assigned_queues[] = { 0x0fffffff, 0 };
+
+/* Fair scheduling */
+static u32 dma_sched_table[] = {
+	0x81018000, 0x83038202,
+};
+
+static int __devinit cppi41_init(struct musb *musb)
+{
+	struct usb_cppi41_info *cppi_info = &usb_cppi41_info[0];
+	u16 numch, blknum, order, i;
+
+	/* init cppi info structure  */
+	cppi_info->dma_block = 0;
+	for (i = 0 ; i < USB_CPPI41_NUM_CH ; i++)
+		cppi_info->ep_dma_ch[i] = i;
+
+	cppi_info->q_mgr = 0;
+	cppi_info->num_tx_comp_q = 2;
+	cppi_info->num_rx_comp_q = 2;
+	cppi_info->tx_comp_q = tx_comp_q;
+	cppi_info->rx_comp_q = rx_comp_q;
+#ifdef CONFIG_MUSB_TI_CPPI41_DMA_IN_TRANSPARENT
+	cppi_info->grndis_for_host_rx  = 0;
+#else
+	cppi_info->grndis_for_host_rx  = 1;
+#endif
+	//cppi_info->bd_intr_ctrl = 0; /* am35x dont support bd interrupt */
+
+	blknum = cppi_info->dma_block;
+
+	/* Queue manager information */
+	cppi41_queue_mgr[0].num_queue = 64;
+	cppi41_queue_mgr[0].queue_types = CPPI41_FREE_DESC_BUF_QUEUE |
+						CPPI41_UNASSIGNED_QUEUE;
+	cppi41_queue_mgr[0].base_fdbq_num = 0;
+	cppi41_queue_mgr[0].assigned = assigned_queues;
+
+	/* init mappings */
+	cppi41_queue_mgr[0].q_mgr_rgn_base = DA8XX_USB0_CFG_BASE + 0x4000;
+	cppi41_queue_mgr[0].desc_mem_rgn_base = DA8XX_USB0_CFG_BASE + 0x5000;
+	cppi41_queue_mgr[0].q_mgmt_rgn_base = DA8XX_USB0_CFG_BASE + 0x6000;
+	cppi41_queue_mgr[0].q_stat_rgn_base = DA8XX_USB0_CFG_BASE + 0x6800;
+
+	/* init DMA block */
+	cppi41_dma_block[0].num_tx_ch = 4;
+	cppi41_dma_block[0].num_rx_ch = 4;
+	cppi41_dma_block[0].tx_ch_info = tx_ch_info;
+
+	cppi41_dma_block[0].global_ctrl_base = DA8XX_USB0_CFG_BASE + 0x1000;
+	cppi41_dma_block[0].ch_ctrl_stat_base = DA8XX_USB0_CFG_BASE + 0x1800;
+	cppi41_dma_block[0].sched_ctrl_base = DA8XX_USB0_CFG_BASE + 0x2000;
+	cppi41_dma_block[0].sched_table_base = DA8XX_USB0_CFG_BASE + 0x2800;
+
+	/* Initialize for Linking RAM region 0 alone */
+	cppi41_queue_mgr_init(cppi_info->q_mgr, 0,
+			USB_CPPI41_QMGR_REG0_ALLOC_SIZE);
+
+	numch =  USB_CPPI41_NUM_CH * 2;
+	order = get_count_order(numch);
+	cppi41_dma_block[0].num_max_ch = numch;
+
+	/* TODO: check two teardown desc per channel (5 or 7 ?)*/
+	if (order < 5)
+		order = 5;
+
+	cppi41_dma_block_init(blknum, cppi_info->q_mgr, order,
+			dma_sched_table, numch);
+	return 0;
+}
+
+static void cppi41_free(void)
+{
+	u32 numch, blknum, order;
+	struct usb_cppi41_info *cppi_info = &usb_cppi41_info[0];
+
+	numch =  USB_CPPI41_NUM_CH * 2;
+	order = get_count_order(numch);
+	blknum = cppi_info->dma_block;
+
+	cppi41_dma_block_uninit(blknum, cppi_info->q_mgr, order,
+			dma_sched_table, numch);
+	cppi41_queue_mgr_uninit(cppi_info->q_mgr);
+}
+#endif /* CONFIG_USB_TI_CPPI41_DMA */
 
 void da8xx_musb_enable_sof(struct musb *musb)
 {
@@ -319,10 +455,31 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 	struct usb_otg		*otg = musb->xceiv->otg;
 	unsigned long		flags;
 	irqreturn_t		ret = IRQ_NONE;
-	u32			status;
+	u32			status, pend0;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+	if (is_cppi41_enabled(musb)) {
+		/*
+		 * Check for the interrupts from Tx/Rx completion queues; they
+		 * are level-triggered and will stay asserted until the queues
+		 * are emptied.  We're using the queue pending register 0 as a
+		 * substitute for the interrupt status register and reading it
+		 * directly for speed.
+		 */
+		pend0 = musb_readl(reg_base, 0x4000 +
+				   QMGR_QUEUE_PENDING_REG(0));
+		if (pend0 & (0xf << 24)) {		/* queues 24 to 27 */
+			u32 tx = (pend0 >> 24) & 0x3;
+			u32 rx = (pend0 >> 26) & 0x3;
+
+			pr_debug("CPPI 4.1 IRQ: Tx %x, Rx %x\n", tx, rx);
+			cppi41_completion(musb, rx, tx);
+			ret = IRQ_HANDLED;
+		}
+	}
+#endif
 	/*
 	 * NOTE: DA8XX shadows the Mentor IRQs.  Don't manage them through
 	 * the Mentor registers (except for setup), use the TI ones and EOI.
@@ -462,6 +619,10 @@ static int da8xx_musb_init(struct musb *musb)
 
 	msleep(5);
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+	cppi41_init(musb);
+#endif
+
 	/* NOTE: IRQs are in mixed mode, not bypass to pure MUSB */
 	pr_debug("DA8xx OTG revision %08x, PHY %03x, control %02x\n",
 		 rev, __raw_readl(CFGCHIP2),
@@ -483,6 +644,9 @@ static int da8xx_musb_exit(struct musb *musb)
 	usb_put_phy(musb->xceiv);
 	usb_nop_xceiv_unregister();
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+	cppi41_free();
+#endif
 	return 0;
 }
 
@@ -503,6 +667,9 @@ static const struct musb_platform_ops da8xx_ops = {
 	.try_idle	= da8xx_musb_try_idle,
 
 	.set_vbus	= da8xx_musb_set_vbus,
+
+	.dma_controller_create = cppi41_dma_controller_create,
+	.dma_controller_destroy = cppi41_dma_controller_destroy,
 
 	.en_sof		= da8xx_musb_enable_sof,
 	.dis_sof	= da8xx_musb_disable_sof,
