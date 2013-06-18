@@ -1966,6 +1966,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb->board_set_power = plat->set_power;
 	musb->min_power = plat->min_power;
 	musb->ops = plat->platform_ops;
+	musb->id = pdev->id;
 
 	musb->fifo_mode = musb->ops->fifo_mode;
 
@@ -1979,6 +1980,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		musb_readb = __musb_readb;
 		musb_writeb = __musb_writeb;
 	}
+
+	dev_info(dev, "dma type: %s\n", get_dma_name(musb));
 
 	/* The musb_platform_init() call:
 	 *   - adjusts musb->mregs and musb->isr if needed,
@@ -2385,6 +2388,7 @@ static int musb_suspend(struct device *dev)
 {
 	struct musb	*musb = dev_to_musb(dev);
 	unsigned long	flags;
+	int ret = 0;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -2399,7 +2403,7 @@ static int musb_suspend(struct device *dev)
 	}
 
 	spin_unlock_irqrestore(&musb->lock, flags);
-	return 0;
+	return ret;
 }
 
 static int musb_resume_noirq(struct device *dev)
