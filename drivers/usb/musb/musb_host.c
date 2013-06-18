@@ -828,6 +828,8 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		hw_ep->tx_channel = NULL;
 	} else if (!is_out && musb_is_intr_sched() &&
 		qh->type == USB_ENDPOINT_XFER_INT) {
+
+		use_dma = 0;
 		musb->hold_count = HS_HOLD_VAL;
 		if (musb->port1_status & USB_PORT_STAT_HIGH_SPEED)
 				musb->hold_count = FS_HOLD_VAL;
