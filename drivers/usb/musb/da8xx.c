@@ -456,12 +456,13 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 	struct usb_otg		*otg = musb->xceiv->otg;
 	unsigned long		flags;
 	irqreturn_t		ret = IRQ_NONE;
-	u32			status, pend0;
+	u32			status;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
 #ifdef CONFIG_USB_TI_CPPI41_DMA
 	if (is_cppi41_enabled(musb)) {
+		u32	pend0;
 		/*
 		 * Check for the interrupts from Tx/Rx completion queues; they
 		 * are level-triggered and will stay asserted until the queues
