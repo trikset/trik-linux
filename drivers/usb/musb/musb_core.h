@@ -645,7 +645,7 @@ static inline void musb_disable_sof(struct musb *musb)
 static inline const char *musb_get_dma_name(struct musb *musb)
 {
 #ifdef CONFIG_MUSB_PIO_ONLY
-	return "pio";
+	return "pio-only";
 #else
 	if (musb->ops->flags & MUSB_GLUE_DMA_INVENTRA)
 		return "dma-inventra";
@@ -655,8 +655,10 @@ static inline const char *musb_get_dma_name(struct musb *musb)
 		return "dma-cppi41";
 	else if (musb->ops->flags & MUSB_GLUE_DMA_TUSB)
 		return "dma-tusb-omap";
+	else if (musb->ops->flags & MUSB_GLUE_DMA_UX500)
+		return "dma-ux500";
 	else
-		return "?dma?";
+		return "dma-unknown";
 #endif
 }
 
