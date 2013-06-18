@@ -1940,6 +1940,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	int			status;
 	struct musb		*musb;
 	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct platform_device *pdev = to_platform_device(dev);
 
 	/* The driver might handle more features than the board; OK.
 	 * Fail when the board needs a feature that's not enabled.
