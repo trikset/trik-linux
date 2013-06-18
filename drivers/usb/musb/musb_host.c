@@ -358,10 +358,11 @@ static inline void musb_save_toggle(struct musb_qh *qh, int is_in,
 	 * problems getting toggle correct.
 	 */
 
-	if (is_in)
+	if (is_in) {
 		csr = musb_readw(epio, MUSB_RXCSR) & MUSB_RXCSR_H_DATATOGGLE;
-	else
+	} else {
 		csr = musb_readw(epio, MUSB_TXCSR) & MUSB_TXCSR_H_DATATOGGLE;
+	}
 
 	usb_settoggle(urb->dev, qh->epnum, !is_in, csr ? 1 : 0);
 }
@@ -1685,7 +1686,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 				MUSB_RXCSR_H_WZC_BITS | val);
 		}
 
-		dev_dbg(musb->controller, "ep %d dma %s, rxcsr %04x, rxcount %d\n", epnum,
+		dev_dbg(musb->controller,
+			"ep %d dma %s, rxcsr %04x, rxcount %d\n", epnum,
 			done ? "off" : "reset",
 			musb_readw(epio, MUSB_RXCSR),
 			musb_readw(epio, MUSB_RXCOUNT));
@@ -1837,8 +1839,9 @@ finish:
 	urb->actual_length += xfer_len;
 	qh->offset += xfer_len;
 	if (done) {
-		if (urb->status == -EINPROGRESS)
+		if (urb->status == -EINPROGRESS) {
 			urb->status = status;
+		}
 		musb_advance_schedule(musb, urb, hw_ep, USB_DIR_IN);
 	}
 }
@@ -2008,7 +2011,7 @@ static int musb_urb_enqueue(
 	struct usb_endpoint_descriptor	*epd = &hep->desc;
 	int				ret;
 	unsigned			type_reg;
-	unsigned			interval;
+	unsigned			interval = 0;
 
 	/* host role must be active */
 	if (!is_host_active(musb) || !musb->is_active)
@@ -2369,8 +2372,9 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 		 * other transfers, and since !qh->is_ready nothing
 		 * will activate any of these as it advances.
 		 */
-		while (!list_empty(&hep->urb_list))
+		while (!list_empty(&hep->urb_list)) {
 			musb_giveback(musb, next_urb(qh), -ESHUTDOWN);
+		}
 
 		hep->hcpriv = NULL;
 		list_del(&qh->ring);
