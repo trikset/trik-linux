@@ -649,6 +649,8 @@ static inline const char *get_dma_name(struct musb *musb)
 		return "dma-inventra";
 	else if (musb->ops->flags & MUSB_GLUE_DMA_CPPI)
 		return "dma-cppi3";
+	else if (musb->ops->flags & MUSB_GLUE_DMA_CPPI41)
+		return "dma-cppi41";
 	else if (musb->ops->flags & MUSB_GLUE_DMA_TUSB)
 		return "dma-tusb-omap";
 	else

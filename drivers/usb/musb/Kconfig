@@ -84,8 +84,8 @@ choice
 	default USB_UX500_DMA if USB_MUSB_UX500
 	default USB_INVENTRA_DMA if USB_MUSB_OMAP2PLUS || USB_MUSB_BLACKFIN
 	default USB_TI_CPPI_DMA if USB_MUSB_DAVINCI
+	default USB_TI_CPPI41_DMA if USB_MUSB_DA8XX || USB_MUSB_AM35X || USB_MUSB_DSPS
 	default USB_TUSB_OMAP_DMA if USB_MUSB_TUSB6010
-	default MUSB_PIO_ONLY if USB_MUSB_DA8XX || USB_MUSB_AM35X || USB_MUSB_DSPS
 	help
 	  Unfortunately, only one option can be enabled here. Ideally one
 	  should be able to build all these drivers into one kernel to
@@ -108,6 +108,15 @@ config USB_TI_CPPI_DMA
 	depends on USB_MUSB_DAVINCI
 	help
 	  Enable DMA transfers when TI CPPI DMA is available.
+
+config USB_TI_CPPI41_DMA
+	bool 'TI CPPI 4.1 (Davinci)'
+	depends on USB_MUSB_DA8XX || USB_MUSB_AM35X || USB_MUSB_DSPS
+	help
+	  Enable DMA transfers using CPPI 4.1 DMA engine.
+	  The CPPI 4.1 DMA engine integrated with musb controller
+	  accelarate the usb packet transmission and receception
+	  to/from musb endpoints.
 
 config USB_TUSB_OMAP_DMA
 	bool 'TUSB 6010'
@@ -133,5 +142,15 @@ config  MUSB_SCHEDULE_INTR_EP
 	help
 	  Schedule Interrupt Endpoint resources for supporting multiple
 	  Interrupt URB's on a single INTR EP.  Use SOF for scheduling the EP.
+
+config MUSB_TI_CPPI41_DMA_IN_TRANSPARENT
+	bool "Use CPPI4.1 DMA transparent mode for all host Rx transfers"
+	depends on USB_TI_CPPI41_DMA
+	default n
+	help
+	 Enable transparent mode dma for all host rx transfers. Select this
+	 if you see Rx request lock up (no IN token on the bus) when your
+	 device uses or use case involves, control transfer while
+	 CPPI 4.1 DMA is doing data transfer.
 
 endif # USB_MUSB_HDRC
