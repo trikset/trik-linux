@@ -30,8 +30,6 @@
 #define USBSS_RTL_VERSION_MASK	0xF
 #define USBSS_RTL_VERSION_D	0xD
 
-#define USB_CPPI41_NUM_CH       15
-
 /**
  * struct usb_cppi41_info - CPPI 4.1 USB implementation details
  * @dma_block:	DMA block number
