@@ -461,6 +461,8 @@ struct musb {
 #ifdef MUSB_CONFIG_PROC_FS
 	struct proc_dir_entry	*proc_entry;
 #endif
+	/* id for multiple musb instances */
+	u8			id;
 #ifndef CONFIG_MUSB_PIO_ONLY
 	u64			*orig_dma_mask;
 #endif
