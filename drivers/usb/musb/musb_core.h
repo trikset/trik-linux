@@ -359,6 +359,11 @@ struct musb {
 	struct list_head	in_intr;	/* of musb_qh */
 	struct list_head	out_intr;	/* of musb_qh */
 
+	struct workqueue_struct	*gb_queue;
+	struct work_struct	gb_work;
+	spinlock_t		gb_lock;
+	struct list_head	gb_list;	/* of urbs */
+
 	struct timer_list	otg_timer;
 	struct notifier_block	nb;
 
@@ -662,6 +667,7 @@ static inline const char *musb_get_dma_name(struct musb *musb)
 #endif
 }
 
+extern void musb_gb_work(struct work_struct *data);
 extern int musb_is_intr_sched(void);
 extern void musb_host_intr_schedule(struct musb *musb);
 /*-------------------------- ProcFS definitions ---------------------*/
