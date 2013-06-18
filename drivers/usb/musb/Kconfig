@@ -71,13 +71,13 @@ config USB_MUSB_UX500
 endchoice
 
 config USB_MUSB_OTG
-        tristate "DaVinci OTG"
+        bool "DaVinci OTG"
         depends on ARCH_DAVINCI_DA8XX
 config USB_MUSB_HOST
-        tristate "DaVinci HOST"
+        bool "DaVinci HOST"
         depends on ARCH_DAVINCI_DA8XX
 config USB_MUSB_PERIPHERAL
-        tristate "DaVinci PERIPHERAL"
+        bool "DaVinci PERIPHERAL"
         depends on ARCH_DAVINCI_DA8XX
 
 choice
