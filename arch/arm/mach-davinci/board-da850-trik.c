@@ -935,47 +935,38 @@ static __init int da850_trik_wifi_init(void){
 	int ret;
 
 	ret = davinci_cfg_reg_list(da850_trik_wifi_pins);
-	if (ret) {
-		pr_err("%s: WIFI mux setup failed: %d\n",
-			__func__, ret);
-		return ret;
-	}
+	if (ret)
+		pr_warning("%s: wi-fi pin mux setup failed: %d\n", __func__, ret);
+
 	ret = gpio_request_one(GPIO_TO_PIN(6,8), GPIOF_OUT_INIT_HIGH, "wi-fi_en_all");
-	if (ret) {
-		pr_err("Could not request wi-fi enable all gpio: %d\n", ret);
-		goto request_en_all_failed;
-	}
+	if (ret)
+		pr_warning("%s: could not request wi-fi enable all gpio: %d\n", __func__, ret);
+
 	ret =  gpio_request_one(GPIO_TO_PIN(5,11), GPIOF_OUT_INIT_LOW, "wi-fi_en");
-	if (ret) {
-		pr_err("%s: could not request wi-fi enable gpio: %d\n", __func__, ret);
-		goto request_en_failed;
-	}
+	if (ret)
+		pr_warning("%s: could not request wi-fi enable gpio: %d\n", __func__, ret);
+
 	ret =  gpio_request_one(GPIO_TO_PIN(6,9), GPIOF_IN, "wi-fi_irq");
-	if (ret) {
-		pr_err("%s: could not request wi-fi irq gpio: %d\n",__func__, ret);
-		goto request_irq_failed;
-	}
+	if (ret)
+		pr_warning("%s: could not request wi-fi irq gpio: %d\n",__func__, ret);
 
 	da850_trik_wl12xx_wlan_data.irq = gpio_to_irq(GPIO_TO_PIN(6,9));
 	ret = wl12xx_set_platform_data(&da850_trik_wl12xx_wlan_data);
 	if (ret) {
-		pr_err("%s :Could not set wl12xx platform  data: %d\n", __func__, ret);
-		goto set_platform_data_failed;
+		pr_err("%s: could not set wl12xx platform data: %d\n", __func__, ret);
+		goto exit_release_gpio;
 	}
+
 	ret = da850_register_mmcsd1(&da850_trik_wl12xx_mmc_config);
 	if (ret) {
 		pr_err("%s: wl12xx/mmc registration failed: %d\n", __func__, ret);
-		goto register_mmcsd1;
+		goto exit_release_gpio;
 	}
 	return 0;
-register_mmcsd1:
-set_platform_data_failed:
+exit_release_gpio:
 	gpio_free(GPIO_TO_PIN(6,9));
-request_irq_failed:
 	gpio_free(GPIO_TO_PIN(5,11));
-request_en_failed:
 	gpio_free(GPIO_TO_PIN(6,8));
-request_en_all_failed:
 	return ret;
 }
 static const short da850_trik_bluetooth_pins[] __initconst = {
