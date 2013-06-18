@@ -35,7 +35,8 @@ struct bfin_glue {
 /*
  * Load an endpoint's FIFO
  */
-void bfin_musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
+static void bfin_musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len,
+				const u8 *src)
 {
 	struct musb *musb = hw_ep->musb;
 	void __iomem *fifo = hw_ep->fifo;
@@ -588,7 +589,7 @@ static struct dev_pm_ops bfin_pm_ops = {
 
 static struct platform_driver bfin_driver = {
 	.probe		= bfin_probe,
-	.remove		= __exit_p(bfin_remove),
+	.remove		= __devexit_p(bfin_remove),
 	.driver		= {
 		.name	= "musb-blackfin",
 		.pm	= DEV_PM_OPS,
