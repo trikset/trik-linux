@@ -312,9 +312,10 @@ static void da8xx_musb_enable(struct musb *musb)
 	musb_writel(reg_base, DA8XX_USB_INTR_MASK_SET_REG, mask);
 
 	/* Force the DRVVBUS IRQ so we can start polling for ID change. */
-	if (is_otg_enabled(musb))
+	if (is_otg_enabled(musb)) {
 		musb_writel(reg_base, DA8XX_USB_INTR_SRC_SET_REG,
 			    DA8XX_INTR_DRVVBUS << DA8XX_INTR_USB_SHIFT);
+	}
 }
 
 /**
