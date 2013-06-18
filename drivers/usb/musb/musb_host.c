@@ -1951,7 +1951,17 @@ finish:
 	qh->offset += xfer_len;
 	if (done) {
 		if (urb->status == -EINPROGRESS) {
-			urb->status = status;
+			/* If short packet is not expected any transfer length
+			 * less than actual length is an error, hence
+			 * set urb status to -EREMOTEIO
+			 */
+			if ((urb->status == -EINPROGRESS)
+				&& (urb->transfer_flags & URB_SHORT_NOT_OK)
+				&& (urb->actual_length
+					< urb->transfer_buffer_length))
+				urb->status = -EREMOTEIO;
+			else
+				urb->status = status;
 		}
 		musb_advance_schedule(musb, urb, hw_ep, USB_DIR_IN);
 	}
