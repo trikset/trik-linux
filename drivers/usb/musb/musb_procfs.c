@@ -474,19 +474,24 @@ static int dump_header_stats(struct musb *musb, char *buffer)
 	code = sprintf(buffer,
 			"Options: "
 #ifdef CONFIG_MUSB_PIO_ONLY
-			"pio"
-#elif defined(CONFIG_USB_TI_CPPI_DMA)
-			"cppi-dma"
-#elif defined(CONFIG_USB_INVENTRA_DMA)
-			"musb-dma"
-#elif defined(CONFIG_USB_TUSB_OMAP_DMA)
-			"tusb-omap-dma"
-#else
-			"?dma?"
+			"pio-only, "
 #endif
-			", "
-			"otg (peripheral+host)"
-			", [eps=%d]\n",
+#ifdef CONFIG_USB_TI_CPPI_DMA
+			"cppi-dma, "
+#endif
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+			"cppi41-dma, "
+#endif
+#ifdef CONFIG_USB_INVENTRA_DMA
+			"musb-dma, "
+#endif
+#ifdef CONFIG_USB_TUSB_OMAP_DMA
+			"tusb-omap-dma, "
+#endif
+#ifdef CONFIG_USB_UX500_DMA
+			"ux500-dma, "
+#endif
+			"[eps=%d]\n",
 		musb->nr_endpoints);
 	if (code <= 0)
 		goto done;
