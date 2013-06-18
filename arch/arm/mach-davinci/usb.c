@@ -48,12 +48,13 @@ static struct musb_hdrc_platform_data usb_data = {
 	#warning MUSB_OTG
 #elif defined(CONFIG_USB_MUSB_PERIPHERAL)
 	.mode           = MUSB_PERIPHERAL,
-		#warning MUSB_PERIPHERAL
+	#warning MUSB_PERIPHERAL
 #elif defined(CONFIG_USB_MUSB_HOST)
 	.mode           = MUSB_HOST,
-		#warning MUSB_HOST
+	#warning MUSB_HOST
+#else
+	#warning MUSB_DEFAULT
 #endif
-		#warning MUSB_DEFAULT
 	.clock		= "usb",
 	.config		= &musb_config,
 };
