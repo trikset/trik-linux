@@ -421,6 +421,7 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 	struct usb_otg *otg = musb->xceiv->otg;
 	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
+	u32 pend1 = 0, pend2 = 0, tx, rx;
 	u32 epintr, usbintr;
 
 	spin_lock_irqsave(&musb->lock, flags);
