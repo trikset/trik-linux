@@ -70,15 +70,21 @@ config USB_MUSB_UX500
 
 endchoice
 
+choice
+	prompt 'DaVinci MUSB mode'
+	default USB_MUSB_OTG
+	depends on ARCH_DAVINCI_DA8XX
+
 config USB_MUSB_OTG
-        bool "DaVinci OTG"
-        depends on ARCH_DAVINCI_DA8XX
+	bool "DaVinci OTG"
+
 config USB_MUSB_HOST
-        bool "DaVinci HOST"
-        depends on ARCH_DAVINCI_DA8XX
+	bool "DaVinci HOST"
+
 config USB_MUSB_PERIPHERAL
-        bool "DaVinci PERIPHERAL"
-        depends on ARCH_DAVINCI_DA8XX
+	bool "DaVinci PERIPHERAL"
+
+endchoice
 
 choice
 	prompt 'MUSB DMA mode'
