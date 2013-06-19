@@ -121,11 +121,11 @@ static struct resource da8xx_usb20_resources[] = {
 	},
 };
 
-int __init da8xx_register_usb20(unsigned mA, unsigned potpgt)
+int __init da8xx_register_usb20(unsigned mA, unsigned potpgt_ms)
 {
 	usb_data.clock  = "usb20";
 	usb_data.power	= mA > 510 ? 255 : mA / 2;
-	usb_data.potpgt = (potpgt + 1) / 2;
+	usb_data.potpgt = (potpgt_ms + 1) / 2;
 
 	usb_dev.resource = da8xx_usb20_resources;
 	usb_dev.num_resources = ARRAY_SIZE(da8xx_usb20_resources);
@@ -142,7 +142,7 @@ void __init davinci_setup_usb(unsigned mA, unsigned potpgt_ms)
 }
 
 #ifdef CONFIG_ARCH_DAVINCI_DA8XX
-int __init da8xx_register_usb20(unsigned mA, unsigned potpgt)
+int __init da8xx_register_usb20(unsigned mA, unsigned potpgt_ms)
 {
 	return 0;
 }

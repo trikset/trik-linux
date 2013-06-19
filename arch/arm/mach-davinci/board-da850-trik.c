@@ -1044,9 +1044,9 @@ static __init int da850_trik_usb_init(void){
 
 	__raw_writel(cfgchip2, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
 
-	ret = gpio_request_one(GPIO_TO_PIN(5,15),GPIOF_DIR_IN,"USB Fault");
-	if (ret){
-		pr_err("%s: USB Fault gpio request failed: %d\n",__func__, ret);
+	ret = gpio_request_one(GPIO_TO_PIN(5,15), GPIOF_DIR_IN, "USB Fault");
+	if (ret) {
+		pr_err("%s: USB Fault gpio request failed: %d\n", __func__, ret);
 		goto request_usb_fault;
 	}
 	ret = da8xx_register_usb11(&da850_trik_usb11_pdata);
@@ -1056,7 +1056,7 @@ static __init int da850_trik_usb_init(void){
 	}
 
 	ret = da8xx_register_usb20(500, 20);
-	if (ret){
+	if (ret) {
 		pr_err("%s: USB 2.0 registration failed: %d\n",__func__, ret);
 		goto register_otg;
 	}
