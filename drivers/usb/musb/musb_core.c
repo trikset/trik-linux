@@ -1379,17 +1379,33 @@ done:
 		musb->nr_endpoints = max(epn, musb->nr_endpoints);
 	}
 
-	dev_notice(musb->controller, "%s: %u ep of max %u, %u memory of total %u, bulk ep %d, intr ep %d\n",
+	dev_notice(musb->controller, "%s: %u ep of max %u, %u memory of total %u\n",
 			__func__,
 			(unsigned)(n + 1), (unsigned)(musb->config->num_eps * 2 - 1),
-			(unsigned)(offset), (unsigned)(1u << (musb->config->ram_bits + 2)),
-			musb->bulk_ep?(int)musb->bulk_ep->epnum:(int)-1,
-			musb->intr_ep?(int)musb->intr_ep->epnum:(int)-1);
+			(unsigned)(offset), (unsigned)(1u << (musb->config->ram_bits + 2)));
 
 	if (!musb->bulk_ep) {
 		dev_warn(musb->controller, "%s: missing bulk\n", __func__);
 		return -EINVAL;
-	}
+	} else
+		dev_notice(musb->controller, "%s: bulk_ep %u, %s%s%s, packet size %u rx /%u tx\n",
+				__func__,
+				(unsigned)musb->bulk_ep->epnum,
+				musb->bulk_ep->is_shared_fifo?"shared fifo, ":"",
+				musb->bulk_ep->rx_double_buffered?"rx dblbuf, ":"",,
+				musb->bulk_ep->tx_double_buffered?"tx dblbuf, ":"",,
+				(unsigned)musb->bulk_ep->max_packet_sz_rx,
+				(unsigned)musb->bulk_ep->max_packet_sz_tx);
+
+	if (musb->intr_ep)
+		dev_notice(musb->controller, "%s: intr_ep %u, %s%s%s, packet size %u rx /%u tx\n",
+				__func__,
+				(unsigned)musb->intr_ep->epnum,
+				musb->intr_ep->is_shared_fifo?"shared fifo, ":"",
+				musb->intr_ep->rx_double_buffered?"rx dblbuf, ":"",,
+				musb->intr_ep->tx_double_buffered?"tx dblbuf, ":"",,
+				(unsigned)musb->intr_ep->max_packet_sz_rx,
+				(unsigned)musb->intr_ep->max_packet_sz_tx);
 
 	return 0;
 }
