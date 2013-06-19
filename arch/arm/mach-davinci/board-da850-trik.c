@@ -938,19 +938,19 @@ static __init int da850_trik_wifi_init(void){
 	if (ret)
 		pr_warning("%s: wi-fi pin mux setup failed: %d\n", __func__, ret);
 
-	ret = gpio_request_one(GPIO_TO_PIN(6,8), GPIOF_OUT_INIT_HIGH, "wi-fi_en_all");
+	ret = gpio_request_one(GPIO_TO_PIN(6, 8), GPIOF_OUT_INIT_HIGH, "wi-fi_en_all");
 	if (ret)
 		pr_warning("%s: could not request wi-fi enable all gpio: %d\n", __func__, ret);
 
-	ret =  gpio_request_one(GPIO_TO_PIN(5,11), GPIOF_OUT_INIT_LOW, "wi-fi_en");
+        ret = gpio_request_one(GPIO_TO_PIN(5,11), GPIOF_OUT_INIT_LOW, "wi-fi_en");
 	if (ret)
 		pr_warning("%s: could not request wi-fi enable gpio: %d\n", __func__, ret);
 
-	ret =  gpio_request_one(GPIO_TO_PIN(6,9), GPIOF_IN, "wi-fi_irq");
+	ret = gpio_request_one(GPIO_TO_PIN(6, 9), GPIOF_IN, "wi-fi_irq");
 	if (ret)
 		pr_warning("%s: could not request wi-fi irq gpio: %d\n",__func__, ret);
 
-	da850_trik_wl12xx_wlan_data.irq = gpio_to_irq(GPIO_TO_PIN(6,9));
+	da850_trik_wl12xx_wlan_data.irq = gpio_to_irq(GPIO_TO_PIN(6, 9));
 	ret = wl12xx_set_platform_data(&da850_trik_wl12xx_wlan_data);
 	if (ret) {
 		pr_err("%s: could not set wl12xx platform data: %d\n", __func__, ret);
@@ -964,9 +964,9 @@ static __init int da850_trik_wifi_init(void){
 	}
 	return 0;
 exit_release_gpio:
-	gpio_free(GPIO_TO_PIN(6,9));
+	gpio_free(GPIO_TO_PIN(6, 9));
 	gpio_free(GPIO_TO_PIN(5,11));
-	gpio_free(GPIO_TO_PIN(6,8));
+	gpio_free(GPIO_TO_PIN(6, 8));
 	return ret;
 }
 static const short da850_trik_bluetooth_pins[] __initconst = {
