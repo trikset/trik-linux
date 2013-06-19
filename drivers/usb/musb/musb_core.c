@@ -1844,10 +1844,9 @@ static const struct attribute_group musb_attr_group = {
 static void musb_irq_work(struct work_struct *data)
 {
 	struct musb *musb = container_of(data, struct musb, irq_work);
-	static int old_state;
 
-	if (musb->xceiv->state != old_state) {
-		old_state = musb->xceiv->state;
+	if (musb->xceiv->state != musb->old_state) {
+		musb->old_state = musb->xceiv->state;
 		sysfs_notify(&musb->controller->kobj, NULL, "mode");
 	}
 }
@@ -1935,6 +1934,8 @@ static void musb_free(struct musb *musb)
 	if (musb->gb_queue)
 		destroy_workqueue(musb->gb_queue);
 
+	del_timer_sync(&musb->otg_timer);
+
 	kfree(musb);
 }
 
@@ -1981,6 +1982,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb->min_power = plat->min_power;
 	musb->ops = plat->platform_ops;
 	musb->id = pdev->id;
+	musb->first = 1;
 
 	musb->fifo_mode = musb->ops->fifo_mode;
 
@@ -2452,7 +2454,6 @@ static int musb_runtime_suspend(struct device *dev)
 static int musb_runtime_resume(struct device *dev)
 {
 	struct musb	*musb = dev_to_musb(dev);
-	static int	first = 1;
 
 	/*
 	 * When pm_runtime_get_sync called for the first time in driver
@@ -2463,9 +2464,10 @@ static int musb_runtime_resume(struct device *dev)
 	 * Also context restore without save does not make
 	 * any sense
 	 */
-	if (!first)
+	if (musb->first)
+		musb->first = 0;
+	else
 		musb_restore_context(musb);
-	first = 0;
 
 	return 0;
 }
