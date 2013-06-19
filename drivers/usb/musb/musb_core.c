@@ -1889,23 +1889,31 @@ allocate_instance(struct device *dev,
 	int			epnum;
 	struct usb_hcd	*hcd;
 
-	hcd = usb_create_hcd(&musb_hc_driver, dev, dev_name(dev));
-	if (!hcd)
-		return NULL;
-	/* usbcore sets dev->driver_data to hcd, and sometimes uses that... */
+	if (plat->mode != MUSB_PERIPHERAL) {
+		hcd = usb_create_hcd(&musb_hc_driver, dev, dev_name(dev));
+		if (!hcd)
+			return NULL;
+		/* usbcore sets dev->driver_data to hcd, and sometimes uses
+		 * that...
+		 */
 
-	musb = hcd_to_musb(hcd);
-	INIT_LIST_HEAD(&musb->control);
-	INIT_LIST_HEAD(&musb->in_bulk);
-	INIT_LIST_HEAD(&musb->out_bulk);
-	INIT_LIST_HEAD(&musb->in_intr);
-	INIT_LIST_HEAD(&musb->out_intr);
-	INIT_LIST_HEAD(&musb->gb_list);
+		musb = hcd_to_musb(hcd);
+		INIT_LIST_HEAD(&musb->control);
+		INIT_LIST_HEAD(&musb->in_bulk);
+		INIT_LIST_HEAD(&musb->out_bulk);
+		INIT_LIST_HEAD(&musb->in_intr);
+		INIT_LIST_HEAD(&musb->out_intr);
+		INIT_LIST_HEAD(&musb->gb_list);
 
-	hcd->uses_new_polling = 1;
-	hcd->has_tt = 1;
+		hcd->uses_new_polling = 1;
+		hcd->has_tt = 1;
 
-	musb->vbuserr_retry = VBUSERR_RETRY_COUNT;
+		musb->vbuserr_retry = VBUSERR_RETRY_COUNT;
+	} else {
+		musb = kzalloc(sizeof *musb, GFP_KERNEL);
+		if (!musb)
+			return NULL;
+	}
 	musb->a_wait_bcon = OTG_TIME_A_WAIT_BCON;
 	dev_set_drvdata(dev, musb);
 	musb->mregs = mbase;
