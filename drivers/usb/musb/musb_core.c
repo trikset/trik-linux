@@ -1392,8 +1392,8 @@ done:
 				__func__,
 				(unsigned)musb->bulk_ep->epnum,
 				musb->bulk_ep->is_shared_fifo?"shared fifo, ":"",
-				musb->bulk_ep->rx_double_buffered?"rx dblbuf, ":"",,
-				musb->bulk_ep->tx_double_buffered?"tx dblbuf, ":"",,
+				musb->bulk_ep->rx_double_buffered?"rx dblbuf, ":"",
+				musb->bulk_ep->tx_double_buffered?"tx dblbuf, ":"",
 				(unsigned)musb->bulk_ep->max_packet_sz_rx,
 				(unsigned)musb->bulk_ep->max_packet_sz_tx);
 
@@ -1402,8 +1402,8 @@ done:
 				__func__,
 				(unsigned)musb->intr_ep->epnum,
 				musb->intr_ep->is_shared_fifo?"shared fifo, ":"",
-				musb->intr_ep->rx_double_buffered?"rx dblbuf, ":"",,
-				musb->intr_ep->tx_double_buffered?"tx dblbuf, ":"",,
+				musb->intr_ep->rx_double_buffered?"rx dblbuf, ":"",
+				musb->intr_ep->tx_double_buffered?"tx dblbuf, ":"",
 				(unsigned)musb->intr_ep->max_packet_sz_rx,
 				(unsigned)musb->intr_ep->max_packet_sz_tx);
 
