@@ -2172,7 +2172,7 @@ void musb_g_disconnect(struct musb *musb)
 		MUSB_HST_MODE(musb);
 		break;
 	case OTG_STATE_A_PERIPHERAL:
-		musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
+		musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
 		MUSB_HST_MODE(musb);
 		break;
 	case OTG_STATE_B_WAIT_ACON:
