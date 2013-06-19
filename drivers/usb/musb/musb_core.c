@@ -1983,6 +1983,7 @@ static void musb_free(struct musb *musb)
 	if (is_host_enabled(musb)) {
 		if (musb->gb_queue)
 			destroy_workqueue(musb->gb_queue);
+		usb_put_hcd(musb_to_hcd(musb));
 	} else {
 		kfree(musb);
 	}
