@@ -464,6 +464,7 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
+	dev_set_name(&pdev->dev, "musb-omap2430");
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &omap2430_dmamask;
 	musb->dev.coherent_dma_mask	= omap2430_dmamask;
