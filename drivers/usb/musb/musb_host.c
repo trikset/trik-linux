@@ -2195,6 +2195,20 @@ static int musb_urb_enqueue(
 			ok = (usb_pipein(urb->pipe) && musb->hb_iso_rx)
 				|| (usb_pipeout(urb->pipe) && musb->hb_iso_tx);
 		if (!ok) {
+			dev_notice(musb->controller, "%s: rejecting urb %ux%u, "
+				"isoc %s, in %s, out %s",
+				__func__,
+				(unsigned)(qh->hb_mult),
+				(unsigned)(qh->maxpacket&((1u<<11)-1u)),
+				(qh->type == USB_ENDPOINT_XFER_ISOC)?"yes":"NO",
+				usb_pipein(urb->pipe)
+					? (musb->hb_iso_rx ? "hb isoc"
+							   : "NOT HB ISOC")
+					:"no",
+				usb_pipeout(urb->pipe)
+					? (musb->hb_iso_tx ? "hb isoc"
+							   : "NOT HB ISOC")
+					:"no");
 			ret = -EMSGSIZE;
 			goto done;
 		}
