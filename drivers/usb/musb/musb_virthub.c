@@ -180,8 +180,6 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 
 void musb_root_disconnect(struct musb *musb)
 {
-	struct usb_otg	*otg = musb->xceiv->otg;
-
 	musb->port1_status = USB_PORT_STAT_POWER
 			| (USB_PORT_STAT_C_CONNECTION << 16);
 
@@ -189,15 +187,8 @@ void musb_root_disconnect(struct musb *musb)
 	musb->is_active = 0;
 
 	switch (musb->xceiv->state) {
-	case OTG_STATE_A_SUSPEND:
-		if (is_otg_enabled(musb)
-				&& otg->host->b_hnp_enable) {
-			musb->xceiv->state = OTG_STATE_A_PERIPHERAL;
-			musb->g.is_a_peripheral = 1;
-			break;
-		}
-		/* FALLTHROUGH */
 	case OTG_STATE_A_HOST:
+	case OTG_STATE_A_SUSPEND:
 		musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
 		musb->is_active = 0;
 		break;
