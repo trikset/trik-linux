@@ -1068,7 +1068,8 @@ static void musb_shutdown(struct platform_device *pdev)
 
 	pm_runtime_get_sync(musb->controller);
 
-	musb_gadget_cleanup(musb);
+	if (is_peripheral_enabled(musb))
+		musb_gadget_cleanup(musb);
 
 	spin_lock_irqsave(&musb->lock, flags);
 	musb_platform_disable(musb);
@@ -1964,9 +1965,6 @@ static void musb_free(struct musb *musb)
 	sysfs_remove_group(&musb->controller->kobj, &musb_attr_group);
 #endif
 
-	if (is_peripheral_enabled(musb))
-		musb_gadget_cleanup(musb);
-
 	if (musb->nIrq >= 0) {
 		if (musb->irq_wake)
 			disable_irq_wake(musb->nIrq);
@@ -2110,7 +2108,9 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (status < 0)
 		goto fail3;
 
-	setup_timer(&musb->otg_timer, musb_otg_timer_func, (unsigned long) musb);
+	if (is_otg_enabled(musb))
+		setup_timer(&musb->otg_timer, musb_otg_timer_func,
+						(unsigned long) musb);
 
 	/* Init IRQ workqueue before request_irq */
 	INIT_WORK(&musb->irq_work, musb_irq_work);
