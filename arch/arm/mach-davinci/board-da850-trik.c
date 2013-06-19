@@ -987,12 +987,14 @@ static __init int da850_trik_bluetooth_init(void){
 	return 0;
 }
 static const short da850_trik_usb_pins[] __initconst = {
-	DA850_GPIO5_15, /**USB FAULT*/
-	DA850_GPIO6_1, /*MODE_B*/
+	DA850_GPIO5_15,	/*USB FAULT*/
+	DA850_GPIO6_1,	/*MODE_B*/
 	-1
 };
-#warning TODO USB HOST & OTG MODE
-
+#warning TODO USB HOST & OTG MODE (note that Kconfig sets USB_MUSB_HOST by default now, should be changed when OTG supported)
+#ifndef CONFIG_USB_MUSB_HOST
+#error Only USB_MUSB_HOST supported now!
+#endif
 
 static int da850_trik_set_power(unsigned port, int on)
 {
