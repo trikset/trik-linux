@@ -360,7 +360,6 @@ struct musb {
 	spinlock_t		gb_lock;
 	struct list_head	gb_list;	/* of urbs */
 
-	struct timer_list	otg_timer;
 	struct notifier_block	nb;
 
 	struct dma_controller	*dma_controller;
