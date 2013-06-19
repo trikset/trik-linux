@@ -678,7 +678,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 					&& otg->gadget->b_hnp_enable;
 			if (musb->is_active) {
 				musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
-				dev_dbg(musb->controller, "HNP: setting timer for b_ase0_brst\n");
+				dev_dbg(musb->controller, "HNP: Setting timer for b_ase0_brst\n");
 				mod_timer(&musb->otg_timer, jiffies
 					+ msecs_to_jiffies(
 							OTG_TIME_B_ASE0_BRST));
@@ -848,7 +848,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				/* FALLTHROUGH */
 			case OTG_STATE_A_WAIT_BCON:	/* OPT TD.4.7-900ms */
 				dev_dbg(musb->controller,
-					"HNP: setting timer as %s for %dms\n",
+					"HNP: Setting timer as %s for %dms\n",
 					otg_state_string(musb->xceiv->state),
 					TA_WAIT_BCON(musb));
 				mod_timer(&musb->otg_timer, jiffies
