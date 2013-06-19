@@ -1479,8 +1479,8 @@ static int __devinit musb_core_init(u16 musb_type, struct musb *musb)
 	if (reg & MUSB_CONFIGDATA_SOFTCONE)
 		strcat(aInfo, ", SoftConn");
 
-	printk(KERN_DEBUG "%s: ConfigData=0x%02x (%s)\n",
-			musb_driver_name, reg, aInfo);
+	dev_notice(musb->controller, "%s: ConfigData=0x%02x (%s)\n",
+			__func__, reg, aInfo);
 
 	aDate[0] = 0;
 	if (MUSB_CONTROLLER_MHDRC == musb_type) {
