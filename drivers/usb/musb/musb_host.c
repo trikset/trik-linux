@@ -2558,7 +2558,7 @@ static void musb_h_stop(struct usb_hcd *hcd)
 }
 
 #ifdef CONFIG_MUSB_SCHEDULE_INTR_EP
-static int use_intr_sched = 1;
+static bool use_intr_sched = 1;
 module_param(use_intr_sched, bool, 0);
 MODULE_PARM_DESC(use_intr_sched,
 	"enable/disable use of interrupt endpoint scheduling");
@@ -2566,7 +2566,7 @@ MODULE_PARM_DESC(use_intr_sched,
 #define use_intr_sched	0
 #endif
 
-int musb_is_intr_sched(void)
+bool musb_is_intr_sched(void)
 {
 	return use_intr_sched;
 }
