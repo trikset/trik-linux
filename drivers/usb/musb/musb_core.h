@@ -230,7 +230,6 @@ struct musb_platform_ops {
 	struct dma_controller* (*dma_controller_create)(struct musb *,
 		void __iomem *);
 	void	(*dma_controller_destroy)(struct dma_controller *);
-	int	(*simulate_babble_intr)(struct musb *musb);
 	void	(*en_sof)(struct musb *musb);
 	void	(*dis_sof)(struct musb *musb);
 };
@@ -629,14 +628,6 @@ static inline u16 musb_platform_get_hw_revision(struct musb *musb)
 		return musb_readw(musb->mregs, MUSB_HWVERS);
 
 	return musb->ops->get_hw_revision(musb);
-}
-
-static inline int musb_simulate_babble_intr(struct musb *musb)
-{
-	if (!musb->ops->simulate_babble_intr)
-		return -EINVAL;
-
-	return musb->ops->simulate_babble_intr(musb);
 }
 
 static inline void musb_enable_sof(struct musb *musb)
