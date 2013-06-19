@@ -1379,10 +1379,12 @@ done:
 		musb->nr_endpoints = max(epn, musb->nr_endpoints);
 	}
 
-	dev_dbg(musb->controller, "%s: %u ep of max %u, %u memory of total %u\n",
+	dev_notice(musb->controller, "%s: %u ep of max %u, %u memory of total %u, bulk ep %u, intr ep %u\n",
 			__func__,
 			(unsigned)(n + 1), (unsigned)(musb->config->num_eps * 2 - 1),
-			(unsigned)(offset), (unsigned)(1u << (musb->config->ram_bits + 2)));
+			(unsigned)(offset), (unsigned)(1u << (musb->config->ram_bits + 2)),
+			(unsigned)musb->bulk_ep->epnum,
+			(unsigned)musb->intr_ep->epnum);
 
 	if (!musb->bulk_ep) {
 		dev_warn(musb->controller, "%s: missing bulk\n", __func__);
