@@ -529,9 +529,8 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 	 */
 	if (status == 0 && qh != NULL && qh->is_ready) {
 		dev_dbg(musb->controller, "... next ep%d %cX urb %p\n",
-		    hw_ep->epnum, is_in ? 'R' : 'T', next_urb(qh));
-		if ((musb_is_intr_sched() && qh->type != USB_ENDPOINT_XFER_INT) ||
-			!musb_is_intr_sched())
+				hw_ep->epnum, is_in ? 'R' : 'T', next_urb(qh));
+		if (!musb_is_intr_sched() || qh->type != USB_ENDPOINT_XFER_INT)
 			musb_start_urb(musb, is_in, qh);
 	}
 
