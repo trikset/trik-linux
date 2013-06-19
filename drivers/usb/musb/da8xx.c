@@ -336,7 +336,7 @@ static void da8xx_musb_disable(struct musb *musb)
 
 static void da8xx_musb_set_vbus(struct musb *musb, int is_on)
 {
-	WARN_ON(is_on && is_peripheral_active(musb));
+	WARN_ON(is_on && is_peripheral_enabled(musb));
 }
 
 #define	POLL_SECONDS	2
