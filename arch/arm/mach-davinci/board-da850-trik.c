@@ -991,7 +991,7 @@ static const short da850_trik_usb_pins[] __initconst = {
 	DA850_GPIO6_1,	/*MODE_B*/
 	-1
 };
-#warning TODO USB HOST & OTG MODE (note that Kconfig sets USB_MUSB_HOST by default now, should be changed when OTG supported)
+#warning TODO USB HOST & OTG MODE
 #ifndef CONFIG_USB_MUSB_HOST
 #error Only USB_MUSB_HOST supported now!
 #endif
