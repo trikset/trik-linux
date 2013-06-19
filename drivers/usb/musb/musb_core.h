@@ -146,7 +146,7 @@ enum musb_g_ep0_state {
  * sections 5.5 "Device Timings" and 6.6.5 "Timers".
  */
 #define OTG_TIME_A_WAIT_VRISE	100		/* msec (max) */
-#define OTG_TIME_A_WAIT_BCON	1100		/* min 1 second */
+#define OTG_TIME_A_WAIT_BCON	1100		/* 0=infinite; min 1000 msec */
 #define OTG_TIME_A_AIDL_BDIS	200		/* min 200 msec */
 #define OTG_TIME_B_ASE0_BRST	100		/* min 3.125 ms */
 

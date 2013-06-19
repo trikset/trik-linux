@@ -206,7 +206,7 @@ static inline void musb_try_b_hnp_enable(struct musb *musb)
 	void __iomem	*mbase = musb->mregs;
 	u8		devctl;
 
-	dev_dbg(musb->controller, "HNP: Setting HR\n");
+	dev_dbg(musb->controller, "HNP: setting HR\n");
 	devctl = musb_readb(mbase, MUSB_DEVCTL);
 	musb_writeb(mbase, MUSB_DEVCTL, devctl | MUSB_DEVCTL_HR);
 }

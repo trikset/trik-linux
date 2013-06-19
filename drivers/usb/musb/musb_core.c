@@ -678,7 +678,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 					&& otg->gadget->b_hnp_enable;
 			if (musb->is_active) {
 				musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
-				dev_dbg(musb->controller, "HNP: Setting timer for b_ase0_brst\n");
+				dev_dbg(musb->controller, "HNP: setting timer for b_ase0_brst\n");
 				mod_timer(&musb->otg_timer, jiffies
 					+ msecs_to_jiffies(
 							OTG_TIME_B_ASE0_BRST));
@@ -847,8 +847,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				musb_g_reset(musb);
 				/* FALLTHROUGH */
 			case OTG_STATE_A_WAIT_BCON:	/* OPT TD.4.7-900ms */
-				/* never use invalid T(a_wait_bcon) */
-				dev_dbg(musb->controller, "HNP: in %s, %d msec timeout\n",
+				dev_dbg(musb->controller,
+					"HNP: setting timer as %s for %dms\n",
 					otg_state_string(musb->xceiv->state),
 					TA_WAIT_BCON(musb));
 				mod_timer(&musb->otg_timer, jiffies
@@ -1793,9 +1793,6 @@ musb_vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	spin_lock_irqsave(&musb->lock, flags);
 	val = musb->a_wait_bcon;
-	/* FIXME get_vbus_status() is normally #defined as false...
-	 * and is effectively TUSB-specific.
-	 */
 	vbus = musb_platform_get_vbus_status(musb);
 	spin_unlock_irqrestore(&musb->lock, flags);
 
