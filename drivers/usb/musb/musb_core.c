@@ -1379,7 +1379,7 @@ done:
 		musb->nr_endpoints = max(epn, musb->nr_endpoints);
 	}
 
-	dev_notice(musb->controller, "%s: %u ep of max %u, %u memory of total %u\n",
+	dev_dbg(musb->controller, "%s: %u ep of max %u, %u memory of total %u\n",
 			__func__,
 			(unsigned)(n + 1), (unsigned)(musb->config->num_eps * 2 - 1),
 			(unsigned)(offset), (unsigned)(1u << (musb->config->ram_bits + 2)));
@@ -1479,7 +1479,7 @@ static int __devinit musb_core_init(u16 musb_type, struct musb *musb)
 	if (reg & MUSB_CONFIGDATA_SOFTCONE)
 		strcat(aInfo, ", SoftConn");
 
-	dev_notice(musb->controller, "%s: ConfigData=0x%02x (%s)\n",
+	dev_dbg(musb->controller, "%s: ConfigData=0x%02x (%s)\n",
 			__func__, reg, aInfo);
 
 	aDate[0] = 0;
