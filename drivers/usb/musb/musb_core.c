@@ -1349,8 +1349,8 @@ static int __devinit ep_config_from_table(struct musb *musb)
 		break;
 	}
 
-	printk(KERN_DEBUG "%s: setup fifo_mode %d\n",
-			musb_driver_name, musb->fifo_mode);
+        dev_dbg(musb->controller, "%s: setup fifo_mode %d\n",
+			__func__, musb->fifo_mode);
 
 
 done:
@@ -1365,27 +1365,27 @@ done:
 		u8	epn = cfg->hw_ep_num;
 
 		if (epn >= musb->config->num_eps) {
-			pr_debug("%s: invalid ep %d\n",
-					musb_driver_name, epn);
+			dev_warn(musb->controller, "%s: invalid ep %d\n",
+					__func__ , epn);
 			return -EINVAL;
 		}
 		offset = fifo_setup(musb, hw_ep + epn, cfg++, offset);
 		if (offset < 0) {
-			pr_warn("%s: mem overrun, ep %d\n",
-					musb_driver_name, epn);
+			dev_warn(musb->controller, "%s: mem overrun, ep %d\n",
+					__func__, epn);
 			return -EINVAL;
 		}
 		epn++;
 		musb->nr_endpoints = max(epn, musb->nr_endpoints);
 	}
 
-	printk(KERN_DEBUG "%s: %d/%d max ep, %d/%d memory\n",
-			musb_driver_name,
-			n + 1, musb->config->num_eps * 2 - 1,
-			offset, (1 << (musb->config->ram_bits + 2)));
+	dev_notice(musb->controller, "%s: %u ep of max %u, %u memory of total %u\n",
+			__func__,
+			(unsigned)(n + 1), (unsigned)(musb->config->num_eps * 2 - 1),
+			(unsigned)(offset), (unsigned)(1u << (musb->config->ram_bits + 2)));
 
 	if (!musb->bulk_ep) {
-		pr_warn("%s: missing bulk\n", musb_driver_name);
+		dev_warn(musb->controller, "%s: missing bulk\n", __func__);
 		return -EINVAL;
 	}
 
