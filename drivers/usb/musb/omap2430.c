@@ -100,7 +100,6 @@ static void musb_do_idle(unsigned long _musb)
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
-
 static void omap2430_musb_try_idle(struct musb *musb, unsigned long timeout)
 {
 	unsigned long		default_timeout = jiffies + msecs_to_jiffies(3);
@@ -139,7 +138,7 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 {
 	struct usb_otg	*otg = musb->xceiv->otg;
 	u8		devctl;
-	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
+	unsigned long	timeout = jiffies + msecs_to_jiffies(1000);
 	int ret = 1;
 	/* HDRC controls CPEN, but beware current surges during device
 	 * connect.  They can trigger transient overcurrent conditions
