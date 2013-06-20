@@ -74,7 +74,7 @@ static __init int da850_trik_uart1(void){
 		pr_err("%s: UART1 mux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
-	ret = gpio_request_one(GPIO_TO_PIN(0,13),GPIOF_OUT_INIT_LOW,"ext UART1 enable");
+	ret = gpio_request_one(GPIO_TO_PIN(0,13),GPIOF_OUT_INIT_HIGH,"ext UART1 enable");
 	if (ret){
 		pr_warning("%s: ext UART1 enable gpio request failed: %d\n", __func__, ret);
 	}
