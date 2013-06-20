@@ -786,7 +786,7 @@ static void wl12xx_set_power(int index, bool power_on)
 static struct davinci_mmc_config da850_trik_wl12xx_mmc_config = {
 	.set_power	= wl12xx_set_power,
 	.wires		= 4,
-	.max_freq	= 2000000,
+	.max_freq	= 24000000,
 	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD | MMC_CAP_NONREMOVABLE,
 	.version	= MMC_CTLR_VERSION_2,
 };
@@ -833,7 +833,7 @@ static __init int da850_trik_wifi_init(void){
 		pr_err("%s: wl12xx/mmc registration failed: %d\n", __func__, ret);
 		goto register_mmcsd1;
 	}
-
+	return 0;
 register_mmcsd1:
 set_platform_data_failed:
 	gpio_free(GPIO_TO_PIN(6,9));
@@ -842,7 +842,7 @@ request_irq_failed:
 request_en_failed:
 	gpio_free(GPIO_TO_PIN(6,8));
 request_en_all_failed:
-	return 0;
+	return ret;
 }
 static const short da850_trik_bluetooth_pins[] __initconst = {
 	DA850_GPIO6_11,
