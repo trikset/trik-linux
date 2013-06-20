@@ -1268,7 +1268,7 @@ fifo_setup(struct musb *musb, struct musb_hw_ep  *hw_ep,
 	 * EP1 reserved for bulk, two unidirection halves.
 	 * EPx reserve one endpoint for interrupt endpoint
 	 */
-	if (is_host_enabled(musb) {
+	if (is_host_enabled(musb)) {
 		if (hw_ep->epnum == 1)
 			musb->bulk_ep = hw_ep;
 		else if (musb_is_intr_sched())
