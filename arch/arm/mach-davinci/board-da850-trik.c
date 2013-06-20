@@ -603,6 +603,7 @@ exit_request_one:
 	return ret;
 }
 static const short da850_trik_leds_pins[] __initconst = {
+	DA850_GPIO5_9,
 	DA850_GPIO5_8,
 	DA850_GPIO5_7,
 	-1
@@ -617,6 +618,11 @@ static struct gpio_led da850_trik_leds[] = {
 		.active_low = 1,
 		.gpio = GPIO_TO_PIN(5,8), /* assigned at runtime */
 		.name = "led_green", /* assigned at runtime */
+	},
+	{
+		.active_low = 1,
+		.gpio = GPIO_TO_PIN(5,9), /* assigned at runtime */
+		.name = "led_power", /* assigned at runtime */
 	},
 
 };
