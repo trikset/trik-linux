@@ -27,13 +27,11 @@ struct ds4420_data {
 static inline int i2c_write(struct i2c_client *client, int reg, int  value){
 	int ret;
 	ret = i2c_smbus_write_byte_data(client, reg, value);
-	printk("ds4420_write: Reg = 0x%02X, Value = 0x%02X, Ret = %d\n", reg, value, ret);
 	return ret;
 }
 static inline int i2c_read(struct i2c_client *client, int reg){
 	int value;
         value = i2c_smbus_read_byte_data(client, reg);;
-        printk("ds4420_read: Reg = 0x%02X, Value = 0x%02X\n", reg,value);
         return value;
 }
 static int  ds4420_set_mode(struct i2c_client* client,bool mode){
@@ -219,7 +217,6 @@ static int __init ds4420_init(void){
 
 static void __exit ds4420_exit(void){
         i2c_del_driver(&ds4420_driver);
-//        printk("mma7660fc_exit\n");
 }
 
 MODULE_DESCRIPTION("I2C Amplifier DS4420");
