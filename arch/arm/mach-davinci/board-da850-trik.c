@@ -463,6 +463,25 @@ exit_audio_init:
 /*
  * ILI9340-based LCD
  */
+
+
+int display_orientation = 1; // '1' - landscape; '0' - portrait
+
+EXPORT_SYMBOL (display_orientation);
+static int __init set_orientation(char *str)
+{
+	if (!strcasecmp(str,"landscape"))
+		display_orientation = 1;
+	else if (!strcasecmp(str,"portrait"))
+		display_orientation = 0;
+	else 
+		return 1;
+	return 0;
+}
+
+
+__setup("trik.display_orientation=", set_orientation);
+
 static const short da850_trik_lcd_extra_pins[] __initconst = {
 	DA850_GPIO6_12, // LCD backlight
 	DA850_GPIO8_10, // LCD reset
@@ -499,27 +518,7 @@ static struct resource da850_trik_lcdc_resources[] = {
 	},
 };
 
-#warning TODO add module parameters
-
-#define DISPLAY_LANDSCAPE
 static struct da8xx_ili9340_pdata da850_trik_lcdc_pdata = {
-#ifdef DISPLAY_LANDSCAPE
-	.xres			= 320,
-	.yres			= 240,
-	.xflip			= false,
-	.yflip			= false,
-	.xyswap			= true,
-	.screen_height		= 37, //36,72mm
-	.screen_width		= 49, //48,96mm
-#else
-	.xres			= 240,
-	.yres			= 320,
-	.xflip			= true,
-	.yflip			= false,
-	.xyswap			= false,
-	.screen_height		= 49, //48,96mm
-	.screen_width		= 37, //36,72mm
-#endif
 	.visual_mode		= DA8XX_LCDC_VISUAL_565,
 	.visual_mode_red_blue_swap	= true, // fix for NewHeaven display with messed red and blue components
 	.fps			= 50, //20ms delay between memory write and redrawing
@@ -590,6 +589,26 @@ static __init int da850_trik_lcd_init(void){
 		pr_warning("%s: LCD reset gpio request failed: %d\n", __func__, ret);
 		goto exit_request_one;
 	}
+	if (display_orientation){
+		da850_trik_lcdc_pdata.xres			= 320;
+		da850_trik_lcdc_pdata.yres			= 240;
+		da850_trik_lcdc_pdata.xflip			= false;
+		da850_trik_lcdc_pdata.yflip			= false;
+		da850_trik_lcdc_pdata.xyswap			= true;
+		da850_trik_lcdc_pdata.screen_height		= 37; //36,72mm
+		da850_trik_lcdc_pdata.screen_width		= 49; //48,96mm
+	}
+	else 
+	{
+		da850_trik_lcdc_pdata.xres			= 240;
+		da850_trik_lcdc_pdata.yres			= 320;
+		da850_trik_lcdc_pdata.xflip			= true;
+		da850_trik_lcdc_pdata.yflip			= false;
+		da850_trik_lcdc_pdata.xyswap			= false;
+		da850_trik_lcdc_pdata.screen_height		= 49; //48,96mm
+		da850_trik_lcdc_pdata.screen_width		= 37; //36,72mm
+	}
+
 	ret = platform_device_register(&da850_trik_lcdc_device);
 	if (ret) {
 		pr_err("%s: LCD platform device register failed: %d\n", __func__, ret);
@@ -759,6 +778,22 @@ static __init int da850_trik_keys_init(void){
 	return 0;
 }
 
+/*	WL1271 Wifi module init */
+
+int enable_wifi = 1;
+EXPORT_SYMBOL (enable_wifi);
+static int __init set_enable_wifi(char *str)
+{
+	if (!strcasecmp(str,"on"))
+		enable_wifi = 1;
+	else if (!strcasecmp(str,"off"))
+		enable_wifi = 0;
+	else 
+		return 1;
+
+	return 0;
+}
+__setup("trik.wifi=", set_enable_wifi);
 
 static const short da850_trik_wifi_pins[] __initconst = {
 	DA850_MMCSD1_DAT_0, DA850_MMCSD1_DAT_1, DA850_MMCSD1_DAT_2,
@@ -802,6 +837,9 @@ static struct wl12xx_platform_data da850_trik_wl12xx_wlan_data __initdata = {
 	.board_ref_clock	= WL12XX_REFCLOCK_38,
 	.platform_quirks	= WL12XX_PLATFORM_QUIRK_EDGE_IRQ,
 };
+
+
+
 
 static __init int da850_trik_wifi_init(void){
 	int ret;
@@ -1339,9 +1377,11 @@ static __init void da850_trik_init(void)
 	if  (ret)
 		pr_warning("%s: buffer clk init failed: %d\n", __func__, ret);
 
-	ret = da850_trik_wifi_init();
-	if (ret)
-		pr_warning("%s: wifi interface init failed: %d\n", __func__, ret);
+	if (enable_wifi){
+		ret = da850_trik_wifi_init();
+		if (ret)
+			pr_warning("%s: wifi interface init failed: %d\n", __func__, ret);
+	}
 
 	ret = da850_trik_bluetooth_init();
 	if (ret)
