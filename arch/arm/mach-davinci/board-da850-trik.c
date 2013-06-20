@@ -39,7 +39,8 @@
 
 #include <linux/wl12xx.h>
 #include <linux/da8xx-ili9340-fb.h>
-
+#include <linux/l3g42xxd.h>
+ 
 
 static const short da850_trik_uart0_pins[] __initconst = {
 	DA850_UART0_RXD, DA850_UART0_TXD,
@@ -197,9 +198,95 @@ exit_sd0_init:
 	gpio_free(GPIO_TO_PIN(4,1));
 	return ret;
 }
-#if 0
-static struct i2c_board_info __initdata da850_trik_i2c0_devices[] ;
-#endif
+#warning Temp solution 
+
+static int jd1_jd2 = 1; // '1' - gy-80; '0' - bwsensor
+
+EXPORT_SYMBOL (jd1_jd2);
+static int __init set_jd1_d2(char *str)
+{
+	if (!strcasecmp(str,"gy-80"))
+		jd1_jd2 = 1;
+	else if (!strcasecmp(str,"bwsensor"))
+		jd1_jd2 = 0;
+	else 
+		return 1;
+	return 0;
+}
+
+__setup("trik.jd1_jd2=", set_jd1_d2);
+
+
+/* JD1 & JD2 pins init */
+
+static const short jd1_jd2_pins[] = {
+	DA850_GPIO3_3,	/*D1A*/
+	DA850_GPIO3_2,	/*D1B*/
+	DA850_GPIO3_5,	/*D2B*/
+	DA850_GPIO3_1,	/*D2A*/
+        -1
+};
+
+static void trik_sensor_init(void){
+	//init gpio
+	//
+	u32 cfgchip2 = 0;
+	int ret = 0;
+	pr_err("%s start\n",__func__);
+	cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+	cfgchip2 &= 0x0000;
+	cfgchip2 |= 0x0200;
+	__raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+
+	cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));	
+	cfgchip2 |= 0x0000;
+	__raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+
+	ret = davinci_cfg_reg_list(jd1_jd2_pins);
+        if (ret) {
+                pr_err("%s: trik_sensor mux setup failed: %d\n",
+                        __func__, ret);
+                return;
+        }
+	ret = gpio_request_one(GPIO_TO_PIN(3, 3), GPIOF_OUT_INIT_LOW, "D1A");
+    ret = gpio_request_one(GPIO_TO_PIN(3, 1), GPIOF_OUT_INIT_LOW, "D2A");
+
+    ret = gpio_request_one(GPIO_TO_PIN(3, 2), GPIOF_IN, "D1B");
+    ret = gpio_request_one(GPIO_TO_PIN(3, 5), GPIOF_IN, "D2B");
+    
+    gpio_export(GPIO_TO_PIN(3, 1),1);
+	gpio_export(GPIO_TO_PIN(3, 2),1);
+
+    gpio_export(GPIO_TO_PIN(3, 3),1);
+    gpio_export(GPIO_TO_PIN(3, 5),1);
+    
+    gpio_set_value(GPIO_TO_PIN(3, 3),0);
+	gpio_set_value(GPIO_TO_PIN(3, 1),0);
+	
+	gpio_set_value(GPIO_TO_PIN(3, 2),0);
+	gpio_set_value(GPIO_TO_PIN(3, 5),0);
+
+    pr_err("%s end\n",__func__);
+}
+
+
+static struct l3g42xxd_platform_data l3g42xxd_pd;
+
+static struct i2c_board_info __initdata da850_trik_i2c0_devices[] = {
+	{	
+		I2C_BOARD_INFO("l3g42xxd", 0x69),
+		.platform_data = &l3g42xxd_pd,
+	},
+	{
+		I2C_BOARD_INFO("adxl345b", 0x53),
+	},
+	{
+		I2C_BOARD_INFO("bmp085",0x77),
+	},
+	{
+		I2C_BOARD_INFO("hmc5883l",0x1e),
+	}
+};
 static struct davinci_i2c_platform_data da850_trik_i2c0_pdata = {
 	.bus_freq	= 100,	/* kHz */
 	.bus_delay	= 0,	/* usec */
@@ -212,13 +299,16 @@ static __init int da850_trik_i2c0_init(void)
 	if (ret){
 		pr_err("%s: I2C0 mux setup failed: %d\n", __func__, ret);
 	}
-#if 0
-	ret = i2c_register_board_info(1,da850_trik_i2c0_devices,ARRAY_SIZE(da850_trik_i2c0_devices));
-	if (ret){
-		pr_err("%s: I2C0 register board info failed: %d\n", __func__, ret);
-		return ret;
+	if (jd1_jd2){
+		trik_sensor_init();
+		l3g42xxd_pd.gpio_drdy = gpio_to_irq(GPIO_TO_PIN(3,5));
+		da850_trik_i2c0_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(3,2));
+		ret = i2c_register_board_info(1,da850_trik_i2c0_devices,ARRAY_SIZE(da850_trik_i2c0_devices));
+		if (ret){
+			pr_err("%s: I2C0 register board info failed: %d\n", __func__, ret);
+			return ret;
+		}
 	}
-#endif
 	ret = da8xx_register_i2c(0, &da850_trik_i2c0_pdata);
 	if (ret){
 		pr_err("%s: I2C0 register failed: %d\n", __func__, ret);
@@ -1248,55 +1338,7 @@ static const struct attribute *da850_trik_manage_attrs[] = {
 	&dev_attr_sensor_d2.attr,
     NULL,
 };
-static const short trik_sensors[] = {
-	DA850_GPIO3_3,	/*D1A*/
-	DA850_GPIO3_2,	/*D1B*/
-	DA850_GPIO3_5,	/*D2B*/
-	DA850_GPIO3_1,	/*D2A*/
-        -1
-};
 
-static void trik_sensor_init(void){
-	//init gpio
-	//
-	u32 cfgchip2 = 0;
-	int ret = 0;
-	pr_err("%s start\n",__func__);
-	cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
-	cfgchip2 &= 0x0000;
-	cfgchip2 |= 0x0200;
-	__raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
-
-	cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));	
-	cfgchip2 |= 0x0000;
-	__raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
-
-	ret = davinci_cfg_reg_list(trik_sensors);
-        if (ret) {
-                pr_err("%s: trik_sensor mux setup failed: %d\n",
-                        __func__, ret);
-                return;
-        }
-	ret = gpio_request_one(GPIO_TO_PIN(3, 3), GPIOF_OUT_INIT_LOW, "D1A");
-    ret = gpio_request_one(GPIO_TO_PIN(3, 1), GPIOF_OUT_INIT_LOW, "D2A");
-
-    ret = gpio_request_one(GPIO_TO_PIN(3, 2), GPIOF_IN, "D1B");
-    ret = gpio_request_one(GPIO_TO_PIN(3, 5), GPIOF_IN, "D2B");
-    
-    gpio_export(GPIO_TO_PIN(3, 1),1);
-	gpio_export(GPIO_TO_PIN(3, 2),1);
-
-    gpio_export(GPIO_TO_PIN(3, 3),1);
-    gpio_export(GPIO_TO_PIN(3, 5),1);
-    
-    gpio_set_value(GPIO_TO_PIN(3, 3),0);
-	gpio_set_value(GPIO_TO_PIN(3, 1),0);
-	
-	gpio_set_value(GPIO_TO_PIN(3, 2),0);
-	gpio_set_value(GPIO_TO_PIN(3, 5),0);
-
-    pr_err("%s end\n",__func__);
-}
 
 static const struct attribute_group da850_trik_manage_attrs_group = {
 	.attrs = (struct attribute **) da850_trik_manage_attrs,
@@ -1338,6 +1380,11 @@ static struct platform_device da850_trik_manage_device = {
 };
 
 module_platform_driver(da850_trik_manage_driver);
+
+
+static __init int da850_bwsensor_init(){
+	return platform_device_register(&da850_trik_manage_device);
+};
 
 static __init void da850_trik_init(void)
 {
@@ -1451,7 +1498,12 @@ static __init void da850_trik_init(void)
 	//pwm
 	
 	//vpif 
-	platform_device_register(&da850_trik_manage_device);
+	if (!jd1_jd2){
+		ret = da850_bwsensor_init();
+		if (ret){
+			pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
+		}
+	}
 }
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 static int __init da850_trik_console_init(void)
