@@ -705,14 +705,14 @@ static int __devinit da8xx_probe(struct platform_device *pdev)
 
 	clk = clk_get(&pdev->dev, "usb20");
 	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "failed to get clock\n");
 		ret = PTR_ERR(clk);
+		dev_err(&pdev->dev, "failed to get clock: %d\n", ret);
 		goto err2;
 	}
 
 	ret = clk_enable(clk);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to enable clock\n");
+		dev_err(&pdev->dev, "failed to enable clock: %d\n", ret);
 		goto err3;
 	}
 
@@ -731,19 +731,20 @@ static int __devinit da8xx_probe(struct platform_device *pdev)
 	ret = platform_device_add_resources(musb, pdev->resource,
 			pdev->num_resources);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to add resources\n");
+		dev_err(&pdev->dev, "failed to add resources: %d\n", ret);
 		goto err4;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
-		dev_err(&pdev->dev, "failed to add platform_data\n");
+		dev_err(&pdev->dev, "failed to add platform_data: %d\n", ret);
 		goto err4;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register musb device\n");
+		dev_err(&pdev->dev, "failed to register musb device: %d\n",
+					ret);
 		goto err4;
 	}
 
