@@ -728,6 +728,8 @@ static int __devinit da8xx_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, glue);
 
+	pdev->resource->parent = NULL;
+
 	ret = platform_device_add_resources(musb, pdev->resource,
 			pdev->num_resources);
 	if (ret) {
