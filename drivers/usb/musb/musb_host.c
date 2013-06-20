@@ -2195,7 +2195,8 @@ static int musb_urb_enqueue(
 			ok = (usb_pipein(urb->pipe) && musb->hb_iso_rx)
 				|| (usb_pipeout(urb->pipe) && musb->hb_iso_tx);
 		if (!ok) {
-			dev_notice(musb->controller, "%s: rejecting urb %ux%u, "
+#ifdef CONFIG_MUSB_VERBOSE_REJECTS
+			dev_info(musb->controller, "%s: rejecting urb %ux%u, "
 				"isoc %s, in %s, out %s",
 				__func__,
 				(unsigned)(qh->hb_mult),
@@ -2209,6 +2210,7 @@ static int musb_urb_enqueue(
 					? (musb->hb_iso_tx ? "hb isoc"
 							   : "NOT HB ISOC")
 					:"no");
+#endif
 			ret = -EMSGSIZE;
 			goto done;
 		}
