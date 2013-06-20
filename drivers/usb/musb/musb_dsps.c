@@ -525,8 +525,7 @@ err0:
 
 static void __devexit dsps_delete_musb_pdev(struct dsps_glue *glue)
 {
-	platform_device_del(glue->musb);
-	platform_device_put(glue->musb);
+	platform_device_unregister(glue->musb);
 }
 
 static int __devinit dsps_probe(struct platform_device *pdev)
