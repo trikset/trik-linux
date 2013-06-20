@@ -788,7 +788,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	if (int_usb & MUSB_INTR_SOF) {
 		dev_dbg(musb->controller, "START_OF_FRAME\n");
 		handled = IRQ_HANDLED;
-		if (musb_is_intr_sched())
+		if (musb_is_intr_sched(musb))
 			musb_host_intr_schedule(musb);
 	}
 
@@ -1271,7 +1271,7 @@ fifo_setup(struct musb *musb, struct musb_hw_ep  *hw_ep,
 	if (is_host_enabled(musb)) {
 		if (hw_ep->epnum == 1)
 			musb->bulk_ep = hw_ep;
-		else if (musb_is_intr_sched())
+		else if (musb_is_intr_sched_enabled())
 			musb->intr_ep = hw_ep;
 	}
 

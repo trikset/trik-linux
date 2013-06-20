@@ -266,7 +266,7 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 		len = urb->iso_frame_desc[0].length;
 		break;
 	case USB_ENDPOINT_XFER_INT:
-		if (musb_is_intr_sched()) {
+		if (musb_is_intr_sched(musb)) {
 			/*
 			 * Choose the appropriate Interval depending on
 			 * the device speed.
@@ -435,7 +435,7 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 
 	status = (urb->status == -EINPROGRESS) ? 0 : urb->status;
 
-	if (musb_is_intr_sched() && musb->intr_ep == qh->hw_ep &&
+	if (musb_is_intr_sched(musb) && musb->intr_ep == qh->hw_ep &&
 		urb->status == -EPROTO)
 		urb->status = -EINPROGRESS;
 
@@ -508,7 +508,7 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 			 * de-allocated if it's tracked and allocated;
 			 * and where we'd update the schedule tree...
 			 */
-			if (musb_is_intr_sched() && hw_ep == musb->intr_ep) {
+			if (musb_is_intr_sched(musb) && hw_ep == musb->intr_ep) {
 				list_del(&qh->ring);
 				if (list_empty(is_in ? &musb->in_intr
 						: &musb->out_intr))
@@ -530,7 +530,7 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 	if (status == 0 && qh != NULL && qh->is_ready) {
 		dev_dbg(musb->controller, "... next ep%d %cX urb %p\n",
 				hw_ep->epnum, is_in ? 'R' : 'T', next_urb(qh));
-		if (!musb_is_intr_sched() || qh->type != USB_ENDPOINT_XFER_INT)
+		if (!musb_is_intr_sched(musb) || qh->type != USB_ENDPOINT_XFER_INT)
 			musb_start_urb(musb, is_in, qh);
 	}
 
@@ -828,9 +828,8 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		csr &= ~MUSB_TXCSR_DMAENAB;
 		musb_writew(epio, MUSB_TXCSR, csr);
 		hw_ep->tx_channel = NULL;
-	} else if (!is_out && musb_is_intr_sched() &&
-		qh->type == USB_ENDPOINT_XFER_INT) {
-
+	} else if (!is_out && musb_is_intr_sched(musb) &&
+				qh->type == USB_ENDPOINT_XFER_INT) {
 		use_dma = 0;
 		musb->hold_count = HS_HOLD_VAL;
 		if (musb->port1_status & USB_PORT_STAT_HIGH_SPEED)
@@ -1994,7 +1993,7 @@ static int musb_schedule(
 		hw_ep = musb->control_ep;
 		goto success;
 	} else if (qh->type == USB_ENDPOINT_XFER_INT) {
-		if (musb_is_intr_sched() && is_in) {
+		if (musb_is_intr_sched(musb) && is_in) {
 			hw_ep = musb->intr_ep;
 			if (hw_ep) {
 				best_end = hw_ep->epnum;
@@ -2023,7 +2022,7 @@ static int musb_schedule(
 		if (musb_ep_get_qh(hw_ep, is_in) != NULL)
 			continue;
 
-		if (musb_is_intr_sched() && is_in && hw_ep == musb->intr_ep)
+		if (musb_is_intr_sched(musb) && is_in && hw_ep == musb->intr_ep)
 			continue;
 
 		if (hw_ep == musb->bulk_ep)
@@ -2089,7 +2088,8 @@ static int musb_schedule(
 	hw_ep = musb->endpoints + best_end;
 	dev_dbg(musb->controller, "qh %p periodic slot %d\n", qh, best_end);
 success:
-	if (musb_is_intr_sched() && is_in && qh->type == USB_ENDPOINT_XFER_INT) {
+	if (musb_is_intr_sched(musb) && is_in &&
+					qh->type == USB_ENDPOINT_XFER_INT) {
 		if (hw_ep == musb->intr_ep) {
 			int speed = urb->dev->speed;
 			int interval = urb->interval;
@@ -2113,7 +2113,8 @@ success:
 	}
 	qh->hw_ep = hw_ep;
 	qh->hep->hcpriv = qh;
-	if (musb_is_intr_sched() && is_in && qh->type == USB_ENDPOINT_XFER_INT) {
+	if (musb_is_intr_sched(musb) && is_in &&
+					qh->type == USB_ENDPOINT_XFER_INT) {
 		if (!list_empty(head))
 			musb_enable_sof(musb);
 	} else if (idle)
@@ -2236,7 +2237,7 @@ static int musb_urb_enqueue(
 	/* Precompute RXINTERVAL/TXINTERVAL register */
 	switch (qh->type) {
 	case USB_ENDPOINT_XFER_INT:
-		if (musb_is_intr_sched() && usb_pipein(urb->pipe)) {
+		if (musb_is_intr_sched(musb) && usb_pipein(urb->pipe)) {
 			/*
 			 * Choose the appropriate Interval depending on
 			 * the device speed.
@@ -2565,9 +2566,14 @@ MODULE_PARM_DESC(use_intr_sched,
 #define use_intr_sched	0
 #endif
 
-bool musb_is_intr_sched(void)
+bool musb_is_intr_sched_enabled(void)
 {
 	return use_intr_sched;
+}
+bool musb_is_intr_sched(struct musb *musb)
+{
+	BUG_ON(musb == NULL);
+	return musb_is_intr_sched_enabled() && musb->intr_ep != NULL;
 }
 
 void musb_host_intr_schedule(struct musb *musb)
@@ -2580,6 +2586,7 @@ void musb_host_intr_schedule(struct musb *musb)
 	u8			speed;
 	u32			interval;
 
+	BUG_ON(hw_ep == NULL);
 	/*
 	 * Hold the current Interrupt Request until the IN token is placed on
 	 * the device.  Once the Hold period is over remove the REQPKT bit

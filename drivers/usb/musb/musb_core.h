@@ -658,7 +658,8 @@ static inline const char *musb_get_dma_name(struct musb *musb)
 }
 
 extern void musb_gb_work(struct work_struct *data);
-extern bool musb_is_intr_sched(void);
+extern bool musb_is_intr_sched_enabled(void);
+extern bool musb_is_intr_sched(struct musb *musb);
 extern void musb_host_intr_schedule(struct musb *musb);
 /*-------------------------- ProcFS definitions ---------------------*/
 
