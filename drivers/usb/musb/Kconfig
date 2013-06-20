@@ -159,4 +159,12 @@ config MUSB_TI_CPPI41_DMA_IN_TRANSPARENT
 	 device uses or use case involves, control transfer while
 	 CPPI 4.1 DMA is doing data transfer.
 
+config MUSB_VERBOSE_REJECTS
+	bool "Show kernel info messages when USB requests are rejected by driver"
+	default n
+	help
+	 Shows some extra info why USB request was rejected. For example,
+	 it might show that requested transfer size or mode is incompatible
+	 with driver/hardware.
+
 endif # USB_MUSB_HDRC
