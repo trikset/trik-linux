@@ -301,6 +301,11 @@ static int l3g42xxd_init_chip(struct l3g42xxd_data* gyro){
         err = l3g42xxd_i2c_write(gyro, buf, 1);
         if (err < 0)
                 return err;
+	buf[0] = ( L3G4200D_CTRL_REG1);
+	buf[1] = 0b00000111 | PM_MASK;
+	err = l3g42xxd_i2c_write(gyro, buf, 1);
+	if (err < 0)
+        	return err;
 	return 0;
 }
 static int l3g42xxd_open(struct input_dev *dev)
@@ -330,8 +335,10 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_data* gyro)
 	gyro->input_dev->name = "l3g42xxd";
 	gyro->input_dev->id.bustype = BUS_I2C;
 	gyro->input_dev->dev.parent = &gyro->client->dev;
+#if 0
 	gyro->input_dev->open = l3g42xxd_open;
 	gyro->input_dev->close  = l3g42xxd_close;
+#endif
 
 	set_bit(EV_ABS, gyro->input_dev->evbit);
 	input_set_drvdata(gyro->input_dev, gyro);
@@ -366,10 +373,10 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_data* gyro)
 		goto exit_init_chip;
 	}
 
-//	{
-//		struct gyro_val data;
-//        	l3g42xxd_get_gyro_data(gyro, &data);
-//	}
+	{
+		struct gyro_val data;
+        	l3g42xxd_get_gyro_data(gyro, &data);
+	}
 
 	return 0;
 exit_init_chip:
