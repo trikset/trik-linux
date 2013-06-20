@@ -1629,17 +1629,3 @@ void cppi41_completion(struct musb *musb, u32 rx, u32 tx)
 			usb_process_tx_queue(cppi, index);
 }
 EXPORT_SYMBOL(cppi41_completion);
-
-MODULE_DESCRIPTION("CPPI4.1 dma controller driver for musb");
-MODULE_LICENSE("GPL v2");
-
-static int __init cppi41_dma_init(void)
-{
-	return 0;
-}
-module_init(cppi41_dma_init);
-
-static void __exit cppi41_dma__exit(void)
-{
-}
-module_exit(cppi41_dma__exit);
