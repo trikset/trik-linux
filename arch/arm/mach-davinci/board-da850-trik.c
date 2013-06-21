@@ -75,19 +75,19 @@ static __init int da850_trik_uart1(void){
 		pr_err("%s: UART1 mux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
-	ret = gpio_request_one(GPIO_TO_PIN(0,13),GPIOF_OUT_INIT_HIGH,"ext UART1 enable");
+	ret = gpio_request_one(GPIO_TO_PIN(0,13), GPIOF_OUT_INIT_HIGH, "ext UART1 enable");
 	if (ret){
 		pr_warning("%s: ext UART1 enable gpio request failed: %d\n", __func__, ret);
 	}
-	ret = gpio_request_one(GPIO_TO_PIN(1,14),GPIOF_OUT_INIT_LOW,"ext UART1 power enable");
+	ret = gpio_request_one(GPIO_TO_PIN(1,14), GPIOF_OUT_INIT_LOW, "ext UART1 power enable");
 	if (ret){
 		pr_warning("%s: ext UART1 power enable gpio request failed: %d\n", __func__, ret);
 	}
-	ret = gpio_export(GPIO_TO_PIN(0,13),1);
+	ret = gpio_export(GPIO_TO_PIN(0,13), 1);
 	if (ret){
 		pr_warning("%s: ext UART1 enable gpio export failed: %d\n", __func__, ret);
 	}
-	ret = gpio_export(GPIO_TO_PIN(1,14),1);
+	ret = gpio_export(GPIO_TO_PIN(1,14), 1);
 	if (ret){
 		pr_warning("%s: ext UART1 power enable gpio export failed: %d\n", __func__, ret);
 	}
