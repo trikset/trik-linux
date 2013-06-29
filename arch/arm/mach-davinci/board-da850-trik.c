@@ -1116,16 +1116,31 @@ request_msp_reset:
 	return ret;
 }
 static const short da850_trik_gpio_extra_pins[] __initconst = {
-	DA850_GPIO3_14/**POWER12V**/,
-	DA850_GPIO5_9,
-	DA850_GPIO2_7/*TP9*/,
-	DA850_GPIO3_8/*PWR_LEVEL*/,
+	DA850_GPIO3_14,/**POWER12V**/
+//	DA850_GPIO5_9,
+//	DA850_GPIO2_7/*TP9*/,
+//	DA850_GPIO3_8/*PWR_LEVEL*/,
 	-1
 };
+
 static __init int da850_trik_gpio_extra_init(void){
+	int ret;
+	ret = davinci_cfg_reg_list(da850_trik_gpio_extra_pins);
+	if (ret) {
+		pr_err("%s: GPIO_EXTRA mux setup failed: %d\n", __func__, ret);
+		return ret;
+	}
+	ret = gpio_request_one(GPIO_TO_PIN(3,14),GPIOF_OUT_INIT_LOW,"Power12V");
+	if (ret){
+		pr_err("%s: Power12V gpio request failed: %d\n",__func__, ret);
+		return ret;
+	}
+	ret = gpio_export(GPIO_TO_PIN(3,14),1);
+	if (ret){
+		pr_warning("%s: Power12V gpio export failed: %d\n", __func__, ret);
+	}
 	return 0;
 }
-
 
 static const short da850_trik_clk_pins[] __initconst = {
 	DA850_CLKOUT0,
@@ -1468,12 +1483,11 @@ static __init void da850_trik_init(void)
 	if (ret){
 		pr_warning("%s: keys init failed: %d\n", __func__, ret);
 	}
-#if 0
+
 	ret = da850_trik_gpio_extra_init();
 	if (ret){
 		pr_warning("%s: gpio_extra init failed: %d\n", __func__, ret);
 	}
-#endif
 	
 	ret = da850_trik_cap_apwm_init();
 	if (ret){
