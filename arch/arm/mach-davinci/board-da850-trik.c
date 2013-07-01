@@ -234,13 +234,12 @@ static void trik_sensor_init(void){
 	int ret = 0;
 	pr_err("%s start\n",__func__);
 	cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
-	cfgchip2 &= 0x0000;
 	cfgchip2 |= 0x0200;
 	__raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
 
-	cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));	
-	cfgchip2 |= 0x0000;
-	__raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+	// cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));	
+	// cfgchip2 |= 0x0000;
+	// __raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
 
 	ret = davinci_cfg_reg_list(jd1_jd2_pins);
         if (ret) {
@@ -808,7 +807,7 @@ static struct gpio_keys_button da850_trik_gpio_keys[] = {
 		.active_low	   = 1,
 		.wakeup		   = 0,
 		.debounce_interval = DA850_TRIK_KEYS_DEBOUNCE_MS,
-		.gpio		   = GPIO_TO_PIN(3, 14),
+		.gpio		   = GPIO_TO_PIN(1, 9),
 		.code		   = KEY_F4,
 		.desc		   = "sw4",
 	},
