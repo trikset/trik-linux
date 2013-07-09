@@ -269,12 +269,9 @@ static void trik_sensor_init(void){
 }
 
 
-static struct l3g42xxd_platform_data l3g42xxd_pd;
-
 static struct i2c_board_info __initdata da850_trik_i2c0_devices[] = {
 	{	
 		I2C_BOARD_INFO("l3g42xxd", 0x69),
-		.platform_data = &l3g42xxd_pd,
 	},
 	{
 		I2C_BOARD_INFO("adxl345b", 0x53),
@@ -300,8 +297,10 @@ static __init int da850_trik_i2c0_init(void)
 	}
 	if (jd1_jd2){
 		trik_sensor_init();
-		l3g42xxd_pd.gpio_drdy = gpio_to_irq(GPIO_TO_PIN(3,5));
+		
+		da850_trik_i2c0_devices[0].irq = gpio_to_irq(GPIO_TO_PIN(3,5));
 		da850_trik_i2c0_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(3,2));
+		
 		ret = i2c_register_board_info(1,da850_trik_i2c0_devices,ARRAY_SIZE(da850_trik_i2c0_devices));
 		if (ret){
 			pr_err("%s: I2C0 register board info failed: %d\n", __func__, ret);
@@ -438,7 +437,7 @@ static __init int da850_trik_spi0_init(void)
 	}
 	ret = da8xx_register_spi(0, da850_trik_spi0_info, ARRAY_SIZE(da850_trik_spi0_info));
 	if (ret) {
-		pr_err("da837_init_spi1: spi1 setup failed: %d\n", ret);
+		pr_err("%s: spi0 setup failed: %d\n",__func__,  ret);
 		return ret;
 	}
 	return 0;	
@@ -454,23 +453,26 @@ const short da850_trik_gyro_pins[] __initconst = {
 };
 static struct spi_board_info da850_trik_spi1_info[] = {
 	[0] = {
-		.modalias 			= "l3gd20",
+		.modalias 			= "l3g42xxd",
 		.controller_data 	= &da850_trik_spi1_cfg,
 		.platform_data 		= NULL,
 		.mode 				= SPI_MODE_0, //SPI_NO_CS
-		.max_speed_hz		= 25000000,
-		.bus_num			= 0,
+		.max_speed_hz		= 10000000,
+		.bus_num			= 1,
 		.chip_select		= 0,
-
 	},
 };
 const short da850_trik_spi1_pins[] __initconst = {
-	DA850_SPI1_SIMO,DA850_SPI1_SOMI,
+	DA850_SPI1_SIMO,
+	DA850_SPI1_SOMI,
 	DA850_SPI1_CLK,
+	DA850_GPIO2_7, 	/* TP9	*/
 	-1
 };
-#warning TO DO match driver and gpio irq
 
+static u8 da850_trik_spi1_chipselect[] = { GPIO_TO_PIN(2,7)};
+
+#warning TO DO match driver and gpio irq
 static __init int da850_trik_spi1_init(void)
 {
 	int ret;
@@ -484,10 +486,21 @@ static __init int da850_trik_spi1_init(void)
 		pr_err("%s: gyro pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
-	
+
+	da8xx_spi_pdata[1].num_chipselect        = ARRAY_SIZE(da850_trik_spi1_chipselect);
+	da8xx_spi_pdata[1].chip_sel                = da850_trik_spi1_chipselect;
+
+	da850_trik_spi1_info[0].irq = gpio_to_irq(GPIO_TO_PIN(2,8));
+
+	ret = gpio_request_one(GPIO_TO_PIN(2,7),GPIOF_OUT_INIT_HIGH, "GYRO_CS(TP9)");
+	if (ret){
+		pr_warning("%s: can not open spi1 GYRO_CS(TP9) : %d\n", __func__, ret);
+	}
+
 	ret = da8xx_register_spi(1, da850_trik_spi1_info, ARRAY_SIZE(da850_trik_spi1_info));
 	if (ret) {
 		pr_err("da837_init_spi1: spi1 setup failed: %d\n", ret);
+		gpio_free(GPIO_TO_PIN(2,7));
 		return ret;
 	}
 
@@ -766,7 +779,7 @@ static const short da850_trik_gpio_keys_pins[] __initconst = {
 //	DA850_GPIO5_8,  /* sw1 */
 	DA850_GPIO3_4,	/* sw2 */
 	DA850_GPIO2_0,	/* sw3 */
-	DA850_GPIO3_14,	/* sw4 */
+	DA850_GPIO1_9,	/* sw4 */
 	DA850_GPIO3_15,	/* sw5 */
 	DA850_GPIO3_13,	/* sw6 */
 	DA850_GPIO3_12,	/* sw7 */
@@ -1115,10 +1128,14 @@ request_msp_reset:
 	return ret;
 }
 static const short da850_trik_gpio_extra_pins[] __initconst = {
-	DA850_GPIO3_14,/**POWER12V**/
-//	DA850_GPIO5_9,
-//	DA850_GPIO2_7/*TP9*/,
-//	DA850_GPIO3_8/*PWR_LEVEL*/,
+	DA850_GPIO4_12, /* TP10 	*/
+	DA850_GPIO3_14, /* POWER12V */
+	DA850_GPIO2_7,  /* TP9 		*/
+	DA850_GPIO6_13, /* VPIF  GPIO_1*/
+	DA850_GPIO2_1,  /* VPIF  GPIO_2*/
+
+//	DA850_GPIO5_9,  /* POWER_ON */
+//	DA850_GPIO3_8,  /*PWR_LEVEL	*/
 	-1
 };
 
@@ -1129,6 +1146,16 @@ static __init int da850_trik_gpio_extra_init(void){
 		pr_err("%s: GPIO_EXTRA mux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
+	ret = gpio_request_one(GPIO_TO_PIN(4,12),GPIOF_OUT_INIT_LOW,"TP10");
+	if (ret){
+		pr_err("%s: TP10 gpio request failed: %d\n",__func__, ret);
+		return ret;
+	}
+	ret = gpio_export(GPIO_TO_PIN(4,12),1);
+	if (ret){
+		pr_warning("%s: TP10 gpio export failed: %d\n", __func__, ret);
+	}
+
 	ret = gpio_request_one(GPIO_TO_PIN(3,14),GPIOF_OUT_INIT_LOW,"Power12V");
 	if (ret){
 		pr_err("%s: Power12V gpio request failed: %d\n",__func__, ret);
@@ -1138,6 +1165,25 @@ static __init int da850_trik_gpio_extra_init(void){
 	if (ret){
 		pr_warning("%s: Power12V gpio export failed: %d\n", __func__, ret);
 	}
+	ret = gpio_request_one(GPIO_TO_PIN(6,13),GPIOF_OUT_INIT_LOW,"VPIF_GPIO_1");
+	if (ret){
+		pr_err("%s: VPIF_GPIO_1 gpio request failed: %d\n",__func__, ret);
+		return ret;
+	}
+	ret = gpio_export(GPIO_TO_PIN(6,13),1);
+	if (ret){
+		pr_warning("%s: VPIF_GPIO_1 gpio export failed: %d\n", __func__, ret);
+	}
+	ret = gpio_request_one(GPIO_TO_PIN(2,1),GPIOF_OUT_INIT_LOW,"VPIF_GPIO_2");
+	if (ret){
+		pr_err("%s: VPIF_GPIO_2 gpio request failed: %d\n",__func__, ret);
+		return ret;
+	}
+	ret = gpio_export(GPIO_TO_PIN(2,1),1);
+	if (ret){
+		pr_warning("%s: VPIF_GPIO_2 gpio export failed: %d\n", __func__, ret);
+	}
+
 	return 0;
 }
 
@@ -1464,11 +1510,10 @@ static __init void da850_trik_init(void)
 	if (ret)
 		pr_warning("%s: spi0 bus init failed: %d\n", __func__, ret);
 
-#if 0
+
 	ret = da850_trik_spi1_init();
 	if (ret)
 		pr_warning("%s: spi1 bus init failed: %d\n", __func__, ret);
-#endif
 
 	ret = da850_trik_lcd_init();
 	if (ret){
