@@ -59,4 +59,6 @@ obj-$(CONFIG_INPUT_XEN_KBDDEV_FRONTEND)	+= xen-kbdfront.o
 obj-$(CONFIG_INPUT_YEALINK)		+= yealink.o
 obj-$(CONFIG_INPUT_MMA7660FC)		+= mma7660fc.o
 obj-$(CONFIG_INPUT_L3G42XXD)           += l3g42xxd.o
+obj-$(CONFIG_INPUT_L3G42XXD_I2C)           += l3g42xxd_i2c.o
+obj-$(CONFIG_INPUT_L3G42XXD_SPI)           += l3g42xxd_spi.o
 
