@@ -234,6 +234,7 @@ static void trik_sensor_init(void){
 	int ret = 0;
 	pr_err("%s start\n",__func__);
 	cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+	//cfgchip2 &= 0x0000;
 	cfgchip2 |= 0x0200;
 	__raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
 
@@ -950,7 +951,7 @@ static __init int da850_trik_wifi_init(void){
 	if (ret)
 		pr_warning("%s: wi-fi pin mux setup failed: %d\n", __func__, ret);
 
-	ret = gpio_request_one(GPIO_TO_PIN(6, 8), GPIOF_OUT_INIT_HIGH, "wi-fi_en_all");
+	ret = gpio_request_one(GPIO_TO_PIN(6, 8), GPIOF_OUT_INIT_HIGH, "wi-	");
 	if (ret)
 		pr_warning("%s: could not request wi-fi enable all gpio: %d\n", __func__, ret);
 
@@ -982,8 +983,8 @@ exit_release_gpio:
 	return ret;
 }
 static const short da850_trik_bluetooth_pins[] __initconst = {
-	DA850_GPIO6_11,
-	DA850_GPIO6_10,
+	DA850_GPIO6_11, /*BT_EN_33 */
+	DA850_GPIO6_10,  /*BT_WU_33*/
 	-1
 };
 #warning TODO Bluetooth init
@@ -993,6 +994,17 @@ static __init int da850_trik_bluetooth_init(void){
 	ret = davinci_cfg_reg_list(da850_trik_bluetooth_pins);
 	if (ret) {
 		pr_err("%s: Bluetooth mux setup failed: %d\n", __func__, ret);
+		return ret;
+	}
+	ret = gpio_request_one(GPIO_TO_PIN(6, 11), GPIOF_OUT_INIT_HIGH, "BT_EN_33");
+	if (ret){
+		pr_warning("%s: could not request BT_EN_33 gpio: %d\n", __func__, ret);
+		return ret;
+	}
+	ret = gpio_export(GPIO_TO_PIN(6, 11),1);
+	if (ret){
+		pr_warning("%s: could not export BT_EN_33 gpio: %d\n", __func__, ret);
+		gpio_free(GPIO_TO_PIN(6, 11));
 		return ret;
 	}
 
@@ -1222,37 +1234,40 @@ static __init int da850_trik_buffer_clk_init(void)
 }
 
 static const short da850_trik_ehrpwm0_pins[] __initconst = {
-		DA850_EHRPWM0_A,DA850_EHRPWM0_B,
+#if 0
+		DA850_EHRPWM0_A,
+#endif
+		DA850_EHRPWM0_B,
 		DA850_GPIO2_5/*PE0_EN*/,
 		-1
 };
 
 static const short da850_trik_ehrpwm1_pins[] __initconst = {
-		DA850_EHRPWM1_A,DA850_EHRPWM1_B,
+		DA850_EHRPWM1_A,
+		DA850_EHRPWM1_B,
 		DA850_GPIO2_3/*PE1_EN*/,
 		-1
 };
 static __init int da850_trik_ehrpwm_init(void){
 	int ret;
 	char mask = 0;
-#if 0
+
 	ret = davinci_cfg_reg_list(da850_trik_ehrpwm0_pins);
 	if (ret){
 		pr_err("%s: ehrpwm0 pins mux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
-	mask |= BIT(0) | BIT(1);
+	mask |=  BIT(1);
 	ret = gpio_request_one(GPIO_TO_PIN(2,5),GPIOF_OUT_INIT_HIGH,"PE0_EN");
 	if (ret){
 		pr_err("%s: PE0_EN gpio request failed: %d\n",__func__, ret);
-		goto request_pe0_en_failed:
+		goto request_pe0_en_failed;
 	}
 	ret = gpio_export(GPIO_TO_PIN(2,5),1);
 	if (ret){
 		pr_err("%s: PE0_EN gpio export failed: %d\n",__func__, ret);
-		goto export_pe0_en_failed:
+		goto export_pe0_en_failed;
 	}
-#endif
 
 	ret = davinci_cfg_reg_list(da850_trik_ehrpwm1_pins);
 	if (ret){
@@ -1274,17 +1289,35 @@ static __init int da850_trik_ehrpwm_init(void){
 	return 0;
 export_pe1_en_failed:
 	gpio_free(GPIO_TO_PIN(2,3));
-#if 0
-export_pe0_en_failed:
-	gpio_free(GPIO_TO_PIN(2,5));
-#endif
 request_pe1_en_failed:
 cfg_reg_ehrpwm1_failed:
+export_pe0_en_failed:
+	gpio_free(GPIO_TO_PIN(2,5));
+request_pe0_en_failed:
 	return ret;
 }
+
+static int ecap = 1; // '1' - PWM; '0' - ECAp
+
+EXPORT_SYMBOL (ecap);
+static int __init set_ecap(char *str)
+{
+	if (!strcasecmp(str,"pwm"))
+		ecap = 1;
+	else if (!strcasecmp(str,"ecap"))
+		ecap = 0;
+	else 
+		return 1;
+	return 0;
+}
+
+__setup("trik.jcx=", set_ecap);
+
 static const short da850_trik_cap_pins[] __initconst = {
-	DA850_ECAP0_APWM0,DA850_ECAP1_APWM1,
-	DA850_ECAP2_APWM2,DA850_GPIO2_4/*PC_EN*/,
+	DA850_ECAP0_APWM0,
+	DA850_ECAP1_APWM1,
+	DA850_ECAP2_APWM2,
+	DA850_GPIO2_4/*PC_EN*/,
 	-1
 };
 static __init int da850_trik_cap_apwm_init(void){
@@ -1304,17 +1337,34 @@ static __init int da850_trik_cap_apwm_init(void){
 		pr_err("%s: PC_EN gpio export failed: %d\n",__func__, ret);
 		goto export_pc_en_failed;
 	}
-	ret = da850_register_ecap(0);
-	if (ret){
-		pr_warning("%s: register ecap 0 failed: %d\n",__func__, ret);
+	if (ecap){
+		ret = da850_register_ecap(0);
+		if (ret){
+			pr_warning("%s: register ecap.pwm 0 failed: %d\n",__func__, ret);
+		}
+		ret = da850_register_ecap(1);
+		if (ret){
+			pr_warning("%s: register ecap.pwm 1 failed: %d\n",__func__, ret);
+		}
+		ret = da850_register_ecap(2);
+		if (ret){
+			pr_warning("%s: register ecap.pwm 2 failed: %d\n",__func__, ret);
+		}
 	}
-	ret = da850_register_ecap(1);
-	if (ret){
-		pr_warning("%s: register ecap 1 failed: %d\n",__func__, ret);
-	}
-	ret = da850_register_ecap(2);
-	if (ret){
-		pr_warning("%s: register ecap 2 failed: %d\n",__func__, ret);
+	else
+	{
+		ret = da850_register_ecap_cap(0);
+		if (ret){
+			pr_warning("%s: register ecap.cpwm 0 failed: %d\n",__func__, ret);
+		}
+		ret = da850_register_ecap_cap(1);
+		if (ret){
+			pr_warning("%s: register ecap.cpwm 1 failed: %d\n",__func__, ret);
+		}
+		ret = da850_register_ecap_cap(2);
+		if (ret){
+			pr_warning("%s: register ecap.cpwm 2 failed: %d\n",__func__, ret);
+		}
 	}
 	return 0;
 export_pc_en_failed:
@@ -1478,9 +1528,9 @@ static __init void da850_trik_init(void)
 		pr_warning("%s: buffer clk init failed: %d\n", __func__, ret);
 
 	if (enable_wifi){
-		ret = da850_trik_wifi_init();
-		if (ret)
-			pr_warning("%s: wifi interface init failed: %d\n", __func__, ret);
+		// ret = da850_trik_wifi_init();
+		// if (ret)
+		// 	pr_warning("%s: wifi interface init failed: %d\n", __func__, ret);
 	}
 
 	ret = da850_trik_bluetooth_init();
