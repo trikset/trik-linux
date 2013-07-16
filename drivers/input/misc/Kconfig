@@ -614,6 +614,13 @@ config INPUT_MMA7660FC
 	depends on I2C
 	help
 	  MMA7660FC Accelerometer Driver.
+	  
+config INPUT_MMA8451Q
+	tristate "MMA8451Q Accelerometer input driver support"
+	depends on I2C
+	help
+	  MMA8451Q Accelerometer Driver.
+
 config INPUT_L3G42XXD
 	tristate "L3G42xxD gyposcope input driver support"
 	depends on SYSFS
