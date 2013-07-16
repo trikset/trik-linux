@@ -454,13 +454,20 @@ const short da850_trik_gyro_pins[] __initconst = {
 };
 static struct spi_board_info da850_trik_spi1_info[] = {
 	[0] = {
+		.modalias                = NULL,                  /* Stub */
+		.mode                        = SPI_MODE_0,
+		.max_speed_hz                = 10000000,       /* max sample rate at 3V */
+		.bus_num                = 1,
+		.chip_select                = 0,
+        },
+	[1] = {
 		.modalias 			= "l3g42xxd",
 		.controller_data 	= &da850_trik_spi1_cfg,
 		.platform_data 		= NULL,
 		.mode 				= SPI_MODE_0, //SPI_NO_CS
 		.max_speed_hz		= 10000000,
 		.bus_num			= 1,
-		.chip_select		= 0,
+		.chip_select		= 1,
 	},
 };
 const short da850_trik_spi1_pins[] __initconst = {
@@ -471,7 +478,7 @@ const short da850_trik_spi1_pins[] __initconst = {
 	-1
 };
 
-static u8 da850_trik_spi1_chipselect[] = { GPIO_TO_PIN(2,7)};
+static u8 da850_trik_spi1_chipselect[] = { SPI_INTERN_CS, GPIO_TO_PIN(2,7)};
 
 #warning TO DO match driver and gpio irq
 static __init int da850_trik_spi1_init(void)
@@ -491,7 +498,7 @@ static __init int da850_trik_spi1_init(void)
 	da8xx_spi_pdata[1].num_chipselect        = ARRAY_SIZE(da850_trik_spi1_chipselect);
 	da8xx_spi_pdata[1].chip_sel                = da850_trik_spi1_chipselect;
 
-	da850_trik_spi1_info[0].irq = gpio_to_irq(GPIO_TO_PIN(2,8));
+	da850_trik_spi1_info[1].irq = gpio_to_irq(GPIO_TO_PIN(2,8));
 
 	ret = gpio_request_one(GPIO_TO_PIN(2,7),GPIOF_OUT_INIT_HIGH, "GYRO_CS(TP9)");
 	if (ret){
@@ -1528,9 +1535,9 @@ static __init void da850_trik_init(void)
 		pr_warning("%s: buffer clk init failed: %d\n", __func__, ret);
 
 	if (enable_wifi){
-		// ret = da850_trik_wifi_init();
-		// if (ret)
-		// 	pr_warning("%s: wifi interface init failed: %d\n", __func__, ret);
+		ret = da850_trik_wifi_init();
+		if (ret)
+			pr_warning("%s: wifi interface init failed: %d\n", __func__, ret);
 	}
 
 	ret = da850_trik_bluetooth_init();
