@@ -80,6 +80,6 @@ static struct i2c_driver l3g42xxd_i2c_driver = {
 module_i2c_driver(l3g42xxd_i2c_driver);
 
 MODULE_AUTHOR("Roman Meshkevich <romik.momik@trikset.com>");
-MODULE_DESCRIPTION("L3gd20 Three-Axis Digital Accelerometer I2C Bus Driver");
+MODULE_DESCRIPTION("L3gd20 Three-Axis Digital Gyroscope I2C Bus Driver");
 MODULE_LICENSE("GPL");
 
