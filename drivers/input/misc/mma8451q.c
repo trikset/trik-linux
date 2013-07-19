@@ -9,77 +9,39 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 
-#define F_STATUS			0x00		/* Read Only*/
-
-#define OUT_X_MSB			0x01		/* Read Only*/
-#define OUT_X_LSB			0x02		/* Read Only*/
-	
-#define OUT_Y_MSB			0x03		/* Read Only*/
-#define OUT_Y_LSB			0x04		/* Read Only*/
-
-#define OUT_Z_MSB			0x05		/* Read Only*/
-#define OUT_Z_LSB			0x06		/* Read Only*/
-
-#define F_SETUP				0x09		/* R/W 		*/
-#define TRIG_CFG			0x0A		/* R/W 		*/
-
-#define SYSMOD				0x0B		/* Read Only*/
-#define INT_SOURCE			0x0C		/* Read Only*/
-#define WHO_AM_I			0x0D		/* Read Only*/
-
-#define XYZ_DATA_CFG		0x0E		/* R/W 		*/
-#define HP_FILTER_CUTOFF	0x0F		/* R/W 		*/
-#define PL_STATUS			0x10		/* Read Only*/
-#define PL_CFG				0x11		/* R/W 		*/
-#define PL_COUNT			0x12		/* R/W 		*/
-#define PL_BF_ZCOMP			0x13		/* R/W 		*/
-#define P_L_THS_REG			0x14		/* R/W 		*/
-
-#define FF_MT_CFG			0x15		/* R/W 		*/
-#define FF_MT_SRC			0x16		/* Read Only*/
-#define FF_MT_THS			0x17		/* R/W 		*/
-#define FF_MT_COUNT			0x18		/* R/W 		*/
-
-#define TRANSIENT_CFG		0x1D		/* R/W 		*/
-#define TRANSIENT_SRC		0x1E		/* Read Only*/
-#define TRANSIENT_THS		0x1F		/* R/W 		*/
-#define TRANSIENT_COUNT		0x20		/* R/W 		*/
-
-#define PULSE_CFG			0x21		/* R/W 		*/
-#define PULSE_SRC			0x22		/* Read Only*/
-#define PULSE_THSX			0x23		/* R/W 		*/
-#define PULSE_THSY			0x24		/* R/W 		*/
-#define PULSE_THSZ			0x25		/* R/W 		*/
-#define PULSE_TMLT			0x26		/* R/W 		*/
-#define PULSE_LTCY			0x27		/* R/W 		*/
-#define PULSE_WIND			0x28		/* R/W 		*/
-#define ASPL_COUNT			0x29		/* R/W 		*/
-
-#define	CTRL_REG1			0x2A		/* R/W 		*/
-#define CTRL_REG2			0x2B		/* R/W 		*/
-#define CTRL_REG3			0x2C		/* R/W 		*/
-#define CTRL_REG4			0x2D		/* R/W 		*/
-#define CTRL_REG5			0x2E		/* R/W 		*/
-
-#define OFF_X				0x2F		/* R/W 		*/
-#define OFF_Y				0x30		/* R/W 		*/
-#define OFF_Z				0x31		/* R/W 		*/
-
-
-#define MMA8450_ID			0xc6
-#define MMA8451_ID			0x1a
-#define MMA8452_ID			0x2a
-#define MMA8453_ID			0x3a
+#include "linux/mma8451q.h"
 
 // struct mma8451q_platform_data
 // {
 // 	int gpio_int2;
 // };
+enum {
+	MODE_ODR_800HZ = 0,
+	MODE_ODR_400HZ,
+	MODE_ODR_200HZ,
+	MODE_ODR_100HZ,
+	MODE_ODR_50HZ,
+	MODE_ODR_12HZ,
+	MODE_ODR_6HZ,
+	MODE_ODR_2HZ,
+
+};
+enum {
+	MODE_2G = 0,
+	MODE_4G,
+	MODE_8G,
+};
+
+enum {
+	MMA_STANDBY = 0,
+	MMA_ACTIVED,
+};
+
 struct mma8451q_accel_data
 {
-	u16 x;
-	u16 y;
-	u16 z;
+	short x;
+	short y;
+	short z;
 };
 struct mma8451q_driver_data
 {
@@ -88,19 +50,19 @@ struct mma8451q_driver_data
 	//struct mma8451q_platform_data* pdata;
 	u8 client_irq;
 	struct work_struct irq_work;
+	bool enabled;
 };
 
-static u8 mma8451q_read(struct mma8451q_driver_data* drv_data,u8 reg){
+static short mma8451q_read(struct mma8451q_driver_data* drv_data,u8 reg){
 	return i2c_smbus_read_byte_data(drv_data->client, reg);
 }
-static u8 mma8451q_write(struct mma8451q_driver_data* drv_data,u8 reg,u8 value){
+static short mma8451q_write(struct mma8451q_driver_data* drv_data,u8 reg,u8 value){
 	return i2c_smbus_write_byte_data(drv_data->client, reg, value);
 }
-static u8 mma8451q_read_block(struct mma8451q_driver_data* drv_data,u8 reg,void * buf,size_t size)
+static short mma8451q_read_block(struct mma8451q_driver_data* drv_data,u8 reg,void * buf,size_t size)
 {
 	return i2c_smbus_read_i2c_block_data(drv_data->client, reg, size, buf);
 }
-
 
 static int  mma8451q_suspend(struct device *dev)
 {
@@ -115,29 +77,50 @@ static SIMPLE_DEV_PM_OPS(mma8451q_pm, mma8451q_suspend, mma8451q_resume);
 
 static irqreturn_t mma8451q_irq_callback(int irq, void *dev_id){
 	struct mma8451q_driver_data* chip = dev_id;
+	pr_err("%s: irq get\n",__func__);
     if(chip)
 		schedule_work(&chip->irq_work);
 	return IRQ_HANDLED;
 }
 static int mma8451q_get_values(struct mma8451q_driver_data* chip, struct mma8451q_accel_data *data)
 {
-	int accel_data[6];
-	mma8451q_read_block(chip,OUT_X_MSB,accel_data,6);
+	//int accel_data[6];
+	//mma8451q_read_block(chip,OUT_X_MSB,accel_data,6);
 
 	return 0;	
 }
 static void mma8451q_irq_worker(struct work_struct *work)
 {
+	int value;
 	struct mma8451q_driver_data *chip = container_of(work, struct mma8451q_driver_data, irq_work);
-		struct mma8451q_accel_data data;
-
-		//
-		mma8451q_get_values(chip,&data);
-        input_report_abs(chip->input_dev, ABS_X, data.x);
-        input_report_abs(chip->input_dev, ABS_Y, data.y);
-        input_report_abs(chip->input_dev, ABS_Z, data.z);
-        input_sync(chip->input_dev);
-
+	pr_err("%s: irq get\n",__func__);
+	//struct mma8451q_accel_data data;
+	// mma8451q_get_values(chip,&data);
+	// input_report_abs(chip->input_dev, ABS_X, data.x);
+	// input_report_abs(chip->input_dev, ABS_Y, data.y);
+	// input_report_abs(chip->input_dev, ABS_Z, data.z);
+	// input_sync(chip->input_dev);
+	{
+		// int accel_data[6];
+	
+	// pr_err("%s: res %d\n",__func__,mma8451q_read_block(chip,OUT_X_MSB,accel_data,6));
+		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_X_MSB));
+		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_X_LSB));
+		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Y_MSB));
+		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Y_LSB));
+		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Z_MSB));
+		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Z_LSB));
+		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+		//pr_err("%s: INT_SOURCE 0x%02x\n",__func__,mma8451q_read(chip,INT_SOURCE));
+	}
+	//mma8451q_read_block(chip,OUT_X_MSB,accel_data,6);
+	
 }
 
 static void mma8451q_input_dev_remove(struct mma8451q_driver_data* chip)
@@ -148,16 +131,35 @@ static void mma8451q_input_dev_remove(struct mma8451q_driver_data* chip)
 }
 static int mma8451q_input_open(struct input_dev *dev)
 {
+
     return 0;
 }
 
 static void mma8451q_input_close(struct input_dev *dev)
 {
+
+}
+
+static int mma8451q_init_chip(struct mma8451q_driver_data* chip)
+{
+	chip->enabled = false;
+	mma8451q_write(chip,CTRL_REG1,0x00);
+
+	mma8451q_write(chip,CTRL_REG2,0b00000000);
+	mma8451q_write(chip,CTRL_REG3,0b00000001);
+	mma8451q_write(chip,CTRL_REG4,0b00000001);
+	mma8451q_write(chip,CTRL_REG5,0b00000001);
+
+	mma8451q_write(chip,CTRL_REG1,0b00000001);
+	mma8451q_read(chip,INT_SOURCE);
+	mma8451q_read(chip,F_STATUS);
+
+	return 0;
 }
 static int mma8451q_input_dev_init(struct mma8451q_driver_data* chip)
 {
 	int res;
-	u8 device_id = mma8451q_read(chip,WHO_AM_I);
+	u16 device_id = mma8451q_read(chip,WHO_AM_I);
 	pr_info("%s: Device Id = 0x%02x\n",__func__,device_id);
 	if (device_id != MMA8451_ID){
 		pr_err("%s: Unknown device = 0x%02x\n",__func__,device_id);
@@ -173,11 +175,16 @@ static int mma8451q_input_dev_init(struct mma8451q_driver_data* chip)
 	}
 	chip->input_dev->name = "mma8451q";
 	chip->input_dev->id.bustype = BUS_I2C;
+	chip->input_dev->id.version = 1;
+	chip->input_dev->id.product = le16_to_cpu(device_id);
+	chip->input_dev->id.vendor = 123;
+
 	chip->input_dev->dev.parent = &chip->client->dev;
 	chip->input_dev->open = mma8451q_input_open;
 	chip->input_dev->close  = mma8451q_input_close;
 
 	set_bit(EV_ABS,chip->input_dev->evbit);
+	set_bit(EV_REP,chip->input_dev->evbit);
 	input_set_drvdata(chip->input_dev, chip);
 	input_set_abs_params(chip->input_dev, ABS_X,
                              -8192, 8191, 0, 0);
@@ -188,9 +195,10 @@ static int mma8451q_input_dev_init(struct mma8451q_driver_data* chip)
 
 	res = request_irq(chip->client->irq,
 				     mma8451q_irq_callback,
-                    (IRQF_TRIGGER_RISING),
+                    (IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING),
 					       "mma8451q_irq",
 						     chip);
+
 	if (res != 0) {
         pr_err("%s: irq request failed: %d\n", __func__, res);
         goto exit_irq_request;
@@ -200,7 +208,14 @@ static int mma8451q_input_dev_init(struct mma8451q_driver_data* chip)
         pr_err("%s:unable to register input device %s\n",__func__,chip->input_dev->name);
         goto exit_register_device;
     }
+    res = mma8451q_init_chip(chip);
+    if (res){
+    	pr_err("%s: failed to init chip \n",__func__);
+    	goto exit_init_chip;
+    }
 	return 0;
+exit_init_chip:
+	input_free_device(chip->input_dev);
 exit_register_device:
 	free_irq(chip->client->irq, chip);
 exit_irq_request:
