@@ -7,7 +7,7 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-
+#include <linux/interrupt.h>
 
 #define F_STATUS			0x00		/* Read Only*/
 
@@ -93,7 +93,6 @@ struct mma8451q_driver_data
 static u8 mma8451q_read(struct mma8451q_driver_data* drv_data,u8 reg){
 	return i2c_smbus_read_byte_data(drv_data->client, reg);
 }
-
 static u8 mma8451q_write(struct mma8451q_driver_data* drv_data,u8 reg,u8 value){
 	return i2c_smbus_write_byte_data(drv_data->client, reg, value);
 }
@@ -101,6 +100,8 @@ static u8 mma8451q_read_block(struct mma8451q_driver_data* drv_data,u8 reg,void 
 {
 	return i2c_smbus_read_i2c_block_data(drv_data->client, reg, size, buf);
 }
+
+
 static int  mma8451q_suspend(struct device *dev)
 {
 	return 0;
@@ -109,19 +110,104 @@ static int  mma8451q_resume(struct device *dev)
 {
 	return 0;
 }
+
 static SIMPLE_DEV_PM_OPS(mma8451q_pm, mma8451q_suspend, mma8451q_resume);
 
-
-static void mma8451q_input_dev_remove(struct mma8451q_driver_data* chip)
-{
-
+static irqreturn_t mma8451q_irq_callback(int irq, void *dev_id){
+	struct mma8451q_driver_data* chip = dev_id;
+    if(chip)
+		schedule_work(&chip->irq_work);
+	return IRQ_HANDLED;
 }
-static int mma8451q_input_dev_init(struct mma8451q_driver_data* chip)
+static int mma8451q_get_values(struct mma8451q_driver_data* chip, struct mma8451q_accel_data *data)
 {
-	return 0;
+	int accel_data[6];
+	mma8451q_read_block(chip,OUT_X_MSB,accel_data,6);
+
+	return 0;	
 }
 static void mma8451q_irq_worker(struct work_struct *work)
 {
+	struct mma8451q_driver_data *chip = container_of(work, struct mma8451q_driver_data, irq_work);
+		struct mma8451q_accel_data data;
+
+		//
+		mma8451q_get_values(chip,&data);
+        input_report_abs(chip->input_dev, ABS_X, data.x);
+        input_report_abs(chip->input_dev, ABS_Y, data.y);
+        input_report_abs(chip->input_dev, ABS_Z, data.z);
+        input_sync(chip->input_dev);
+
+}
+
+static void mma8451q_input_dev_remove(struct mma8451q_driver_data* chip)
+{
+	input_unregister_device(chip->input_dev);
+	free_irq(chip->client->irq, chip);
+	input_free_device(chip->input_dev);
+}
+static int mma8451q_input_open(struct input_dev *dev)
+{
+    return 0;
+}
+
+static void mma8451q_input_close(struct input_dev *dev)
+{
+}
+static int mma8451q_input_dev_init(struct mma8451q_driver_data* chip)
+{
+	int res;
+	u8 device_id = mma8451q_read(chip,WHO_AM_I);
+	pr_info("%s: Device Id = 0x%02x\n",__func__,device_id);
+	if (device_id != MMA8451_ID){
+		pr_err("%s: Unknown device = 0x%02x\n",__func__,device_id);
+		res = -ENODEV;
+		goto exit_unknown_device;
+	}
+	chip->input_dev = input_allocate_device();
+	if (!chip->input_dev)
+	{
+		res = -ENOMEM;
+		pr_err("%s:input device allocate failed\n",__func__);
+		goto exit_input_device_alloc;
+	}
+	chip->input_dev->name = "mma8451q";
+	chip->input_dev->id.bustype = BUS_I2C;
+	chip->input_dev->dev.parent = &chip->client->dev;
+	chip->input_dev->open = mma8451q_input_open;
+	chip->input_dev->close  = mma8451q_input_close;
+
+	set_bit(EV_ABS,chip->input_dev->evbit);
+	input_set_drvdata(chip->input_dev, chip);
+	input_set_abs_params(chip->input_dev, ABS_X,
+                             -8192, 8191, 0, 0);
+ 	input_set_abs_params(chip->input_dev, ABS_Y,
+                             -8192, 8191, 0, 0);
+ 	input_set_abs_params(chip->input_dev, ABS_Z,
+                             -8192, 8191, 0, 0);
+
+	res = request_irq(chip->client->irq,
+				     mma8451q_irq_callback,
+                    (IRQF_TRIGGER_RISING),
+					       "mma8451q_irq",
+						     chip);
+	if (res != 0) {
+        pr_err("%s: irq request failed: %d\n", __func__, res);
+        goto exit_irq_request;
+    }
+    res = input_register_device(chip->input_dev);
+    if (res) {
+        pr_err("%s:unable to register input device %s\n",__func__,chip->input_dev->name);
+        goto exit_register_device;
+    }
+	return 0;
+exit_register_device:
+	free_irq(chip->client->irq, chip);
+exit_irq_request:
+	input_free_device(chip->input_dev);
+exit_input_device_alloc:
+exit_unknown_device:
+	return res;
 }
 
 static int __devexit  mma8451q_remove(struct i2c_client *client)
@@ -137,7 +223,6 @@ static int __devinit  mma8451q_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	int res;
-	u8 device_id;
 	struct mma8451q_driver_data * drv_data;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)){
