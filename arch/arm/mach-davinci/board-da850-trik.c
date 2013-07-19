@@ -336,11 +336,10 @@ static struct davinci_i2c_platform_data da850_trik_i2c1_pdata = {
 	.bus_delay	= 0,	/* usec */
 };
 
-#warning match gpio pins to i2c driver
 static __init int da850_trik_i2c1_init(void)
 {
-	int ret;
-	
+	int ret; 
+
 	ret = davinci_cfg_reg_list(da850_i2c1_pins);
 	if (ret){
 		pr_err("%s: I2C1 mux setup failed: %d\n", __func__, ret);
@@ -350,6 +349,9 @@ static __init int da850_trik_i2c1_init(void)
 	if (ret){
 		pr_err("%s: accel mux setup failed: %d\n", __func__, ret);
 	}
+	
+	da850_trik_i2c1_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(5,3));
+
 	ret = i2c_register_board_info(2,da850_trik_i2c1_devices,ARRAY_SIZE(da850_trik_i2c1_devices));
 	if (ret){
 		pr_err("%s: I2C1 register board info failed: %d\n", __func__, ret);
@@ -454,7 +456,7 @@ const short da850_trik_gyro_pins[] __initconst = {
 };
 static struct spi_board_info da850_trik_spi1_info[] = {
 	[0] = {
-		.modalias                = NULL,                  /* Stub */
+		.modalias                = "internal",                  /* Stub */
 		.mode                        = SPI_MODE_0,
 		.max_speed_hz                = 10000000,       /* max sample rate at 3V */
 		.bus_num                = 1,
@@ -938,7 +940,7 @@ static struct davinci_mmc_config da850_trik_wl12xx_mmc_config = {
 	.set_power	= wl12xx_set_power,
 	.wires		= 4,
 	.max_freq	= 24000000,
-	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD | MMC_CAP_NONREMOVABLE,
+	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD| MMC_CAP_NONREMOVABLE,
 	.version	= MMC_CTLR_VERSION_2,
 };
 
@@ -1534,11 +1536,9 @@ static __init void da850_trik_init(void)
 	if  (ret)
 		pr_warning("%s: buffer clk init failed: %d\n", __func__, ret);
 
-	if (enable_wifi){
-		ret = da850_trik_wifi_init();
-		if (ret)
-			pr_warning("%s: wifi interface init failed: %d\n", __func__, ret);
-	}
+	ret = da850_trik_wifi_init();
+	if (ret)
+		pr_warning("%s: wifi interface init failed: %d\n", __func__, ret);
 
 	ret = da850_trik_bluetooth_init();
 	if (ret)
