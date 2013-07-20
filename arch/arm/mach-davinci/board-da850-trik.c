@@ -233,10 +233,10 @@ static void trik_sensor_init(void){
 	u32 cfgchip2 = 0;
 	int ret = 0;
 	pr_err("%s start\n",__func__);
-	cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
-	//cfgchip2 &= 0x0000;
-	cfgchip2 |= 0x0200;
-	__raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+	// cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+	// //cfgchip2 &= 0x0000;
+	// cfgchip2 |= 0x0200;
+	// __raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
 
 	// cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));	
 	// cfgchip2 |= 0x0000;
@@ -350,7 +350,7 @@ static __init int da850_trik_i2c1_init(void)
 		pr_err("%s: accel mux setup failed: %d\n", __func__, ret);
 	}
 	
-	da850_trik_i2c1_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(5,3));
+	da850_trik_i2c1_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(5,4));
 
 	ret = i2c_register_board_info(2,da850_trik_i2c1_devices,ARRAY_SIZE(da850_trik_i2c1_devices));
 	if (ret){
