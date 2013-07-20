@@ -101,25 +101,35 @@ static void mma8451q_irq_worker(struct work_struct *work)
 	// input_report_abs(chip->input_dev, ABS_Z, data.z);
 	// input_sync(chip->input_dev);
 	{
-		// int accel_data[6];
-	
-	// pr_err("%s: res %d\n",__func__,mma8451q_read_block(chip,OUT_X_MSB,accel_data,6));
-		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
-		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_X_MSB));
-		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
-		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_X_LSB));
-		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
-		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Y_MSB));
-		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
-		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Y_LSB));
-		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
-		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Z_MSB));
-		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
-		pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Z_LSB));
-		pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
-		//pr_err("%s: INT_SOURCE 0x%02x\n",__func__,mma8451q_read(chip,INT_SOURCE));
+		short x,y,z;
+		u8 accel_data[7];
+		pr_err("%s: res %d\n",__func__,mma8451q_read_block(chip,OUT_X_MSB,accel_data,7));
+
+		x = ((accel_data[0] << 8) & 0xff00) | accel_data[1];
+		y = ((accel_data[2] << 8) & 0xff00) | accel_data[3];
+		z = ((accel_data[4] << 8) & 0xff00) | accel_data[5];
+		x = (short)(x) >> 2;
+		y = (short)(y) >> 2;
+		z = (short)(z) >> 2;
+		input_report_abs(chip->input_dev, ABS_X, x);
+		input_report_abs(chip->input_dev, ABS_Y, y);
+		input_report_abs(chip->input_dev, ABS_Z, z);
+		input_sync(chip->input_dev);
 	}
-	//mma8451q_read_block(chip,OUT_X_MSB,accel_data,6);
+	// 	pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+	// 	pr_err("%s: INT_SOURCE 0x%02x\n",__func__,mma8451q_read(chip,INT_SOURCE));
+	// 	pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_X_MSB));
+	// 	pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+	// 	pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_X_LSB));
+	// 	pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+	// 	pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Y_MSB));
+	// 	pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+	// 	pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Y_LSB));
+	// 	pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+	// 	pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Z_MSB));
+	// 	pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+	// 	pr_err("%s: res %d\n",__func__,mma8451q_read(chip,OUT_Z_LSB));
+	// //mma8451q_read_block(chip,OUT_X_MSB,accel_data,6);
 	
 }
 
@@ -144,15 +154,16 @@ static int mma8451q_init_chip(struct mma8451q_driver_data* chip)
 {
 	chip->enabled = false;
 	mma8451q_write(chip,CTRL_REG1,0x00);
+	mma8451q_write(chip,CTRL_REG1,0b00011000);
 
-	mma8451q_write(chip,CTRL_REG2,0b00000000);
-	mma8451q_write(chip,CTRL_REG3,0b00000001);
+	mma8451q_write(chip,CTRL_REG2,0b00010000);
+	mma8451q_write(chip,CTRL_REG3,0b00000000);
 	mma8451q_write(chip,CTRL_REG4,0b00000001);
-	mma8451q_write(chip,CTRL_REG5,0b00000001);
+	mma8451q_write(chip,CTRL_REG5,0b00000000);
 
 	mma8451q_write(chip,CTRL_REG1,0b00000001);
-	mma8451q_read(chip,INT_SOURCE);
-	mma8451q_read(chip,F_STATUS);
+	// mma8451q_read(chip,INT_SOURCE);
+	// mma8451q_read(chip,F_STATUS);
 
 	return 0;
 }
@@ -195,7 +206,7 @@ static int mma8451q_input_dev_init(struct mma8451q_driver_data* chip)
 
 	res = request_irq(chip->client->irq,
 				     mma8451q_irq_callback,
-                    (IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING),
+                    (IRQF_TRIGGER_FALLING),
 					       "mma8451q_irq",
 						     chip);
 
