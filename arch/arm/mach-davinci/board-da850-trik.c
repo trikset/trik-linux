@@ -1409,7 +1409,10 @@ export_pwr_con_failed:
 request_pwr_con_failed:
 cfg_reg_pwr_con_failed:
 	return ret;
-}	
+}
+
+
+#warning TODO temporary proximity sensor driver code
 static ssize_t trik_sensor_d1_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	//DA850_GPIO3_3,	/*D1A*/
@@ -1418,6 +1421,7 @@ static ssize_t trik_sensor_d1_read(struct device *dev, struct device_attribute *
 	gpio_direction_output(GPIO_TO_PIN(3, 3),1);
 	udelay(1000);
 	gpio_direction_output(GPIO_TO_PIN(3, 3),0);
+
 	getnstimeofday(&start);
 	do {
 		getnstimeofday(&end);
@@ -1427,12 +1431,13 @@ static ssize_t trik_sensor_d1_read(struct device *dev, struct device_attribute *
 }
 static ssize_t trik_sensor_d2_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	//DA850_GPIO3_5,	/*D2B*/
 	//DA850_GPIO3_1,	/*D2A*/
+	//DA850_GPIO3_5,	/*D2B*/
 	struct timespec start, end;
 	gpio_direction_output(GPIO_TO_PIN(3, 1),1);
         udelay(1000);
         gpio_direction_output(GPIO_TO_PIN(3, 1),0);
+
         getnstimeofday(&start);
         do {
 		getnstimeofday(&end);
@@ -1447,7 +1452,7 @@ static const DEVICE_ATTR(sensor_d2,	(S_IRUSR|S_IRGRP|S_IROTH), trik_sensor_d2_re
 static const struct attribute *da850_trik_manage_attrs[] = {
 	&dev_attr_sensor_d1.attr,
 	&dev_attr_sensor_d2.attr,
-    NULL,
+    	NULL,
 };
 
 
