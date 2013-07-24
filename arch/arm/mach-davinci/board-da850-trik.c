@@ -456,19 +456,19 @@ const short da850_trik_gyro_pins[] __initconst = {
 };
 static struct spi_board_info da850_trik_spi1_info[] = {
 	[0] = {
-		.modalias                = "internal",                  /* Stub */
-		.mode                        = SPI_MODE_0,
-		.max_speed_hz                = 10000000,       /* max sample rate at 3V */
+		.modalias               = "",                  /* Stub */
+		.mode                   = SPI_MODE_0,
+		.max_speed_hz           = 10000000,       /* max sample rate at 3V */
 		.bus_num                = 1,
-		.chip_select                = 0,
+		.chip_select            = 0,
         },
 	[1] = {
-		.modalias 			= "l3g42xxd",
+		.modalias 		= "l3g42xxd",
 		.controller_data 	= &da850_trik_spi1_cfg,
 		.platform_data 		= NULL,
-		.mode 				= SPI_MODE_0, //SPI_NO_CS
+		.mode 			= SPI_MODE_0, //SPI_NO_CS
 		.max_speed_hz		= 10000000,
-		.bus_num			= 1,
+		.bus_num		= 1,
 		.chip_select		= 1,
 	},
 };
@@ -1418,7 +1418,6 @@ static ssize_t trik_sensor_d1_read(struct device *dev, struct device_attribute *
 	gpio_direction_output(GPIO_TO_PIN(3, 3),1);
 	udelay(1000);
 	gpio_direction_output(GPIO_TO_PIN(3, 3),0);
-	
 	getnstimeofday(&start);
 	do {
 		getnstimeofday(&end);
@@ -1432,13 +1431,13 @@ static ssize_t trik_sensor_d2_read(struct device *dev, struct device_attribute *
 	//DA850_GPIO3_1,	/*D2A*/
 	struct timespec start, end;
 	gpio_direction_output(GPIO_TO_PIN(3, 1),1);
- 	udelay(1000);
- 	gpio_direction_output(GPIO_TO_PIN(3, 1),0);
- 	getnstimeofday(&start);
- 	do {
- 		getnstimeofday(&end);
- 	} while(gpio_get_value(GPIO_TO_PIN(3, 5)));
-	
+        udelay(1000);
+        gpio_direction_output(GPIO_TO_PIN(3, 1),0);
+        getnstimeofday(&start);
+        do {
+		getnstimeofday(&end);
+        } while(gpio_get_value(GPIO_TO_PIN(3, 5)));
+
 	return sprintf(buf,"%lu\n", timespec_sub(end,start).tv_nsec);
 }
 
@@ -1494,7 +1493,7 @@ static struct platform_device da850_trik_manage_device = {
 module_platform_driver(da850_trik_manage_driver);
 
 
-static __init int da850_bwsensor_init(){
+static __init int da850_bwsensor_init(void){
 	return platform_device_register(&da850_trik_manage_device);
 };
 
@@ -1614,7 +1613,7 @@ static __init void da850_trik_init(void)
 	}
 }
 #ifdef CONFIG_SERIAL_8250_CONSOLE
-static int __init da850_trik_console_init(void)
+static __init int da850_trik_console_init(void)
 {
 	if (!machine_is_davinci_da850_trik())
 		return 0;
@@ -1623,17 +1622,17 @@ static int __init da850_trik_console_init(void)
 console_initcall(da850_trik_console_init);
 #endif
 
- static void __init da850_trik_map_io(void)
- {
- 	da850_init();
- }
- MACHINE_START(DAVINCI_DA850_TRIK, "DA850/AM18x/OMAP-L138 Trikboard")
- .atag_offset		= 0x100,
+static void __init da850_trik_map_io(void)
+{
+	da850_init();
+}
+MACHINE_START(DAVINCI_DA850_TRIK, "DA850/AM18x/OMAP-L138 Trikboard")
+	.atag_offset		= 0x100,
 	.map_io			= da850_trik_map_io,
 	.init_irq		= cp_intc_init,
 	.timer			= &davinci_timer,
-	.init_machine	= da850_trik_init,
+	.init_machine		= da850_trik_init,
 	.init_late		= davinci_init_late,
-	.dma_zone_size	= SZ_128M,
+	.dma_zone_size		= SZ_128M,
 	.restart		= da8xx_restart,
 MACHINE_END
