@@ -171,7 +171,9 @@ static struct davinci_mmc_config da850_trik_sd0_config = {
 	.caps		= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED | MMC_CAP_4_BIT_DATA,
 	.version	= MMC_CTLR_VERSION_2,
 };
-static __init int da850_trik_sd0_init(void){
+
+static __init int da850_trik_sd0_init(void)
+{
 	int ret;
 	ret = davinci_cfg_reg_list(da850_trik_sd0_pins);
 	if (ret) {
@@ -227,51 +229,49 @@ static const short jd1_jd2_pins[] = {
         -1
 };
 
-static void trik_sensor_init(void){
+static void trik_sensor_init(void)
+{
 	//init gpio
 	//
 	u32 cfgchip2 = 0;
 	int ret = 0;
-	pr_err("%s start\n",__func__);
+
 	// cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
 	// //cfgchip2 &= 0x0000;
 	// cfgchip2 |= 0x0200;
 	// __raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
 
-	// cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));	
+	// cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
 	// cfgchip2 |= 0x0000;
 	// __raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
 
 	ret = davinci_cfg_reg_list(jd1_jd2_pins);
-        if (ret) {
-                pr_err("%s: trik_sensor mux setup failed: %d\n",
-                        __func__, ret);
-                return;
+	if (ret) {
+		pr_err("%s: trik_sensor mux setup failed: %d\n",
+			__func__, ret);
+		return;
         }
 	ret = gpio_request_one(GPIO_TO_PIN(3, 3), GPIOF_OUT_INIT_LOW, "D1A");
-    ret = gpio_request_one(GPIO_TO_PIN(3, 1), GPIOF_OUT_INIT_LOW, "D2A");
+	ret = gpio_request_one(GPIO_TO_PIN(3, 1), GPIOF_OUT_INIT_LOW, "D2A");
+	ret = gpio_request_one(GPIO_TO_PIN(3, 2), GPIOF_IN, "D1B");
+	ret = gpio_request_one(GPIO_TO_PIN(3, 5), GPIOF_IN, "D2B");
 
-    ret = gpio_request_one(GPIO_TO_PIN(3, 2), GPIOF_IN, "D1B");
-    ret = gpio_request_one(GPIO_TO_PIN(3, 5), GPIOF_IN, "D2B");
-    
-    gpio_export(GPIO_TO_PIN(3, 1),1);
+	gpio_export(GPIO_TO_PIN(3, 1),1);
 	gpio_export(GPIO_TO_PIN(3, 2),1);
 
-    gpio_export(GPIO_TO_PIN(3, 3),1);
-    gpio_export(GPIO_TO_PIN(3, 5),1);
-    
-    gpio_set_value(GPIO_TO_PIN(3, 3),0);
+	gpio_export(GPIO_TO_PIN(3, 3),1);
+	gpio_export(GPIO_TO_PIN(3, 5),1);
+
+	gpio_set_value(GPIO_TO_PIN(3, 3),0);
 	gpio_set_value(GPIO_TO_PIN(3, 1),0);
-	
+
 	gpio_set_value(GPIO_TO_PIN(3, 2),0);
 	gpio_set_value(GPIO_TO_PIN(3, 5),0);
-
-    pr_err("%s end\n",__func__);
 }
 
 
 static struct i2c_board_info __initdata da850_trik_i2c0_devices[] = {
-	{	
+	{
 		I2C_BOARD_INFO("l3g42xxd", 0x69),
 	},
 	{
