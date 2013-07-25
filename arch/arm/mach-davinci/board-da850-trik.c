@@ -1412,33 +1412,35 @@ static ssize_t trik_sensor_d1_read(struct device *dev, struct device_attribute *
 {
 	//DA850_GPIO3_3,	/*D1A*/
 	//DA850_GPIO3_2,	/*D1B*/
-	struct timespec start, end;
-	gpio_direction_output(GPIO_TO_PIN(3, 3),1);
+	struct timespec start, end, diff;
+	gpio_direction_output(GPIO_TO_PIN(3, 3), 1);
 	udelay(1000);
-	gpio_direction_output(GPIO_TO_PIN(3, 3),0);
+	gpio_direction_output(GPIO_TO_PIN(3, 3), 0);
 
 	getnstimeofday(&start);
 	do {
 		getnstimeofday(&end);
-	} while(gpio_get_value(GPIO_TO_PIN(3, 2)));
+		diff = timespec_sub(end, start);
+	} while (gpio_get_value(GPIO_TO_PIN(3, 2)) && diff.tv_sec == 0);
 
-	return sprintf(buf,"%lu\n", timespec_sub(end,start).tv_nsec);
+	return sprintf(buf,"%lu\n", diff.tv_sec==0 ? diff.tv_nsec : 0);
 }
 static ssize_t trik_sensor_d2_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	//DA850_GPIO3_1,	/*D2A*/
 	//DA850_GPIO3_5,	/*D2B*/
-	struct timespec start, end;
-	gpio_direction_output(GPIO_TO_PIN(3, 1),1);
+	struct timespec start, end, diff;
+	gpio_direction_output(GPIO_TO_PIN(3, 1), 1);
         udelay(1000);
-        gpio_direction_output(GPIO_TO_PIN(3, 1),0);
+        gpio_direction_output(GPIO_TO_PIN(3, 1), 0);
 
         getnstimeofday(&start);
         do {
 		getnstimeofday(&end);
-        } while(gpio_get_value(GPIO_TO_PIN(3, 5)));
+		diff = timespec_sub(end, start);
+	} while (gpio_get_value(GPIO_TO_PIN(3, 5)) && diff.tv_sec == 0);
 
-	return sprintf(buf,"%lu\n", timespec_sub(end,start).tv_nsec);
+	return sprintf(buf,"%lu\n", diff.tv_sec==0 ? diff.tv_nsec : 0);
 }
 
 static const DEVICE_ATTR(sensor_d1,	(S_IRUSR|S_IRGRP|S_IROTH), trik_sensor_d1_read, NULL);
