@@ -1606,9 +1606,9 @@ static __init void da850_trik_init(void)
 	//vpif
 
 	if (!jd1_jd2){
-		ret = da850_bwsensor_init();
+		ret = da850_trik_bwsensor_init();
 		if (ret){
-			pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
+			pr_warning("%s: bwsensor init failed: %d\n", __func__, ret);
 		}
 	}
 }
