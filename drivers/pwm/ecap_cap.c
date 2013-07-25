@@ -387,7 +387,7 @@ int ecap_cap_config(int instance, struct ecap_cap *ecap_cap)
 	if (!device)
 		return -EINVAL;
 	ecap = dev_get_drvdata(device);
-	memcpy(&ecap->ecap_cap, ecap_cap, sizeof(ecap_cap));
+	memcpy(&ecap->ecap_cap, ecap_cap, sizeof(*ecap_cap));
 	return ecap_config(ecap);
 }
 EXPORT_SYMBOL(ecap_cap_config);
