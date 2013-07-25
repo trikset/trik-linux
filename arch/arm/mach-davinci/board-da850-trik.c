@@ -229,21 +229,18 @@ static const short jd1_jd2_pins[] = {
         -1
 };
 
-static void trik_sensor_init(void)
+#warning TODO rework required, generic solution for gpio pins mixup should be implemented
+static void trik_jd1_jd2_init(bool _pullUp)
 {
-	//init gpio
-	//
-	u32 cfgchip2 = 0;
+	u32 cfg_pupdsel = 0;
 	int ret = 0;
 
-	// cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
-	// //cfgchip2 &= 0x0000;
-	// cfgchip2 |= 0x0200;
-	// __raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
-
-	// cfgchip2 = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
-	// cfgchip2 |= 0x0000;
-	// __raw_writel(cfgchip2,DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+	cfg_pupdsel = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+	if (_pullUp)
+		cfg_pupdsel |= 0x020000;
+	else
+		cfg_pupdsel &= ~0x020000;
+	__raw_writel(cfg_pupdsel, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
 
 	ret = davinci_cfg_reg_list(jd1_jd2_pins);
 	if (ret) {
@@ -291,8 +288,8 @@ static __init int da850_trik_i2c0_init(void)
 		pr_err("%s: I2C0 mux setup failed: %d\n", __func__, ret);
 	}
 	if (jd1_jd2){
-		trik_sensor_init();
-		
+		trik_jd1_jd2_init(true);
+
 		da850_trik_i2c0_devices[0].irq = gpio_to_irq(GPIO_TO_PIN(3,5));
 		da850_trik_i2c0_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(3,2));
 		
@@ -1446,63 +1443,63 @@ static ssize_t trik_sensor_d2_read(struct device *dev, struct device_attribute *
 static const DEVICE_ATTR(sensor_d1,	(S_IRUSR|S_IRGRP|S_IROTH), trik_sensor_d1_read, NULL);
 static const DEVICE_ATTR(sensor_d2,	(S_IRUSR|S_IRGRP|S_IROTH), trik_sensor_d2_read,   NULL);
 
-static const struct attribute *da850_trik_manage_attrs[] = {
+static const struct attribute *da850_trik_bwsensor_attrs[] = {
 	&dev_attr_sensor_d1.attr,
 	&dev_attr_sensor_d2.attr,
     	NULL,
 };
 
 
-static const struct attribute_group da850_trik_manage_attrs_group = {
-	.attrs = (struct attribute **) da850_trik_manage_attrs,
+static const struct attribute_group da850_trik_bwsensor_attrs_group = {
+	.attrs = (struct attribute **) da850_trik_bwsensor_attrs,
 };
-static int __devinit da850_trik_manage_probe(struct platform_device *pdev)
+static int __devinit da850_trik_bwsensor_probe(struct platform_device *pdev)
 {
 	int ret;
-	ret = sysfs_create_group(&pdev->dev.kobj, &da850_trik_manage_attrs_group);
+	ret = sysfs_create_group(&pdev->dev.kobj, &da850_trik_bwsensor_attrs_group);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Unable to export da850_trik state, "
+		dev_err(&pdev->dev, "Unable to export da850_trik bwsensor attrs, "
 			            "error: %d\n", ret);
 		platform_set_drvdata(pdev, NULL);
 		return ret;
 	}
-	trik_sensor_init();
+	trik_jd1_jd2_init(false);
 	return 0;
 }
 
-static int __devexit da850_trik_manage_remove(struct platform_device *pdev)
+static int __devexit da850_trik_bwsensor_remove(struct platform_device *pdev)
 {
-	sysfs_remove_group(&pdev->dev.kobj, &da850_trik_manage_attrs_group);
+	sysfs_remove_group(&pdev->dev.kobj, &da850_trik_bwsensor_attrs_group);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
-static struct platform_driver da850_trik_manage_driver = {
-	.probe		= da850_trik_manage_probe,
-	.remove		= __devexit_p(da850_trik_manage_remove),
+static struct platform_driver da850_trik_bwsensor_driver = {
+	.probe		= da850_trik_bwsensor_probe,
+	.remove		= __devexit_p(da850_trik_bwsensor_remove),
 	.driver		= {
 		.name	= "da850_trik",
 		.owner	= THIS_MODULE,
 	},
 };
 
-static struct platform_device da850_trik_manage_device = {
+static struct platform_device da850_trik_bwsensor_device = {
 	.name		= "da850_trik",
 	.id		= -1,
 	.num_resources	= 0,
 };
 
-module_platform_driver(da850_trik_manage_driver);
+module_platform_driver(da850_trik_bwsensor_driver);
 
 
-static __init int da850_bwsensor_init(void){
-	return platform_device_register(&da850_trik_manage_device);
+static __init int da850_trik_bwsensor_init(void){
+	return platform_device_register(&da850_trik_bwsensor_device);
 };
 
 static __init void da850_trik_init(void)
 {
 	int ret;
-	
+
 	ret = da850_trik_serial_init();
 	if (ret)
 		pr_warning("%s: serial initialized failed: %d\n", __func__, ret);
