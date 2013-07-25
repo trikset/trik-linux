@@ -261,12 +261,6 @@ static void trik_sensor_init(void)
 
 	gpio_export(GPIO_TO_PIN(3, 3),1);
 	gpio_export(GPIO_TO_PIN(3, 5),1);
-
-	gpio_set_value(GPIO_TO_PIN(3, 3),0);
-	gpio_set_value(GPIO_TO_PIN(3, 1),0);
-
-	gpio_set_value(GPIO_TO_PIN(3, 2),0);
-	gpio_set_value(GPIO_TO_PIN(3, 5),0);
 }
 
 
