@@ -327,7 +327,7 @@ static struct i2c_board_info __initdata da850_trik_i2c1_devices[] = {
 		I2C_BOARD_INFO("mma8451q", 0x1C),
 	},
 	{
-		#warning add i2c alsa device driver
+#warning TODO add i2c alsa device driver
 		I2C_BOARD_INFO("ds4420",0x50),
 	},
 };
@@ -336,6 +336,7 @@ static struct davinci_i2c_platform_data da850_trik_i2c1_pdata = {
 	.bus_delay	= 0,	/* usec */
 };
 
+#warning TODO match gpio pins to i2c driver
 static __init int da850_trik_i2c1_init(void)
 {
 	int ret; 
@@ -482,7 +483,7 @@ const short da850_trik_spi1_pins[] __initconst = {
 
 static u8 da850_trik_spi1_chipselect[] = { SPI_INTERN_CS, GPIO_TO_PIN(2,7)};
 
-#warning TO DO match driver and gpio irq
+#warning TODO match driver and gpio irq
 static __init int da850_trik_spi1_init(void)
 {
 	int ret;
@@ -1608,8 +1609,9 @@ static __init void da850_trik_init(void)
 	}
 
 	//pwm
-	
-	//vpif 
+
+	//vpif
+
 	if (!jd1_jd2){
 		ret = da850_bwsensor_init();
 		if (ret){
