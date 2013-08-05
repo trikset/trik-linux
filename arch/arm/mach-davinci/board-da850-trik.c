@@ -468,11 +468,11 @@ const short da850_trik_spi1_pins[] __initconst = {
 	DA850_SPI1_SIMO,
 	DA850_SPI1_SOMI,
 	DA850_SPI1_CLK,
-	DA850_GPIO2_7, 	/* TP9	*/
+	DA850_GPIO4_9, 	/* TP9	*/
 	-1
 };
 
-static u8 da850_trik_spi1_chipselect[] = { SPI_INTERN_CS, GPIO_TO_PIN(2,7)};
+static u8 da850_trik_spi1_chipselect[] = { SPI_INTERN_CS, GPIO_TO_PIN(4,9)};
 
 #warning TODO match driver and gpio irq
 static __init int da850_trik_spi1_init(void)
@@ -494,7 +494,7 @@ static __init int da850_trik_spi1_init(void)
 
 	da850_trik_spi1_info[1].irq = gpio_to_irq(GPIO_TO_PIN(2,8));
 
-	ret = gpio_request_one(GPIO_TO_PIN(2,7),GPIOF_OUT_INIT_HIGH, "GYRO_CS(TP9)");
+	ret = gpio_request_one(GPIO_TO_PIN(4,9),GPIOF_OUT_INIT_HIGH, "GYRO_CS(TP9)");
 	if (ret){
 		pr_warning("%s: can not open spi1 GYRO_CS(TP9) : %d\n", __func__, ret);
 	}
@@ -502,7 +502,7 @@ static __init int da850_trik_spi1_init(void)
 	ret = da8xx_register_spi(1, da850_trik_spi1_info, ARRAY_SIZE(da850_trik_spi1_info));
 	if (ret) {
 		pr_err("da837_init_spi1: spi1 setup failed: %d\n", ret);
-		gpio_free(GPIO_TO_PIN(2,7));
+		gpio_free(GPIO_TO_PIN(4,9));
 		return ret;
 	}
 
