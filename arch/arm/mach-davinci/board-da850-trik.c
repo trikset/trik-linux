@@ -778,7 +778,7 @@ static __init int da850_trik_led_init(void){
 #define DA850_TRIK_KEYS_DEBOUNCE_MS	10
 #define DA850_TRIK_GPIO_KEYS_POLL_MS	200
 static const short da850_trik_gpio_keys_pins[] __initconst = {
-//	DA850_GPIO5_8,  /* sw1 */
+	DA850_GPIO2_7,  /* sw1 */
 	DA850_GPIO3_4,	/* sw2 */
 	DA850_GPIO2_0,	/* sw3 */
 	DA850_GPIO1_9,	/* sw4 */
@@ -788,17 +788,15 @@ static const short da850_trik_gpio_keys_pins[] __initconst = {
 	-1
 };
 static struct gpio_keys_button da850_trik_gpio_keys[] = {
-#if 0
 	{
 		.type		   = EV_KEY,
 		.active_low	   = 1,
 		.wakeup		   = 0,
 		.debounce_interval = DA850_TRIK_KEYS_DEBOUNCE_MS,
-		.gpio		   = GPIO_TO_PIN(5, 8),
+		.gpio		   = GPIO_TO_PIN(2, 7),
 		.code		   = KEY_F1,
 		.desc		   = "sw1",
 	},
-#endif 
 	{
 		.type		   = EV_KEY,
 		.active_low	   = 1,
@@ -906,7 +904,7 @@ static const short da850_trik_wifi_pins[] __initconst = {
 	-1
 };
 
-static void wl12xx_set_power(int index, bool power_on)
+static void wl12xx_set_power( bool power_on)
 {
 	static bool power_state;
 
@@ -923,7 +921,7 @@ static void wl12xx_set_power(int index, bool power_on)
 		gpio_set_value(GPIO_TO_PIN(5,11), 0);
 		usleep_range(1000, 1000);
 		gpio_set_value(GPIO_TO_PIN(5,11), 1);
-		msleep(70);
+		msleep(700);
 	} else {
 		gpio_set_value(GPIO_TO_PIN(5,11), 0);
 	}
@@ -955,14 +953,25 @@ static __init int da850_trik_wifi_init(void){
 	ret = gpio_request_one(GPIO_TO_PIN(6, 8), GPIOF_OUT_INIT_HIGH, "wi-	");
 	if (ret)
 		pr_warning("%s: could not request wi-fi enable all gpio: %d\n", __func__, ret);
+	ret = gpio_export(GPIO_TO_PIN(6,8),1);
+	if (ret)
+		pr_warning("%s: could not export wi-fi  enable all gpio: %d\n", __func__, ret);
 
         ret = gpio_request_one(GPIO_TO_PIN(5,11), GPIOF_OUT_INIT_LOW, "wi-fi_en");
 	if (ret)
 		pr_warning("%s: could not request wi-fi enable gpio: %d\n", __func__, ret);
 
+	ret = gpio_export(GPIO_TO_PIN(5,11),1);
+	if (ret)
+		pr_warning("%s: could not export wi-fi enable gpio: %d\n", __func__, ret);
+
 	ret = gpio_request_one(GPIO_TO_PIN(6, 9), GPIOF_IN, "wi-fi_irq");
 	if (ret)
 		pr_warning("%s: could not request wi-fi irq gpio: %d\n",__func__, ret);
+
+	ret = gpio_export(GPIO_TO_PIN(6,9),1);
+	if (ret)
+		pr_warning("%s: could not export wi-fi wi-fi irq gpio: %d\n", __func__, ret);
 
 	da850_trik_wl12xx_wlan_data.irq = gpio_to_irq(GPIO_TO_PIN(6, 9));
 	ret = wl12xx_set_platform_data(&da850_trik_wl12xx_wlan_data);
@@ -976,6 +985,17 @@ static __init int da850_trik_wifi_init(void){
 		pr_err("%s: wl12xx/mmc registration failed: %d\n", __func__, ret);
 		goto exit_release_gpio;
 	}
+	{
+		u32 cfg_pupdsel = 0;
+		u32 cfg_pupdena = 0;
+		cfg_pupdena = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+		cfg_pupdena |= 0x40000000;
+		__raw_writel(cfg_pupdena, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+		cfg_pupdsel = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+		cfg_pupdsel |= 0x40000000;
+		__raw_writel(cfg_pupdsel, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+       }
+
 	return 0;
 exit_release_gpio:
 	gpio_free(GPIO_TO_PIN(6, 9));
@@ -1235,16 +1255,16 @@ static __init int da850_trik_buffer_clk_init(void)
 }
 
 static const short da850_trik_ehrpwm0_pins[] __initconst = {
-#if 0
 		DA850_EHRPWM0_A,
-#endif
 		DA850_EHRPWM0_B,
 		DA850_GPIO2_5/*PE0_EN*/,
 		-1
 };
 
 static const short da850_trik_ehrpwm1_pins[] __initconst = {
+#if 0
 		DA850_EHRPWM1_A,
+#endif
 		DA850_EHRPWM1_B,
 		DA850_GPIO2_3/*PE1_EN*/,
 		-1
@@ -1288,6 +1308,7 @@ static __init int da850_trik_ehrpwm_init(void){
 	}
 	da850_register_ehrpwm(mask);
 	return 0;
+
 export_pe1_en_failed:
 	gpio_free(GPIO_TO_PIN(2,3));
 request_pe1_en_failed:
@@ -1600,9 +1621,7 @@ static __init void da850_trik_init(void)
 	if (ret){
 		pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
 	}
-
 	//pwm
-
 	//vpif
 
 	if (!jd1_jd2){
