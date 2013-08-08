@@ -1,31 +1,111 @@
-#include <linux/errno.h>
-#include <linux/input.h>	/* BUS_SPI */
+
+/*
+ *  mma845x.c - Linux kernel modules for 3-Axis Orientation/Motion
+ *  Detection Sensor MMA8451/MMA8452/MMA8453
+ *
+ *  Copyright (C) 2010-2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
 #include <linux/module.h>
+#include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/pm.h>
-#include <linux/types.h>
-#include <linux/workqueue.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
+#include <linux/mutex.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/hwmon-sysfs.h>
+#include <linux/err.h>
+#include <linux/input.h>
 
-#include "linux/mma8451q.h"
+#define SENSORS_MMA_POSITION	4
 
-// struct mma8451q_platform_data
-// {
-// 	int gpio_int2;
-// };
+#define MMA845X_I2C_ADDR	0x1D
+#define MMA8451_ID			0x1A
+#define MMA8452_ID			0x2A
+#define MMA8453_ID			0x3A
+
+#define MAX_DELAY			500
+#define MIN_DELAY			8
+#define MODE_CHANGE_DELAY_MS	100
+
+#define MMA845X_BUF_SIZE		7
+/* register enum for mma845x registers */
 enum {
-	MODE_ODR_800HZ = 0,
-	MODE_ODR_400HZ,
-	MODE_ODR_200HZ,
-	MODE_ODR_100HZ,
-	MODE_ODR_50HZ,
-	MODE_ODR_12HZ,
-	MODE_ODR_6HZ,
-	MODE_ODR_2HZ,
+	MMA845X_STATUS 		= 0x00,
+	MMA845X_OUT_X_MSB 	= 0x01,
+	MMA845X_OUT_X_LSB 	= 0x02,
+	MMA845X_OUT_Y_MSB		= 0x03,
+	MMA845X_OUT_Y_LSB		= 0x04,
+	MMA845X_OUT_Z_MSB		= 0x05,
+	MMA845X_OUT_Z_LSB		= 0x06,
 
+	MMA845X_F_SETUP 		= 0x09,
+	MMA845X_TRIG_CFG		= 0x0A,
+	MMA845X_SYSMOD		= 0x0B,
+	MMA845X_INT_SOURCE	= 0x0C,
+	MMA845X_WHO_AM_I		= 0x0D,
+	MMA845X_XYZ_DATA_CFG	= 0x0E,
+	MMA845X_HP_FILTER_CUTOFF	= 0x0F,
+
+	MMA845X_PL_STATUS		= 0x10,
+	MMA845X_PL_CFG		= 0x11,
+	MMA845X_PL_COUNT		= 0x12,
+	MMA845X_PL_BF_ZCOMP	= 0x13,
+	MMA845X_P_L_THS_REG	= 0x14,
+
+	MMA845X_FF_MT_CFG		= 0x15,
+	MMA845X_FF_MT_SRC		= 0x16,
+	MMA845X_FF_MT_THS		= 0x17,
+	MMA845X_FF_MT_COUNT	= 0x18,
+
+	MMA845X_TRANSIENT_CFG = 0x1D,
+	MMA845X_TRANSIENT_SRC	= 0x1E,
+	MMA845X_TRANSIENT_THS	= 0x1F,
+	MMA845X_TRANSIENT_COUNT	= 0x20,
+
+	MMA845X_PULSE_CFG		= 0x21,
+	MMA845X_PULSE_SRC		= 0x22,
+	MMA845X_PULSE_THSX	= 0x23,
+	MMA845X_PULSE_THSY	= 0x24,
+	MMA845X_PULSE_THSZ	= 0x25,
+	MMA845X_PULSE_TMLT	= 0x26,
+	MMA845X_PULSE_LTCY	= 0x27,
+	MMA845X_PULSE_WIND	= 0x28,
+
+	MMA845X_ASLP_COUNT	= 0x29,
+	MMA845X_CTRL_REG1		= 0x2A,
+	MMA845X_CTRL_REG2		= 0x2B,
+	MMA845X_CTRL_REG3		= 0x2C,
+	MMA845X_CTRL_REG4		= 0x2D,
+	MMA845X_CTRL_REG5		= 0x2E,
+
+	MMA845X_OFF_X			= 0x2F,
+	MMA845X_OFF_Y			= 0x30,
+	MMA845X_OFF_Z			= 0x31,
+
+	MMA845X_REG_END,
 };
+
+/* The sensitivity is represented in counts/g. In 2g mode the
+sensitivity is 1024 counts/g. In 4g mode the sensitivity is 512
+counts/g and in 8g mode the sensitivity is 256 counts/g.
+ */
 enum {
 	MODE_2G = 0,
 	MODE_4G,
@@ -36,272 +116,495 @@ enum {
 	MMA_STANDBY = 0,
 	MMA_ACTIVED,
 };
-
-struct mma8451q_accel_data
-{
+struct mma845x_data_axis{
 	short x;
 	short y;
 	short z;
 };
-struct mma8451q_driver_data
-{
+struct mma845x_data{
 	struct i2c_client * client;
-	struct input_dev* input_dev;
-	//struct mma8451q_platform_data* pdata;
-	u8 client_irq;
-	struct work_struct irq_work;
-	bool enabled;
+	struct workqueue_struct *mma845x_wq;
+	struct input_dev *input_dev;
+	struct hrtimer timer;
+	struct work_struct  work;
+	unsigned int delay; 
+	struct mutex data_lock;
+	int active;
+	int position;
+	u8 chip_id;
+	int mode;
+};
+static char * mma845x_names[] ={
+   "mma8451",
+   "mma8452",
+   "mma8453",
+};
+#if 0
+static int mma845x_position_setting[8][3][3] =
+{
+   {{ 0, -1,  0}, { 1,  0,	0}, {0, 0,	1}},
+   {{-1,  0,  0}, { 0, -1,	0}, {0, 0,	1}},
+   {{ 0,  1,  0}, {-1,  0,	0}, {0, 0,	1}},
+   {{ 1,  0,  0}, { 0,  1,	0}, {0, 0,	1}},
+   
+   {{ 0, -1,  0}, {-1,  0,	0}, {0, 0,  -1}},
+   {{-1,  0,  0}, { 0,  1,	0}, {0, 0,  -1}},
+   {{ 0,  1,  0}, { 1,  0,	0}, {0, 0,  -1}},
+   {{ 1,  0,  0}, { 0, -1,	0}, {0, 0,  -1}},
 };
 
-static short mma8451q_read(struct mma8451q_driver_data* drv_data,u8 reg){
-	return i2c_smbus_read_byte_data(drv_data->client, reg);
-}
-static short mma8451q_write(struct mma8451q_driver_data* drv_data,u8 reg,u8 value){
-	return i2c_smbus_write_byte_data(drv_data->client, reg, value);
-}
-static short mma8451q_read_block(struct mma8451q_driver_data* drv_data,u8 reg,void * buf,size_t size)
+static int mma845x_data_convert(struct mma845x_data* pdata,struct mma845x_data_axis *axis_data)
 {
-	return i2c_smbus_read_i2c_block_data(drv_data->client, reg, size, buf);
+   short rawdata[3],data[3];
+   int i,j;
+   int position = pdata->position ;
+   if(position < 0 || position > 7 )
+   		position = 0;
+   rawdata [0] = axis_data->x ; rawdata [1] = axis_data->y ; rawdata [2] = axis_data->z ;  
+   for(i = 0; i < 3 ; i++)
+   {
+   	data[i] = 0;
+   	for(j = 0; j < 3; j++)
+		data[i] += rawdata[j] * mma845x_position_setting[position][i][j];
+   }
+   axis_data->x = data[0];
+   axis_data->y = data[1];
+   axis_data->z = data[2];
+   return 0;
 }
+#endif
+static char * mma845x_id2name(u8 id){
+	int index = 0;
+	if(id == MMA8451_ID)
+		index = 0;
+	else if(id == MMA8452_ID)
+		index = 1;
+	else if(id == MMA8453_ID)
+		index = 2;
+	return mma845x_names[index];
+}
+static int mma845x_device_init(struct i2c_client *client)
+{
+	int result;
+	struct mma845x_data *pdata = i2c_get_clientdata(client);
+	result = i2c_smbus_write_byte_data(client, MMA845X_CTRL_REG1, 0);
+	if (result < 0)
+		goto out;
 
-static int  mma8451q_suspend(struct device *dev)
+	result = i2c_smbus_write_byte_data(client, MMA845X_XYZ_DATA_CFG,
+					   pdata->mode);
+	if (result < 0)
+		goto out;
+	pdata->active = MMA_STANDBY;
+	msleep(MODE_CHANGE_DELAY_MS);
+	return 0;
+out:
+	dev_err(&client->dev, "error when init mma845x:(%d)", result);
+	return result;
+}
+static int mma845x_device_stop(struct i2c_client *client)
 {
+	u8 val;
+	val = i2c_smbus_read_byte_data(client, MMA845X_CTRL_REG1);
+	i2c_smbus_write_byte_data(client, MMA845X_CTRL_REG1,val & 0xfe);
 	return 0;
 }
-static int  mma8451q_resume(struct device *dev)
+
+static int mma845x_read_data(struct i2c_client *client,struct mma845x_data_axis *data)
 {
+	u8 tmp_data[MMA845X_BUF_SIZE];
+	int ret;
+
+	ret = i2c_smbus_read_i2c_block_data(client,
+					    MMA845X_OUT_X_MSB, 7, tmp_data);
+	if (ret < MMA845X_BUF_SIZE) {
+		dev_err(&client->dev, "i2c block read failed\n");
+		return -EIO;
+	}
+	data->x = ((tmp_data[0] << 8) & 0xff00) | tmp_data[1];
+	data->y = ((tmp_data[2] << 8) & 0xff00) | tmp_data[3];
+	data->z = ((tmp_data[4] << 8) & 0xff00) | tmp_data[5];
+
+	//printk(KERN_EMERG "data.x[%d] data.y[%d] data.z[%d]\n", data->x, data->y, data->z);
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(mma8451q_pm, mma8451q_suspend, mma8451q_resume);
-
-static irqreturn_t mma8451q_irq_callback(int irq, void *dev_id){
-	struct mma8451q_driver_data* chip = dev_id;
-	pr_err("%s: irq get\n",__func__);
-    if(chip)
-		schedule_work(&chip->irq_work);
-	return IRQ_HANDLED;
-}
-static int mma8451q_get_values(struct mma8451q_driver_data* chip, struct mma8451q_accel_data *data)
+static void mma845x_work_func(struct work_struct *work)
 {
-	//int accel_data[6];
-	//mma8451q_read_block(chip,OUT_X_MSB,accel_data,6);
+	struct mma845x_data *pdata = container_of(work, struct mma845x_data, work);
+	struct mma845x_data_axis data;
 
-	return 0;	
+	//mutex_lock(&pdata->data_lock);
+
+	if (mma845x_read_data(pdata->client,&data) != 0)
+		goto out;
+	//mma845x_data_convert(pdata,&data);
+	input_report_abs(pdata->input_dev, ABS_X, data.x);
+	input_report_abs(pdata->input_dev, ABS_Y, data.y);
+	input_report_abs(pdata->input_dev, ABS_Z, data.z);
+	input_sync(pdata->input_dev);
+
+out:
+	//mutex_unlock(&pdata->data_lock);
+	return;
 }
-static void mma8451q_irq_worker(struct work_struct *work)
+static enum hrtimer_restart mma845x_timer_func(struct hrtimer *timer)
 {
-	int value;
-	struct mma8451q_driver_data *chip = container_of(work, struct mma8451q_driver_data, irq_work);
-	pr_err("%s: irq get\n",__func__);
-	//struct mma8451q_accel_data data;
-	// mma8451q_get_values(chip,&data);
-	// input_report_abs(chip->input_dev, ABS_X, data.x);
-	// input_report_abs(chip->input_dev, ABS_Y, data.y);
-	// input_report_abs(chip->input_dev, ABS_Z, data.z);
-	// input_sync(chip->input_dev);
-	// {
-	// 	short x,y,z;
-	// 	u8 accel_data[6];
-	// 	pr_err("%s: res %d\n",__func__,mma8451q_read_block(chip,OUT_X_MSB,accel_data,6));
+	struct mma845x_data *pdata = container_of(timer, struct mma845x_data, timer);
 
-	// 	x = (((u16)accel_data[0] << 8) & 0xff00) | accel_data[1];
-	// 	y = (((u16)accel_data[2] << 8) & 0xff00) | accel_data[3];
-	// 	z = (((u16)accel_data[4] << 8) & 0xff00) | accel_data[5];
-	// 	x = (short)(x) >> 2;
-	// 	y = (short)(y) >> 2;
-	// 	z = (short)(z) >> 2;
-	// 	input_report_abs(chip->input_dev, ABS_X, x);
-	// 	input_report_abs(chip->input_dev, ABS_Y, y);
-	// 	input_report_abs(chip->input_dev, ABS_Z, z);
-	// 	input_sync(chip->input_dev);
-	// }
-		value = mma8451q_read(chip,INT_SOURCE);
-		pr_err("%s: INT_SOURCE 0x%02x\n",__func__,value);
-		if (value&0x01){
-			pr_err("%s: OUT_X_MSB %d\n",__func__,mma8451q_read(chip,OUT_X_MSB));
-			pr_err("%s: OUT_Z_MSB %d\n",__func__,mma8451q_read(chip,OUT_Z_MSB));
-			pr_err("%s: OUT_Y_MSB %d\n",__func__,mma8451q_read(chip,OUT_Y_MSB));
-			
-			pr_err("%s: OUT_X_LSB %d\n",__func__,mma8451q_read(chip,OUT_X_LSB));
-			pr_err("%s: OUT_Y_LSB %d\n",__func__,mma8451q_read(chip,OUT_Y_LSB));
-			pr_err("%s: OUT_Z_LSB %d\n",__func__,mma8451q_read(chip,OUT_Z_LSB));
-			
-			pr_err("%s: F_STATUS 0x%02x\n",__func__,mma8451q_read(chip,F_STATUS));
+	queue_work(pdata->mma845x_wq, &pdata->work);
+	hrtimer_start(&pdata->timer, ktime_set(0, pdata->delay*1000000), HRTIMER_MODE_REL);
+
+	return HRTIMER_NORESTART;
+}
+
+static ssize_t mma845x_enable_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	struct mma845x_data *pdata = input_get_drvdata(input_dev);
+	struct i2c_client *client = pdata->client;
+
+	u8 val;
+	int enable;
+
+	mutex_lock(&pdata->data_lock);
+	val = i2c_smbus_read_byte_data(client, MMA845X_CTRL_REG1);  
+	if((val & 0x01) && pdata->active == MMA_ACTIVED)
+		enable = 1;
+	else
+		enable = 0;
+	mutex_unlock(&pdata->data_lock);
+
+	return sprintf(buf, "%d\n", enable);
+}
+
+static ssize_t mma845x_enable_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	struct mma845x_data *pdata = input_get_drvdata(input_dev);
+	struct i2c_client *client = pdata->client;
+
+	int ret;
+	unsigned long enable;
+	u8 val = 0;
+
+	enable = simple_strtoul(buf, NULL, 10);    
+	mutex_lock(&pdata->data_lock);
+	enable = (enable > 0) ? 1 : 0;
+	if(enable && pdata->active == MMA_STANDBY){  
+		val = i2c_smbus_read_byte_data(client,MMA845X_CTRL_REG1);
+		ret = i2c_smbus_write_byte_data(client, MMA845X_CTRL_REG1, val|0x01);  
+		if(!ret){
+			pdata->active = MMA_ACTIVED;
+			hrtimer_start(&pdata->timer, ktime_set(0, pdata->delay*1000000), HRTIMER_MODE_REL);
+			printk("mma enable setting active \n");
+	    	}
+	}else if(enable == 0  && pdata->active == MMA_ACTIVED){
+		val = i2c_smbus_read_byte_data(client,MMA845X_CTRL_REG1);
+		ret = i2c_smbus_write_byte_data(client, MMA845X_CTRL_REG1,val & 0xFE);
+		if(!ret){
+			hrtimer_cancel(&pdata->timer);
+			pdata->active= MMA_STANDBY;
+			printk("mma enable setting inactive \n");
 		}
-	
-	
-}
-
-static void mma8451q_input_dev_remove(struct mma8451q_driver_data* chip)
-{
-	input_unregister_device(chip->input_dev);
-	free_irq(chip->client->irq, chip);
-	input_free_device(chip->input_dev);
-}
-static int mma8451q_input_open(struct input_dev *dev)
-{
-
-    return 0;
-}
-
-static void mma8451q_input_close(struct input_dev *dev)
-{
-
-}
-
-static int mma8451q_init_chip(struct mma8451q_driver_data* chip)
-{
-	chip->enabled = false;
-	mma8451q_write(chip,CTRL_REG1,0x00);
-
-	mma8451q_write(chip,CTRL_REG2,0b01000000);
-	mma8451q_write(chip,CTRL_REG1,0b00011000);
-
-	mma8451q_write(chip,CTRL_REG2,0b00010000);
-	mma8451q_write(chip,CTRL_REG3,0b00000000);
-	mma8451q_write(chip,CTRL_REG4,0b11111111);
-	mma8451q_write(chip,CTRL_REG5,0b00000000);
-
-	mma8451q_write(chip,CTRL_REG1,0b00000001);
-	// mma8451q_read(chip,INT_SOURCE);
-	// mma8451q_read(chip,F_STATUS);
-
-	return 0;
-}
-static int mma8451q_input_dev_init(struct mma8451q_driver_data* chip)
-{
-	int res;
-	u16 device_id = mma8451q_read(chip,WHO_AM_I);
-	pr_info("%s: Device Id = 0x%02x\n",__func__,device_id);
-	if (device_id != MMA8451_ID){
-		pr_err("%s: Unknown device = 0x%02x\n",__func__,device_id);
-		res = -ENODEV;
-		goto exit_unknown_device;
 	}
-	chip->input_dev = input_allocate_device();
-	if (!chip->input_dev)
+	mutex_unlock(&pdata->data_lock);
+
+	return count;
+}
+
+static ssize_t mma845x_delay_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	struct mma845x_data *pdata = input_get_drvdata(input_dev);
+	int delay;
+
+	mutex_lock(&pdata->data_lock);
+	delay = (int) pdata->delay;
+	mutex_unlock(&pdata->data_lock);
+
+	return sprintf(buf, "%d\n", pdata->delay);
+
+}
+
+static ssize_t mma845x_delay_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	unsigned long delay;
+	struct input_dev *input_dev = to_input_dev(dev);
+	struct mma845x_data *pdata = input_get_drvdata(input_dev);
+
+	delay = simple_strtoul(buf, NULL, 10);   
+	if (delay > MAX_DELAY)
+		delay = MAX_DELAY;
+	if (delay < MIN_DELAY)
+		delay = MIN_DELAY;
+
+	mutex_lock(&pdata->data_lock);
+	pdata->delay = (unsigned int) delay;
+	mutex_unlock(&pdata->data_lock);
+
+	return count;
+}
+
+static ssize_t mma845x_position_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	struct mma845x_data *pdata = input_get_drvdata(input_dev);
+	int position = 0;
+
+	mutex_lock(&pdata->data_lock);
+	position = pdata->position ;
+	mutex_unlock(&pdata->data_lock);
+
+	return sprintf(buf, "%d\n", position);
+}
+
+static ssize_t mma845x_position_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	struct mma845x_data *pdata = input_get_drvdata(input_dev);
+	int  position;
+
+	position = simple_strtoul(buf, NULL, 10);    
+	mutex_lock(&pdata->data_lock);
+	pdata->position = position;
+	mutex_unlock(&pdata->data_lock);
+
+	return count;
+}
+
+static ssize_t mma845x_mode_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	struct mma845x_data *pdata = input_get_drvdata(input_dev);
+	int mode = 0;
+
+	mutex_lock(&pdata->data_lock);
+	mode = pdata->mode ;
+	mutex_unlock(&pdata->data_lock);
+
+	return sprintf(buf, "%d\n", mode);
+}
+#if 0
+static ssize_t mma845x_mode_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct input_dev *input_dev = to_input_dev(dev);
+	struct mma845x_data *pdata = input_get_drvdata(input_dev);
+	int  mode;
+	
+	mode = simple_strtoul(buf, NULL, 10);    
+	mutex_lock(&pdata->data_lock);
+	pdata->mode = mode;
+	i2c_smbus_write_byte_data(pdata->client, MMA845X_XYZ_DATA_CFG,
+					   pdata->mode);
+	mutex_unlock(&pdata->data_lock);
+	
+	return count;
+}
+#endif
+static DEVICE_ATTR(enable_device, S_IRUGO|S_IWUSR|S_IWGRP,
+		   mma845x_enable_show, mma845x_enable_store);
+static DEVICE_ATTR(pollrate_ms, S_IRUGO|S_IWUSR|S_IWGRP,
+		   mma845x_delay_show, mma845x_delay_store);
+static DEVICE_ATTR(position, S_IRUGO|S_IWUSR|S_IWGRP,
+		   mma845x_position_show, mma845x_position_store);
+static DEVICE_ATTR(mode, S_IRUGO|S_IWUSR|S_IWGRP,
+		   mma845x_mode_show, NULL);
+
+static struct attribute *mma845x_attributes[] = {
+	&dev_attr_enable_device.attr,
+	&dev_attr_pollrate_ms.attr,
+	&dev_attr_position.attr,
+	&dev_attr_mode.attr,
+	NULL
+};
+
+static const struct attribute_group mma845x_attr_group = {
+	.attrs = mma845x_attributes,
+};
+
+static int __devinit mma845x_probe(struct i2c_client *client,
+				   const struct i2c_device_id *id)
+{
+	int result, chip_id;
+	struct mma845x_data *pdata;
+	struct i2c_adapter *adapter;
+
+	adapter = to_i2c_adapter(client->dev.parent);
+	result = i2c_check_functionality(adapter,
+					 I2C_FUNC_SMBUS_BYTE |
+					 I2C_FUNC_SMBUS_BYTE_DATA);
+	if (!result)
+		goto err_out;
+
+	/*read MMA845X chip id*/
+	chip_id = i2c_smbus_read_byte_data(client, MMA845X_WHO_AM_I);
+	if (chip_id != MMA8451_ID && chip_id != MMA8452_ID && chip_id != MMA8453_ID  ) {
+		dev_err(&client->dev,
+			"read chip ID 0x%x is not equal to 0x%x , 0x%x , 0x%x!\n",
+			result, MMA8451_ID, MMA8452_ID, MMA8453_ID);
+		result = -EINVAL;
+		goto err_out;
+	}else{
+		printk("mma845x read chip id [%x]\n", chip_id);
+	}
+
+	pdata = kzalloc(sizeof(struct mma845x_data), GFP_KERNEL);
+	if(!pdata){
+		result = -ENOMEM;
+		dev_err(&client->dev, "alloc data memory error!\n");
+		goto err_out;
+	}
+
+	/* Initialize the MMA845X chip */
+	pdata->client = client;
+	pdata->chip_id = chip_id;
+	pdata->mode = MODE_2G;
+	pdata->delay = 100;		// 100ms
+	pdata->position = SENSORS_MMA_POSITION;
+	mutex_init(&pdata->data_lock);
+	i2c_set_clientdata(client,pdata);
+	mma845x_device_init(client);
+
+	pdata->input_dev = input_allocate_device();
+	if (!pdata->input_dev) {
+		printk("input_allocate_device fail\n");
+		goto err_alloc_input_device;
+	}
+	pdata->input_dev->name = "mma845x";
+	pdata->input_dev->id.bustype = BUS_I2C;
+	pdata->input_dev->uniq = mma845x_id2name(pdata->chip_id);
+	set_bit(EV_ABS, pdata->input_dev->evbit);
+	input_set_abs_params(pdata->input_dev, ABS_X, -0x7fff, 0x7fff, 0, 0);
+	input_set_abs_params(pdata->input_dev, ABS_Y, -0x7fff, 0x7fff, 0, 0);
+	input_set_abs_params(pdata->input_dev, ABS_Z, -0x7fff, 0x7fff, 0, 0);
+	if (input_register_device(pdata->input_dev)) {
+		goto err_register_input_device;
+	}
+	input_set_drvdata(pdata->input_dev, pdata);
+
+	pdata->mma845x_wq = create_singlethread_workqueue("mma845x_wq");
+	if (!pdata->mma845x_wq )
 	{
-		res = -ENOMEM;
-		pr_err("%s:input device allocate failed\n",__func__);
-		goto exit_input_device_alloc;
+		printk("create_singlethread_workqueue fail\n");
+		goto err_create_singlethread_workqueue;
 	}
-	chip->input_dev->name = "mma8451q";
-	chip->input_dev->id.bustype = BUS_I2C;
-	chip->input_dev->id.version = 1;
-	chip->input_dev->id.product = le16_to_cpu(device_id);
-	chip->input_dev->id.vendor = 123;
+	INIT_WORK(&pdata->work, mma845x_work_func);
+	hrtimer_init(&pdata->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	pdata->timer.function = mma845x_timer_func;
 
-	chip->input_dev->dev.parent = &chip->client->dev;
-	chip->input_dev->open = mma8451q_input_open;
-	chip->input_dev->close  = mma8451q_input_close;
+	result = sysfs_create_group(&pdata->input_dev->dev.kobj, &mma845x_attr_group);
+	if (result) {
+		dev_err(&client->dev, "create sysfs failed!\n");
+		result = -EINVAL;
+		goto err_create_sysfs;
+	}
 
-	set_bit(EV_ABS,chip->input_dev->evbit);
-	set_bit(EV_REP,chip->input_dev->evbit);
-	input_set_drvdata(chip->input_dev, chip);
-	input_set_abs_params(chip->input_dev, ABS_X,
-                             -8192, 8191, 0, 0);
- 	input_set_abs_params(chip->input_dev, ABS_Y,
-                             -8192, 8191, 0, 0);
- 	input_set_abs_params(chip->input_dev, ABS_Z,
-                             -8192, 8191, 0, 0);
-
-	res = request_irq(chip->client->irq,
-				     mma8451q_irq_callback,
-                    (IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING),
-					       "mma8451q_irq",
-						     chip);
-
-	if (res != 0) {
-        pr_err("%s: irq request failed: %d\n", __func__, res);
-        goto exit_irq_request;
-    }
-    res = input_register_device(chip->input_dev);
-    if (res) {
-        pr_err("%s:unable to register input device %s\n",__func__,chip->input_dev->name);
-        goto exit_register_device;
-    }
-    res = mma8451q_init_chip(chip);
-    if (res){
-    	pr_err("%s: failed to init chip \n",__func__);
-    	goto exit_init_chip;
-    }
+	printk("mma845x device driver probe successfully\n");
 	return 0;
-exit_init_chip:
-	input_free_device(chip->input_dev);
-exit_register_device:
-	free_irq(chip->client->irq, chip);
-exit_irq_request:
-	input_free_device(chip->input_dev);
-exit_input_device_alloc:
-exit_unknown_device:
-	return res;
+err_create_sysfs:
+	destroy_workqueue(pdata->mma845x_wq);
+err_create_singlethread_workqueue:
+	input_unregister_device(pdata->input_dev);
+err_register_input_device:
+	input_free_device(pdata->input_dev);
+err_alloc_input_device:
+	kfree(pdata);
+err_out:
+	printk("mma845x device driver probe fail\n");
+	return result;
 }
-
-static int __devexit  mma8451q_remove(struct i2c_client *client)
+static int __devexit mma845x_remove(struct i2c_client *client)
 {
-	struct mma8451q_driver_data * drv_data =  i2c_get_clientdata(client);
-	mma8451q_input_dev_remove(drv_data);
-	flush_work_sync(&drv_data->irq_work);
-	kfree(drv_data);
+	struct mma845x_data *pdata = i2c_get_clientdata(client);
 
+	mma845x_device_stop(client);	
+	if(pdata){
+		sysfs_remove_group(&pdata->input_dev->dev.kobj, &mma845x_attr_group);
+		destroy_workqueue(pdata->mma845x_wq);
+		input_unregister_device(pdata->input_dev);
+		input_free_device(pdata->input_dev);
+		kfree(pdata);
+	}
 	return 0;
 }
-static int __devinit  mma8451q_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+
+#ifdef CONFIG_PM_SLEEP
+static int mma845x_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	struct mma845x_data *pdata = i2c_get_clientdata(client);
+
+	if(pdata->active == MMA_ACTIVED)
+		hrtimer_cancel(&pdata->timer);
+		mma845x_device_stop(client);
+	return 0;
+}
+
+static int mma845x_resume(struct i2c_client *client)
+{
+	int val = 0;
+	struct mma845x_data *pdata = i2c_get_clientdata(client);
+
+	if(pdata->active == MMA_ACTIVED){
+		val = i2c_smbus_read_byte_data(client,MMA845X_CTRL_REG1);
+		i2c_smbus_write_byte_data(client, MMA845X_CTRL_REG1, val|0x01);  
+		hrtimer_start(&pdata->timer, ktime_set(0, pdata->delay*1000000), HRTIMER_MODE_REL);
+	}
+	return 0;  
+}
+#endif
+
+static const struct i2c_device_id mma845x_id[] = {
+	{"mma845x", 0},
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, mma845x_id);
+
+static struct i2c_driver mma845x_driver = {
+	.driver = {
+		   .name = "mma845x",
+		   .owner = THIS_MODULE,
+		   },
+	.suspend	= mma845x_suspend,
+	.resume	= mma845x_resume,
+	.probe	= mma845x_probe,
+	.remove	= __devexit_p(mma845x_remove),
+	.id_table	= mma845x_id,
+};
+
+static int __init mma845x_init(void)
 {
 	int res;
-	struct mma8451q_driver_data * drv_data;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)){
-		pr_err("%s :client not i2c capable\n",__func__);
-		res =  -ENODEV;
-		goto exit_nothing_to_free;
+	res = i2c_add_driver(&mma845x_driver);
+	if (res < 0) {
+		printk(KERN_INFO "add mma845x i2c driver failed\n");
+		return -ENODEV;
 	}
-	if (client->irq <= 0){
-		pr_err("%s: IRQ(%d) not configured\n",__func__,client->irq);
-		res =  -EINVAL;
-		goto exit_nothing_to_free;
-	}
-	drv_data = kzalloc(sizeof(struct mma8451q_driver_data),GFP_KERNEL);
-	if (!drv_data) {
-		res = -ENOMEM;
-		goto exit_alloc_drv_data;
-	}
-	drv_data->client = client;
-	i2c_set_clientdata(client, drv_data);
-	INIT_WORK(&drv_data->irq_work, mma8451q_irq_worker);
-
-	res = mma8451q_input_dev_init(drv_data);
-	if (res){
-        pr_err("%s:failed to init input device \n",__func__);
-        goto exit_input_dev_init; 
-    }
-
-	return 0;
-exit_input_dev_init:
-	kfree(drv_data);
-exit_alloc_drv_data:
-exit_nothing_to_free:
 	return res;
 }
 
-static const struct i2c_device_id mma8451q_id[] = {
-	{"mma8451q",0x1c },
-	{"mma845xq",0 },
-};
-static struct i2c_driver mma8451q_driver = {
-	.driver = {
-		.name = "mma8451q",
-		.pm   = &mma8451q_pm,
-	},
-	.probe    = mma8451q_probe,
-	.remove   = __devexit_p(mma8451q_remove),
-	.id_table = mma8451q_id,
-};
+static void __exit mma845x_exit(void)
+{
+	i2c_del_driver(&mma845x_driver);
+}
 
-module_i2c_driver(mma8451q_driver);
-
-MODULE_AUTHOR("Roman Meshkevich <romik.momik@trikset.com>");
-MODULE_DESCRIPTION("mma8451q Three-Axis Digital Accelerometer I2C Bus Driver");
+/*modify by otis, use hrtimer instead of polling mode*/
+MODULE_AUTHOR("Cellon, Inc.");
+MODULE_DESCRIPTION("MMA845X 3-Axis Orientation/Motion Detection Sensor driver");
 MODULE_LICENSE("GPL");
+
+module_init(mma845x_init);
+module_exit(mma845x_exit);
