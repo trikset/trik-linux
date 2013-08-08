@@ -315,7 +315,7 @@ static struct i2c_board_info __initdata da850_trik_i2c1_devices[] = {
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
 	},
 	{
-		I2C_BOARD_INFO("mma8451q", 0x1C),
+		I2C_BOARD_INFO("mma845x", 0x1C),
 	},
 	{
 #warning TODO add i2c alsa device driver
