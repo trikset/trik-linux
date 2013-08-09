@@ -331,7 +331,7 @@ static struct davinci_i2c_platform_data da850_trik_i2c1_pdata = {
 
 static __init int da850_trik_i2c1_init(void)
 {
-	int ret; 
+	int ret;
 
 	ret = davinci_cfg_reg_list(da850_i2c1_pins);
 	if (ret){
@@ -342,7 +342,7 @@ static __init int da850_trik_i2c1_init(void)
 	if (ret){
 		pr_err("%s: accel mux setup failed: %d\n", __func__, ret);
 	}
-	
+
 	da850_trik_i2c1_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(5,4));
 
 	ret = i2c_register_board_info(2,da850_trik_i2c1_devices,ARRAY_SIZE(da850_trik_i2c1_devices));
@@ -350,7 +350,7 @@ static __init int da850_trik_i2c1_init(void)
 		pr_err("%s: I2C1 register board info failed: %d\n", __func__, ret);
 		return ret;
 	}
-	
+
 	ret = da8xx_register_i2c(1, &da850_trik_i2c1_pdata);
 	if (ret){
 		pr_err("%s: I2C1 register failed: %d\n", __func__, ret);
@@ -1594,53 +1594,51 @@ static __init void da850_trik_init(void)
 	ret = da850_trik_i2c0_init();
 	if (ret)
 		pr_warning("%s: i2c0 bus init failed: %d\n", __func__, ret);
+
 	ret = da850_trik_i2c1_init();
 	if (ret)
 		pr_warning("%s: i2c1 bus init failed: %d\n", __func__, ret);
 
 	ret = da850_trik_audio_init();
-        if (ret)
-                pr_warning("%s: audio init failed: %d\n", __func__, ret);
+	if (ret)
+		pr_warning("%s: audio init failed: %d\n", __func__, ret);
 
 	ret = da850_trik_spi0_init();
 	if (ret)
 		pr_warning("%s: spi0 bus init failed: %d\n", __func__, ret);
-
 
 	ret = da850_trik_spi1_init();
 	if (ret)
 		pr_warning("%s: spi1 bus init failed: %d\n", __func__, ret);
 
 	ret = da850_trik_lcd_init();
-	if (ret){
+	if (ret)
 		pr_warning("%s: lcd init failed: %d\n", __func__, ret);
-	}
+
 	ret = da850_trik_led_init();
-	if (ret){
+	if (ret)
 		pr_warning("%s: led init failed: %d\n", __func__, ret);
-	}
+
 	ret = da850_trik_keys_init();
-	if (ret){
+	if (ret)
 		pr_warning("%s: keys init failed: %d\n", __func__, ret);
-	}
 
 	ret = da850_trik_gpio_extra_init();
-	if (ret){
+	if (ret)
 		pr_warning("%s: gpio_extra init failed: %d\n", __func__, ret);
-	}
-	
+
 	ret = da850_trik_cap_apwm_init();
-	if (ret){
+	if (ret)
 		pr_warning("%s: cap apwm init failed: %d\n", __func__, ret);
-	}
+
 	ret = da850_trik_ehrpwm_init();
-	if (ret){
+	if (ret)
 		pr_warning("%s: ehrpwm init failed: %d\n", __func__, ret);
-	}
+
 	ret = da850_trik_pwr_con_init();
-	if (ret){
+	if (ret)
 		pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
-	}
+
 	//pwm
 	//vpif 
 
