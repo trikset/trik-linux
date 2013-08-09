@@ -409,12 +409,12 @@ static struct davinci_spi_config da850_trik_spi0_cfg = {
 
 static struct spi_board_info da850_trik_spi0_info[] = {
 	[0] = {
-		.modalias			= "m25p80",
+		.modalias		= "m25p80",
 		.controller_data	= &da850_trik_spi0_cfg,
 		.platform_data		= &da850_trik_spiflash_data,
-		.mode				= SPI_MODE_0,
+		.mode			= SPI_MODE_0,
 		.max_speed_hz		= 25000000,
-		.bus_num			= 0,
+		.bus_num		= 0,
 		.chip_select		= 0,
 	},
 };
