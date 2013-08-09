@@ -234,6 +234,7 @@ config MACH_DAVINCI_DA850_TRIK
 	depends on ARCH_DAVINCI_DA850
 	select FB_DA8XX_ILI9340
 	select USB_MUSB_DA8XX
+	select LOGO_TRIK_CLUT224
 	help
 	  Say Y here to select the TI DA850/OMAP-L138/AM18x Trikboard.
 
