@@ -905,7 +905,7 @@ static const short da850_trik_wifi_pins[] __initconst = {
 	-1
 };
 
-static void wl12xx_set_power( bool power_on)
+static void wl12xx_set_power( int index,bool power_on)
 {
 	static bool power_state;
 
@@ -1259,16 +1259,16 @@ static __init int da850_trik_buffer_clk_init(void)
 }
 
 static const short da850_trik_ehrpwm0_pins[] __initconst = {
+#if 0
 		DA850_EHRPWM0_A,
+#endif		
 		DA850_EHRPWM0_B,
 		DA850_GPIO2_5/*PE0_EN*/,
 		-1
 };
 
 static const short da850_trik_ehrpwm1_pins[] __initconst = {
-#if 0
 		DA850_EHRPWM1_A,
-#endif
 		DA850_EHRPWM1_B,
 		DA850_GPIO2_3/*PE1_EN*/,
 		-1
