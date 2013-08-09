@@ -994,6 +994,7 @@ static __init int da850_trik_wifi_init(void){
 		pr_warning("%s: could not pinmux MMC/SD WIFI: %d\n", __func__, ret);
 
 	ret = davinci_cfg_reg_list(da850_trik_wifi_extra_pins);
+	if (ret)
 		pr_warning("%s: could not pinmux extra WIFI control: %d\n", __func__, ret);
 
 	ret = gpio_request_array(da850_trik_wifi_gpio_setup, ARRAY_SIZE(da850_trik_wifi_gpio_setup));
