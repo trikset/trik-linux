@@ -51,13 +51,13 @@ static const struct file_operations l3g42xxd_misc_fops = {
     .release =l3g42xxd_misc_release,
     .unlocked_ioctl = l3g42xxd_misc_ioctl,
 };
-
+#if 0
 static struct miscdevice l3g42xxd_misc_device = {
         .minor = MISC_DYNAMIC_MINOR,
         .name = "l3g42xxd",
         .fops = &l3g42xxd_misc_fops,
 };
-
+#endif 
 
 static int l3g42xxd_get_gyro_data(struct l3g42xxd_chip *chip,
                                          struct gyro_val *data)
@@ -284,17 +284,26 @@ exit_no_memory_chip:
 exit_no_irq:
     return ret;
 }
-EXPORT_SYMBOL(l3g42xxd_probe);
+EXPORT_SYMBOL_GPL(l3g42xxd_probe);
+
+void l3g42xxd_suspend(struct l3g42xxd_chip *chip)
+{
+}
+EXPORT_SYMBOL_GPL(l3g42xxd_suspend);
+
+void l3g42xxd_resume(struct l3g42xxd_chip *ac)
+{
+}
+EXPORT_SYMBOL_GPL(l3g42xxd_resume);
 
 void l3g42xxd_remove(struct l3g42xxd_chip *chip)
 {
     l3g42xxd_input_dev_shutdown(chip);
-    
     flush_work_sync(&chip->irq_work);
     pr_err("%s : pointer = %p\n",__func__,chip);
     kfree(chip);
 }
-EXPORT_SYMBOL(l3g42xxd_remove);
+EXPORT_SYMBOL_GPL(l3g42xxd_remove);
 
 MODULE_DESCRIPTION("L3g42xxd Gyroscope");
 MODULE_AUTHOR("romik.momik@trikset.com");
