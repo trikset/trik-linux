@@ -30,6 +30,9 @@ struct l3g42xxd_chip {
 	struct mutex mutex;
 	int irq;
 };
+void l3g42xxd_suspend(struct l3g42xxd_chip *chip);
+void l3g42xxd_resume(struct l3g42xxd_chip *chip);
+
 int l3g42xxd_probe(struct device *dev, u16 bus_type,int irq,l3g42xxd_read_t read,l3g42xxd_write_t write,l3g42xxd_read_block_t read_block,struct l3g42xxd_chip **chip_data);
 void l3g42xxd_remove(struct l3g42xxd_chip *chip);
 

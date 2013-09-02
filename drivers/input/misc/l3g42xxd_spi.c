@@ -72,10 +72,16 @@ static int __devexit l3g42xxd_spi_remove(struct spi_device *spi)
 
 static int l3g42xxd_spi_suspend(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
+        struct l3g42xxd_chip *chip = dev_get_drvdata(&spi->dev);
+	l3g42xxd_suspend(chip);
 	return 0;
 }
 static int l3g42xxd_spi_resume(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
+        struct l3g42xxd_chip *chip = dev_get_drvdata(&spi->dev);
+        l3g42xxd_resume(chip);
 	return 0;
 }
 
