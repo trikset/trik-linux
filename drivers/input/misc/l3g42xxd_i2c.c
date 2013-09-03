@@ -66,7 +66,11 @@ static int __devinit l3g42xxd_i2c_probe(struct i2c_client *client,
 }
 static const struct i2c_device_id l3g42xxd_id[] = {
 	{"l3g42xxd",0 },
+	{ }
 };
+
+MODULE_DEVICE_TABLE(i2c, l3g42xxd_id);
+
 static struct i2c_driver l3g42xxd_i2c_driver = {
 	.driver = {
 		.name = "l3g42xxd",
