@@ -115,7 +115,7 @@ static void l3g42xxd_input_dev_shutdown(struct l3g42xxd_chip* chip)
 }
 static int l3g42xxd_init_chip(struct l3g42xxd_chip* chip){
 	int err = -1;
-    err = chip->write(chip->dev,L3G4200D_CTRL_REG1,0x07);
+    err = chip->write(chip->dev,L3G4200D_CTRL_REG1,0xc7);
     pr_err("%s: L3G4200D_CTRL_REG1 = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_CTRL_REG1));
 
     err = chip->write(chip->dev,L3G4200D_CTRL_REG2,0x00);
@@ -139,7 +139,7 @@ static int l3g42xxd_init_chip(struct l3g42xxd_chip* chip){
     err = chip->write(chip->dev,L3G4200D_INTERRUPT_CFG,0x7F);
     pr_err("%s: L3G4200D_INTERRUPT_CFG = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_INTERRUPT_CFG));
 
-    err = chip->write(chip->dev,L3G4200D_CTRL_REG1,( 0x07 | PM_MASK));
+    err = chip->write(chip->dev,L3G4200D_CTRL_REG1,( 0xc7 | PM_MASK));
     pr_err("%s: L3G4200D_CTRL_REG1 = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_CTRL_REG1));
     
 	return 0;
