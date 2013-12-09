@@ -221,9 +221,13 @@ static int mma845x_read_data(struct i2c_client *client,struct mma845x_data_axis 
 		dev_err(&client->dev, "i2c block read failed\n");
 		return -EIO;
 	}
-	data->x = ((tmp_data[0] << 8) & 0xff00) | tmp_data[1];
-	data->y = ((tmp_data[2] << 8) & 0xff00) | tmp_data[3];
-	data->z = ((tmp_data[4] << 8) & 0xff00) | tmp_data[5];
+	
+	data->x = (((u16)tmp_data[0] << 8) & 0xff00) | tmp_data[1];
+	data->x =data->x/4;
+	data->y = (((u16)tmp_data[2] << 8) & 0xff00) | tmp_data[3];
+	data->y = data->y/4;
+	data->z = (((u16)tmp_data[4] << 8) & 0xff00) | tmp_data[5];
+	data->z = data->z/4;
 
 	//printk(KERN_EMERG "data.x[%d] data.y[%d] data.z[%d]\n", data->x, data->y, data->z);
 	return 0;
