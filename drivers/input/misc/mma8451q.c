@@ -41,7 +41,7 @@
 #define MMA8453_ID			0x3A
 
 #define MAX_DELAY			500
-#define MIN_DELAY			8
+#define MIN_DELAY			4
 #define MODE_CHANGE_DELAY_MS	100
 
 #define MMA845X_BUF_SIZE		7
