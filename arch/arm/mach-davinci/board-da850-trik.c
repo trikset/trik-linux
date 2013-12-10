@@ -325,7 +325,7 @@ static struct i2c_board_info __initdata da850_trik_i2c1_devices[] = {
 	},
 };
 static struct davinci_i2c_platform_data da850_trik_i2c1_pdata = {
-	.bus_freq	= 100,	/* kHz */
+	.bus_freq	= 400,	/* kHz */
 	.bus_delay	= 0,	/* usec */
 };
 
