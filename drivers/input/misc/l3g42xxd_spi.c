@@ -19,7 +19,6 @@ static int l3g42xxd_spi_read(struct device *dev, unsigned char reg)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	unsigned char cmd;
-	unsigned char value ;
 	cmd = L3G42XXD_READCMD(reg);
 	return spi_w8r8(spi, cmd);
 }
