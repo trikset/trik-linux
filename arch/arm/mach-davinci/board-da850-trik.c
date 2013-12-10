@@ -438,10 +438,11 @@ static __init int da850_trik_spi0_init(void)
 	}
 	return 0;	
 }
+
 static struct davinci_spi_config da850_trik_spi1_cfg = {
-	.io_type	= SPI_IO_TYPE_DMA,
-	.c2tdelay	= 8,
-	.t2cdelay	= 8,
+	.io_type	= SPI_IO_TYPE_POLL, // POLL is faster than DMA for small read commands
+	.c2tdelay	= 1, // t=(c2tdelay+2)*40ns 
+	.t2cdelay	= 1,
 };
 const short da850_trik_gyro_pins[] __initconst = {
 	DA850_GPIO2_9,DA850_GPIO2_8,

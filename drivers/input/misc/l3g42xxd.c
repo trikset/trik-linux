@@ -1,3 +1,4 @@
+#include <linux/time.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
@@ -59,38 +60,29 @@ static struct miscdevice l3g42xxd_misc_device = {
 };
 #endif 
 
+
 static int l3g42xxd_get_gyro_data(struct l3g42xxd_chip *chip,
                                          struct gyro_val *data)
 {
-    int gyro_data[6];
-   // pr_warning("%s\n",__func__);
-    /* Data bytes from hardware xL, xH, yL, yH, zL, zH */
-
-    //chip->read_block(chip->dev,L3G4200D_OUT_X_L,L3G4200D_OUT_Z_H - L3G4200D_OUT_X_L+1,data);
-    gyro_data[0] = chip->read(chip->dev,L3G4200D_OUT_X_L);
-    gyro_data[1] = chip->read(chip->dev,L3G4200D_OUT_X_H);
-
-    gyro_data[2] = chip->read(chip->dev,L3G4200D_OUT_Y_L);
-    gyro_data[3] = chip->read(chip->dev,L3G4200D_OUT_Y_H);
-
-    gyro_data[4] = chip->read(chip->dev,L3G4200D_OUT_Z_L);
-    gyro_data[5] = chip->read(chip->dev,L3G4200D_OUT_Z_H);
-
-    data->x = (gyro_data[1] << 8) | gyro_data[0];
-    data->y = (gyro_data[3] << 8) | gyro_data[2];
-    data->z = (gyro_data[5] << 8) | gyro_data[4];
-
+    u8 _data[L3G4200D_OUT_Z_H - L3G4200D_STATUS_REG+1];
+    chip->read_block(chip->dev, L3G4200D_STATUS_REG, sizeof(_data)/sizeof(_data[0]), _data);
+    //todo: check why overflow is true
+    if ((_data[L3G4200D_STATUS_REG - L3G4200D_STATUS_REG] != 0xff/*L3G4200D_STATUS_REG_EXPECTED*/) && printk_ratelimit()){
+        pr_warning("%s: L3G4200D_STATUS_REG unexpected value (0x%02x)\n", __func__, _data[L3G4200D_STATUS_REG - L3G4200D_STATUS_REG]);  
+    }
+    data->x = (_data[L3G4200D_OUT_X_H - L3G4200D_STATUS_REG] << 8) | _data[L3G4200D_OUT_X_L - L3G4200D_STATUS_REG];
+    data->y = (_data[L3G4200D_OUT_Y_H - L3G4200D_STATUS_REG] << 8) | _data[L3G4200D_OUT_Y_L - L3G4200D_STATUS_REG];
+    data->z = (_data[L3G4200D_OUT_Z_H - L3G4200D_STATUS_REG] << 8) | _data[L3G4200D_OUT_Z_L - L3G4200D_STATUS_REG];
     chip->read(chip->dev,L3G4200D_INTERRUPT_SRC);
-    
     return 0;
 }
 static void l3g42xxd_report_values(struct l3g42xxd_chip *chip,
                                          struct gyro_val *data)
 {
-        input_report_abs(chip->data->input_dev, ABS_X, data->x);
-        input_report_abs(chip->data->input_dev, ABS_Y, data->y);
-        input_report_abs(chip->data->input_dev, ABS_Z, data->z);
-        input_sync(chip->data->input_dev);
+    input_report_abs(chip->data->input_dev, ABS_X, data->x);
+    input_report_abs(chip->data->input_dev, ABS_Y, data->y);
+    input_report_abs(chip->data->input_dev, ABS_Z, data->z);
+    input_sync(chip->data->input_dev);
 }
 
 static irqreturn_t l3g42xxd_irq_callback(int irq, void *dev_id){
@@ -99,11 +91,24 @@ static irqreturn_t l3g42xxd_irq_callback(int irq, void *dev_id){
 		schedule_work(&chip->irq_work);
 	return IRQ_HANDLED;
 }
+
+
 static void l3g42xxd_irq_worker(struct work_struct *work){
-	struct l3g42xxd_chip *chip = container_of(work, struct l3g42xxd_chip, irq_work);
+    static u64 _timestamp [2];
+    static u32 _counter = 0;
+	
+    struct l3g42xxd_chip *chip = container_of(work, struct l3g42xxd_chip, irq_work);
     struct gyro_val data;
+    
+    _timestamp[0] = local_clock();
 	l3g42xxd_get_gyro_data(chip, &data);
     l3g42xxd_report_values(chip, &data);
+    _timestamp[1] = local_clock();
+
+    if (_counter %1600 == 0){
+        pr_err("[l3g42xxd] operation time = %lld \n", _timestamp[1] - _timestamp[0]);
+    }
+    _counter++;
 }
 
 static void l3g42xxd_input_dev_shutdown(struct l3g42xxd_chip* chip)
@@ -124,7 +129,7 @@ static int l3g42xxd_init_chip(struct l3g42xxd_chip* chip){
     err = chip->write(chip->dev,L3G4200D_CTRL_REG3,0x80);
     pr_err("%s: L3G4200D_CTRL_REG3 = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_CTRL_REG3));
 
-    err = chip->write(chip->dev,L3G4200D_CTRL_REG4,0x20);
+    err = chip->write(chip->dev,L3G4200D_CTRL_REG4,0xa0);
     pr_err("%s: L3G4200D_CTRL_REG4 = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_CTRL_REG4));
 
     err = chip->write(chip->dev,L3G4200D_CTRL_REG5,0x00);
