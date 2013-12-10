@@ -15,6 +15,9 @@
 #define L3G4200D_OUT_TEMP               0x26
 #define L3G4200D_STATUS_REG             0x27
 
+#define L3G4200D_STATUS_REG_EXPECTED	0x0f
+
+
 #define L3G4200D_OUT_X_L                0x28
 #define L3G4200D_OUT_X_H                0x29
 #define L3G4200D_OUT_Y_L                0x2a
