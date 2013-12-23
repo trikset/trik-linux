@@ -214,6 +214,7 @@ static int mma845x_read_data(struct i2c_client *client,struct mma845x_data_axis 
 {
 	u8 tmp_data[MMA845X_BUF_SIZE];
 	int ret;
+	
 
 	ret = i2c_smbus_read_i2c_block_data(client,
 					    MMA845X_OUT_X_MSB, 7, tmp_data);
@@ -232,6 +233,10 @@ static int mma845x_read_data(struct i2c_client *client,struct mma845x_data_axis 
 	//printk(KERN_EMERG "data.x[%d] data.y[%d] data.z[%d]\n", data->x, data->y, data->z);
 	return 0;
 }
+#if 0
+static u64 govno [5];
+static int govnocounter = 0;
+#endif 
 
 static void mma845x_work_func(struct work_struct *work)
 {
@@ -239,14 +244,30 @@ static void mma845x_work_func(struct work_struct *work)
 	struct mma845x_data_axis data;
 
 	//mutex_lock(&pdata->data_lock);
-
+#if 0
+	if(govnocounter %500 ==0 ) govno[2] = local_clock();
+#endif
 	if (mma845x_read_data(pdata->client,&data) != 0)
 		goto out;
+#if 0
+	if(govnocounter %500 ==0 ) govno[3] = local_clock();
+#endif
 	//mma845x_data_convert(pdata,&data);
 	input_report_abs(pdata->input_dev, ABS_X, data.x);
 	input_report_abs(pdata->input_dev, ABS_Y, data.y);
 	input_report_abs(pdata->input_dev, ABS_Z, data.z);
 	input_sync(pdata->input_dev);
+#if 0
+	if(govnocounter %500 ==0 ) govno[4] = local_clock();
+	if(govnocounter %500 ==0 ){
+		pr_err("[mma8451q] %lld %lld %lld %lld %lld \n",    govno[1] - govno[0], 
+                                        govno[2] - govno[1],
+                                        govno[3] - govno[2],
+                                        govno[4] - govno[3],
+                                        govno[4] - govno[0]);
+	}	
+	govnocounter++;
+#endif
 
 out:
 	//mutex_unlock(&pdata->data_lock);
@@ -255,9 +276,16 @@ out:
 static enum hrtimer_restart mma845x_timer_func(struct hrtimer *timer)
 {
 	struct mma845x_data *pdata = container_of(timer, struct mma845x_data, timer);
-
+#if 0
+	if(govnocounter %500 ==0 ) govno[0] = local_clock();
+#endif
+	
 	queue_work(pdata->mma845x_wq, &pdata->work);
 	hrtimer_start(&pdata->timer, ktime_set(0, pdata->delay*1000000), HRTIMER_MODE_REL);
+
+#if 0
+	if(govnocounter %500 ==0 ) govno[1] = local_clock();
+#endif
 
 	return HRTIMER_NORESTART;
 }
