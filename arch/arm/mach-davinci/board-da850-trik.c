@@ -263,23 +263,11 @@ static void trik_jd1_jd2_init(bool _pullUp)
 }
 
 
-static struct i2c_board_info __initdata da850_trik_i2c0_devices[] = {
-	{	
-		I2C_BOARD_INFO("l3g42xxd", 0x69),
-	},
-	{
-		I2C_BOARD_INFO("adxl345b", 0x53),
-	},
-	{
-		I2C_BOARD_INFO("bmp085",0x77),
-	},
-	{
-		I2C_BOARD_INFO("hmc5883l",0x1e),
-	}
-};
+static struct i2c_board_info __initdata da850_trik_i2c0_devices;
+
 static struct davinci_i2c_platform_data da850_trik_i2c0_pdata = {
 	.bus_freq	= 100,	/* kHz */
-	.bus_delay	= 0,	/* usec */
+	.bus_delay	= 100,	/* usec */
 };
 
 static __init int da850_trik_i2c0_init(void)
@@ -292,10 +280,7 @@ static __init int da850_trik_i2c0_init(void)
 	if (jd1_jd2){
 		trik_jd1_jd2_init(true);
 		
-		da850_trik_i2c0_devices[0].irq = gpio_to_irq(GPIO_TO_PIN(3,5));
-		da850_trik_i2c0_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(3,2));
-		
-		ret = i2c_register_board_info(1,da850_trik_i2c0_devices,ARRAY_SIZE(da850_trik_i2c0_devices));
+		ret = i2c_register_board_info(1,&da850_trik_i2c0_devices,0);
 		if (ret){
 			pr_err("%s: I2C0 register board info failed: %d\n", __func__, ret);
 			return ret;
@@ -325,7 +310,7 @@ static struct i2c_board_info __initdata da850_trik_i2c1_devices[] = {
 	},
 };
 static struct davinci_i2c_platform_data da850_trik_i2c1_pdata = {
-	.bus_freq	= 400,	/* kHz */
+	.bus_freq	= 100,	/* kHz */
 	.bus_delay	= 0,	/* usec */
 };
 
