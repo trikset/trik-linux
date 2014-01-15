@@ -200,8 +200,8 @@ exit_sd0_init:
 	gpio_free(GPIO_TO_PIN(4,1));
 	return ret;
 }
-#warning Temp solution 
 
+#warning Rework jd1_jd2 hack
 static int jd1_jd2 = 1; // '1' - gy-80; '0' - bwsensor
 
 EXPORT_SYMBOL (jd1_jd2);
@@ -262,8 +262,12 @@ static void trik_jd1_jd2_init(bool _pullUp)
 	gpio_export(GPIO_TO_PIN(3, 5),1);
 }
 
+static struct i2c_board_info __initdata da850_trik_i2c0_jd1_jd2_devices[] = {
+};
 
-static struct i2c_board_info __initdata da850_trik_i2c0_devices;
+
+static struct i2c_board_info __initdata da850_trik_i2c0_devices[] = {
+};
 
 static struct davinci_i2c_platform_data da850_trik_i2c0_pdata = {
 	.bus_freq	= 100,	/* kHz */
@@ -277,15 +281,23 @@ static __init int da850_trik_i2c0_init(void)
 	if (ret){
 		pr_err("%s: I2C0 mux setup failed: %d\n", __func__, ret);
 	}
-	if (jd1_jd2){
+
+#warning Rework jd1_jd2 hack
+	if (jd1_jd2) {
 		trik_jd1_jd2_init(true);
-		
-		ret = i2c_register_board_info(1,&da850_trik_i2c0_devices,0);
+		ret = i2c_register_board_info(1,da850_trik_i2c0_jd1_jd2_devices,ARRAY_SIZE(da850_trik_i2c0_jd1_jd2_devices));
+		if (ret){
+			pr_err("%s: I2C0(jd1_jd2) register board info failed: %d\n", __func__, ret);
+			return ret;
+		}
+	} else {
+		ret = i2c_register_board_info(1,da850_trik_i2c0_devices,ARRAY_SIZE(da850_trik_i2c0_devices));
 		if (ret){
 			pr_err("%s: I2C0 register board info failed: %d\n", __func__, ret);
 			return ret;
 		}
 	}
+
 	ret = da8xx_register_i2c(0, &da850_trik_i2c0_pdata);
 	if (ret){
 		pr_err("%s: I2C0 register failed: %d\n", __func__, ret);
