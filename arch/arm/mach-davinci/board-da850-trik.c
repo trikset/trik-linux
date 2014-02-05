@@ -732,14 +732,16 @@ static const short da850_trik_leds_pins[] __initconst = {
 };
 static struct gpio_led da850_trik_leds[] = {
 	{
-		.active_low = 1,
+		.active_low = 0,
 		.gpio = GPIO_TO_PIN(5,7), /* assigned at runtime */
 		.name = "led_red", /* assigned at runtime */
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
 	},
 	{
-		.active_low = 1,
+		.active_low = 0,
 		.gpio = GPIO_TO_PIN(5,8), /* assigned at runtime */
 		.name = "led_green", /* assigned at runtime */
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
 	},
 	{
 		.active_low = 1,
@@ -793,7 +795,7 @@ static struct gpio_keys_button da850_trik_gpio_keys[] = {
 		.wakeup		   = 0,
 		.debounce_interval = DA850_TRIK_KEYS_DEBOUNCE_MS,
 		.gpio		   = GPIO_TO_PIN(2, 7),
-		.code		   = KEY_F1,
+		.code		   = KEY_POWER,
 		.desc		   = "sw1",
 	},
 	{
@@ -802,7 +804,7 @@ static struct gpio_keys_button da850_trik_gpio_keys[] = {
 		.wakeup		   = 0,
 		.debounce_interval = DA850_TRIK_KEYS_DEBOUNCE_MS,
 		.gpio		   = GPIO_TO_PIN(3, 4),
-		.code		   = KEY_F2,
+		.code		   = KEY_MENU,
 		.desc		   = "sw2",
 	},
 	{
@@ -811,7 +813,7 @@ static struct gpio_keys_button da850_trik_gpio_keys[] = {
 		.wakeup		   = 0,
 		.debounce_interval = DA850_TRIK_KEYS_DEBOUNCE_MS,
 		.gpio		   = GPIO_TO_PIN(2, 0),
-		.code		   = KEY_F3,
+		.code		   = KEY_UP,
 		.desc		   = "sw3",
 	},
 	{
@@ -820,7 +822,7 @@ static struct gpio_keys_button da850_trik_gpio_keys[] = {
 		.wakeup		   = 0,
 		.debounce_interval = DA850_TRIK_KEYS_DEBOUNCE_MS,
 		.gpio		   = GPIO_TO_PIN(1, 9),
-		.code		   = KEY_F4,
+		.code		   = KEY_LEFT,
 		.desc		   = "sw4",
 	},
 	{
@@ -829,7 +831,7 @@ static struct gpio_keys_button da850_trik_gpio_keys[] = {
 		.wakeup		   = 0,
 		.debounce_interval = DA850_TRIK_KEYS_DEBOUNCE_MS,
 		.gpio		   = GPIO_TO_PIN(3, 15),
-		.code		   = KEY_F5,
+		.code		   = KEY_RIGHT,
 		.desc		   = "sw5",
 	},
 	{
@@ -838,7 +840,7 @@ static struct gpio_keys_button da850_trik_gpio_keys[] = {
 		.wakeup		   = 0,
 		.debounce_interval = DA850_TRIK_KEYS_DEBOUNCE_MS,
 		.gpio		   = GPIO_TO_PIN(3, 13),
-		.code		   = KEY_F6,
+		.code		   = KEY_ENTER,
 		.desc		   = "sw6",
 	},
 	{
@@ -847,7 +849,7 @@ static struct gpio_keys_button da850_trik_gpio_keys[] = {
 		.wakeup		   = 0,
 		.debounce_interval = DA850_TRIK_KEYS_DEBOUNCE_MS,
 		.gpio		   = GPIO_TO_PIN(3, 12),
-		.code		   = KEY_F7,
+		.code		   = KEY_DOWN,
 		.desc		   = "sw7",
 	}
 };
