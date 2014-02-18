@@ -559,7 +559,7 @@ static __init int da850_trik_audio_init(void)
 	da8xx_register_mcasp(0,&da850_trik_snd_data);
 	return 0;
 exit_audio_init:
-	gpio_free(GPIO_TO_PIN(4,1));
+	gpio_free(GPIO_TO_PIN(6,15));
 	return ret;
 }
 
