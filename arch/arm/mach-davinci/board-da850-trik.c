@@ -247,9 +247,11 @@ static void trik_jd1_jd2_init(bool _pullUp)
 		pr_err("%s: trik_sensor mux setup failed: %d\n",
 			__func__, ret);
 		return;
-        }
+	}
+
 	ret = gpio_request_one(GPIO_TO_PIN(3, 3), GPIOF_OUT_INIT_LOW, "D1A");
 	ret = gpio_request_one(GPIO_TO_PIN(3, 1), GPIOF_OUT_INIT_LOW, "D2A");
+
 	ret = gpio_request_one(GPIO_TO_PIN(3, 2), GPIOF_IN, "D1B");
 	ret = gpio_request_one(GPIO_TO_PIN(3, 5), GPIOF_IN, "D2B");
 
@@ -262,7 +264,7 @@ static void trik_jd1_jd2_init(bool _pullUp)
 
 
 static struct i2c_board_info __initdata da850_trik_i2c0_devices[] = {
-	{
+	{	
 		I2C_BOARD_INFO("l3g42xxd", 0x69),
 	},
 	{
@@ -289,7 +291,7 @@ static __init int da850_trik_i2c0_init(void)
 	}
 	if (jd1_jd2){
 		trik_jd1_jd2_init(true);
-
+		
 		da850_trik_i2c0_devices[0].irq = gpio_to_irq(GPIO_TO_PIN(3,5));
 		da850_trik_i2c0_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(3,2));
 		
@@ -327,7 +329,6 @@ static struct davinci_i2c_platform_data da850_trik_i2c1_pdata = {
 	.bus_delay	= 0,	/* usec */
 };
 
-#warning TODO match gpio pins to i2c driver
 static __init int da850_trik_i2c1_init(void)
 {
 	int ret; 
@@ -380,8 +381,8 @@ static struct mtd_partition da850_trik_spiflash_parts[] = {
 	[3] = {
 		.name = "config-periph",
 		.offset = MTDPART_OFS_APPEND,
-                .size = SZ_256K,
-                .mask_flags = MTD_WRITEABLE,
+		.size = SZ_256K,
+		.mask_flags = MTD_WRITEABLE,
 	},
 	[4] = {
 		.name = "kernel",
@@ -448,14 +449,14 @@ const short da850_trik_gyro_pins[] __initconst = {
 };
 static struct spi_board_info da850_trik_spi1_info[] = {
 	[0] = {
-		.modalias               = "",                  /* Stub */
-		.mode                   = SPI_MODE_0,
-		.max_speed_hz           = 10000000,       /* max sample rate at 3V */
-		.bus_num                = 1,
-		.chip_select            = 0,
-        },
+		.modalias		= "",                  /* Stub */
+		.mode			= SPI_MODE_0,
+		.max_speed_hz		= 10000000,       /* max sample rate at 3V */
+		.bus_num		= 1,
+		.chip_select		= 0,
+	},
 	[1] = {
-		.modalias 		= "l3g42xxd",
+		.modalias		= "l3g42xxd",
 		.controller_data 	= &da850_trik_spi1_cfg,
 		.platform_data 		= NULL,
 		.mode 			= SPI_MODE_0, //SPI_NO_CS
@@ -953,18 +954,19 @@ static __init int da850_trik_wifi_init(void){
 	ret = gpio_request_one(GPIO_TO_PIN(6, 8), GPIOF_OUT_INIT_HIGH, "wi-	");
 	if (ret)
 		pr_warning("%s: could not request wi-fi enable all gpio: %d\n", __func__, ret);
+
 	ret = gpio_export(GPIO_TO_PIN(6,8),1);
 	if (ret)
 		pr_warning("%s: could not export wi-fi  enable all gpio: %d\n", __func__, ret);
 
-        ret = gpio_request_one(GPIO_TO_PIN(5,11), GPIOF_OUT_INIT_LOW, "wi-fi_en");
+	ret = gpio_request_one(GPIO_TO_PIN(5,11), GPIOF_OUT_INIT_LOW, "wi-fi_en");
 	if (ret)
 		pr_warning("%s: could not request wi-fi enable gpio: %d\n", __func__, ret);
-
+	
 	ret = gpio_export(GPIO_TO_PIN(5,11),1);
 	if (ret)
 		pr_warning("%s: could not export wi-fi enable gpio: %d\n", __func__, ret);
-
+	
 	ret = gpio_request_one(GPIO_TO_PIN(6, 9), GPIOF_IN, "wi-fi_irq");
 	if (ret)
 		pr_warning("%s: could not request wi-fi irq gpio: %d\n",__func__, ret);
@@ -973,16 +975,11 @@ static __init int da850_trik_wifi_init(void){
 	if (ret)
 		pr_warning("%s: could not export wi-fi wi-fi irq gpio: %d\n", __func__, ret);
 
+
 	da850_trik_wl12xx_wlan_data.irq = gpio_to_irq(GPIO_TO_PIN(6, 9));
 	ret = wl12xx_set_platform_data(&da850_trik_wl12xx_wlan_data);
 	if (ret) {
 		pr_err("%s: could not set wl12xx platform data: %d\n", __func__, ret);
-		goto exit_release_gpio;
-	}
-
-	ret = da850_register_mmcsd1(&da850_trik_wl12xx_mmc_config);
-	if (ret) {
-		pr_err("%s: wl12xx/mmc registration failed: %d\n", __func__, ret);
 		goto exit_release_gpio;
 	}
 	{
@@ -991,12 +988,19 @@ static __init int da850_trik_wifi_init(void){
 		cfg_pupdena = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
 		cfg_pupdena |= 0x40000000;
 		__raw_writel(cfg_pupdena, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+
 		cfg_pupdsel = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
 		cfg_pupdsel |= 0x40000000;
 		__raw_writel(cfg_pupdsel, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
-       }
+	}
 
+	ret = da850_register_mmcsd1(&da850_trik_wl12xx_mmc_config);
+	if (ret) {
+		pr_err("%s: wl12xx/mmc registration failed: %d\n", __func__, ret);
+		goto exit_release_gpio;
+	}
 	return 0;
+
 exit_release_gpio:
 	gpio_free(GPIO_TO_PIN(6, 9));
 	gpio_free(GPIO_TO_PIN(5,11));
@@ -1422,7 +1426,7 @@ export_pwr_con_failed:
 request_pwr_con_failed:
 cfg_reg_pwr_con_failed:
 	return ret;
-}
+}	
 
 
 #warning TODO temporary proximity sensor driver code
@@ -1449,11 +1453,11 @@ static ssize_t trik_sensor_d2_read(struct device *dev, struct device_attribute *
 	//DA850_GPIO3_5,	/*D2B*/
 	struct timespec start, end, diff;
 	gpio_direction_output(GPIO_TO_PIN(3, 1), 1);
-        udelay(1000);
-        gpio_direction_output(GPIO_TO_PIN(3, 1), 0);
+	udelay(1000);
+	gpio_direction_output(GPIO_TO_PIN(3, 1), 0);
 
-        getnstimeofday(&start);
-        do {
+	getnstimeofday(&start);
+	do {
 		getnstimeofday(&end);
 		diff = timespec_sub(end, start);
 	} while (gpio_get_value(GPIO_TO_PIN(3, 5)) && diff.tv_sec == 0);
@@ -1467,7 +1471,7 @@ static const DEVICE_ATTR(sensor_d2,	(S_IRUSR|S_IRGRP|S_IROTH), trik_sensor_d2_re
 static const struct attribute *da850_trik_bwsensor_attrs[] = {
 	&dev_attr_sensor_d1.attr,
 	&dev_attr_sensor_d2.attr,
-    	NULL,
+	NULL,
 };
 
 
@@ -1513,14 +1517,15 @@ static struct platform_device da850_trik_bwsensor_device = {
 module_platform_driver(da850_trik_bwsensor_driver);
 
 
-static __init int da850_trik_bwsensor_init(void){
+static __init int da850_trik_bwsensor_init(void)
+{
 	return platform_device_register(&da850_trik_bwsensor_device);
 };
 
 static __init void da850_trik_init(void)
 {
 	int ret;
-
+	
 	ret = da850_trik_serial_init();
 	if (ret)
 		pr_warning("%s: serial initialized failed: %d\n", __func__, ret);
@@ -1622,7 +1627,7 @@ static __init void da850_trik_init(void)
 		pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
 	}
 	//pwm
-	//vpif
+	//vpif 
 
 	if (!jd1_jd2){
 		ret = da850_trik_bwsensor_init();
@@ -1631,6 +1636,7 @@ static __init void da850_trik_init(void)
 		}
 	}
 }
+
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 static __init int da850_trik_console_init(void)
 {
@@ -1641,10 +1647,11 @@ static __init int da850_trik_console_init(void)
 console_initcall(da850_trik_console_init);
 #endif
 
-static void __init da850_trik_map_io(void)
+static __init void da850_trik_map_io(void)
 {
 	da850_init();
 }
+
 MACHINE_START(DAVINCI_DA850_TRIK, "DA850/AM18x/OMAP-L138 Trikboard")
 	.atag_offset		= 0x100,
 	.map_io			= da850_trik_map_io,
