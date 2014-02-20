@@ -331,7 +331,7 @@ static struct davinci_i2c_platform_data da850_trik_i2c1_pdata = {
 
 static __init int da850_trik_i2c1_init(void)
 {
-	int ret;
+	int ret; 
 
 	ret = davinci_cfg_reg_list(da850_i2c1_pins);
 	if (ret){
@@ -342,7 +342,7 @@ static __init int da850_trik_i2c1_init(void)
 	if (ret){
 		pr_err("%s: accel mux setup failed: %d\n", __func__, ret);
 	}
-
+	
 	da850_trik_i2c1_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(5,4));
 
 	ret = i2c_register_board_info(2,da850_trik_i2c1_devices,ARRAY_SIZE(da850_trik_i2c1_devices));
@@ -350,7 +350,7 @@ static __init int da850_trik_i2c1_init(void)
 		pr_err("%s: I2C1 register board info failed: %d\n", __func__, ret);
 		return ret;
 	}
-
+	
 	ret = da8xx_register_i2c(1, &da850_trik_i2c1_pdata);
 	if (ret){
 		pr_err("%s: I2C1 register failed: %d\n", __func__, ret);
@@ -409,12 +409,12 @@ static struct davinci_spi_config da850_trik_spi0_cfg = {
 
 static struct spi_board_info da850_trik_spi0_info[] = {
 	[0] = {
-		.modalias		= "m25p80",
+		.modalias			= "m25p80",
 		.controller_data	= &da850_trik_spi0_cfg,
 		.platform_data		= &da850_trik_spiflash_data,
-		.mode			= SPI_MODE_0,
+		.mode				= SPI_MODE_0,
 		.max_speed_hz		= 25000000,
-		.bus_num		= 0,
+		.bus_num			= 0,
 		.chip_select		= 0,
 	},
 };
@@ -881,57 +881,31 @@ static __init int da850_trik_keys_init(void){
 	return 0;
 }
 
+/*	WL1271 Wifi module init */
 
-
-
-static int s_da850_trik_wifi_enable = 1;
-static int __init da850_trik_wifi_cmdline(char *str)
+int enable_wifi = 1;
+EXPORT_SYMBOL (enable_wifi);
+static int __init set_enable_wifi(char *str)
 {
 	if (!strcasecmp(str,"on"))
-		s_da850_trik_wifi_enable = 1;
+		enable_wifi = 1;
 	else if (!strcasecmp(str,"off"))
-		s_da850_trik_wifi_enable = 0;
-	else
+		enable_wifi = 0;
+	else 
 		return 1;
 
 	return 0;
 }
-__setup("trik.wifi=", da850_trik_wifi_cmdline);
+__setup("trik.wifi=", set_enable_wifi);
 
-static const short da850_trik_wifi_extra_pins[] __initconst = {
+static const short da850_trik_wifi_pins[] __initconst = {
+	DA850_MMCSD1_DAT_0, DA850_MMCSD1_DAT_1, DA850_MMCSD1_DAT_2,
+	DA850_MMCSD1_DAT_3, DA850_MMCSD1_CLK, DA850_MMCSD1_CMD,
 	DA850_GPIO6_9, DA850_GPIO6_8, DA850_GPIO5_11,
 	-1
 };
 
-static const short da850_trik_wifi_sdio_pins[] = {
-	DA850_MMCSD1_DAT_0, DA850_MMCSD1_DAT_1, DA850_MMCSD1_DAT_2,
-	DA850_MMCSD1_DAT_3, DA850_MMCSD1_CLK, DA850_MMCSD1_CMD,
-	-1
-};
-
-static const short da850_trik_wifi_sdio_gpio_pins[] = {
-	DA850_GPIO8_15, DA850_GPIO6_2, DA850_GPIO6_3,
-	DA850_GPIO6_4, DA850_GPIO8_14, DA850_GPIO8_13,
-	-1
-};
-
-static const struct gpio da850_trik_wifi_gpio_setup[] __initconst = {
-	{ GPIO_TO_PIN(6, 8), GPIOF_OUT_INIT_HIGH, "wifi_enable/WIFI_EN" },
-	{ GPIO_TO_PIN(5,11), GPIOF_OUT_INIT_LOW,  "wifi_cs/WIFI_WL_EN" },
-	{ GPIO_TO_PIN(6, 9), GPIOF_IN,            "wifi_irq/WIFI_WLAN_IRQ" },
-
-	/* The following pins are gpio duplicates of SDIO functional pins
-	   They are used to simulate pull-up during SDIO initialization
-	 */
-	{ GPIO_TO_PIN(8,15), GPIOF_OUT_INIT_HIGH, "mmc/sd1_dat0" },
-	{ GPIO_TO_PIN(6, 2), GPIOF_OUT_INIT_HIGH, "mmc/sd1_dat1" },
-	{ GPIO_TO_PIN(6, 3), GPIOF_OUT_INIT_HIGH, "mmc/sd1_dat2" },
-	{ GPIO_TO_PIN(6, 4), GPIOF_OUT_INIT_HIGH, "mmc/sd1_dat3" },
-	{ GPIO_TO_PIN(8,14), GPIOF_OUT_INIT_HIGH, "mmc/sd1_clk"  },
-	{ GPIO_TO_PIN(8,13), GPIOF_OUT_INIT_HIGH, "mmc/sd1_cmd"  },
-};
-
-static void da850_trik_wifi_set_power(int index, bool power_on)
+static void wl12xx_set_power( bool power_on)
 {
 	static bool power_state;
 
@@ -943,35 +917,21 @@ static void da850_trik_wifi_set_power(int index, bool power_on)
 
 	if (power_on) {
 		/* Power up sequence required for wl127x devices */
-		int ret;
-
-		/* Simulate SDIO pull-up at reset as a workaround */
-		ret = davinci_cfg_reg_list(da850_trik_wifi_sdio_gpio_pins);
-		if (ret)
-			pr_warning("%s: could not pinmux MMC/SD1 pins in GPIO mode: %d\n", __func__, ret);
-
-		/* WL_EN must have 1 for at least 10ms, 0 for at least 64us, then stable 1 for at least 55ms */
 		gpio_set_value(GPIO_TO_PIN(5,11), 1);
-		msleep(10);
+		usleep_range(15000, 15000);
 		gpio_set_value(GPIO_TO_PIN(5,11), 0);
-		msleep(1);
+		usleep_range(1000, 1000);
 		gpio_set_value(GPIO_TO_PIN(5,11), 1);
-		msleep(55);
-
-		/* Unroll SDIO pull-up workaround */
-		ret = davinci_cfg_reg_list(da850_trik_wifi_sdio_pins);
-		if (ret)
-			pr_warning("%s: could not pinmux MMC/SD1 pins in SDIO mode: %d\n", __func__, ret);
-
+		msleep(700);
 	} else {
 		gpio_set_value(GPIO_TO_PIN(5,11), 0);
 	}
 }
 static struct davinci_mmc_config da850_trik_wl12xx_mmc_config = {
-	.set_power	= &da850_trik_wifi_set_power,
+	.set_power	= wl12xx_set_power,
 	.wires		= 4,
 	.max_freq	= 24000000,
-	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD | MMC_CAP_NONREMOVABLE,
+	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD| MMC_CAP_NONREMOVABLE,
 	.version	= MMC_CTLR_VERSION_2,
 };
 
@@ -981,31 +941,57 @@ static struct wl12xx_platform_data da850_trik_wl12xx_wlan_data __initdata = {
 	.platform_quirks	= WL12XX_PLATFORM_QUIRK_EDGE_IRQ,
 };
 
+
+
+
 static __init int da850_trik_wifi_init(void){
 	int ret;
 
-	if (!s_da850_trik_wifi_enable) {
-		pr_warning("%s: WIFI disabled by configuration\n", __func__);
-		return 0;
-	}
-
-	ret = davinci_cfg_reg_list(da850_trik_wifi_extra_pins);
+	ret = davinci_cfg_reg_list(da850_trik_wifi_pins);
 	if (ret)
-		pr_warning("%s: could not pinmux MMC/SD WIFI: %d\n", __func__, ret);
+		pr_warning("%s: wi-fi pin mux setup failed: %d\n", __func__, ret);
 
-	ret = davinci_cfg_reg_list(da850_trik_wifi_extra_pins);
+	ret = gpio_request_one(GPIO_TO_PIN(6, 8), GPIOF_OUT_INIT_HIGH, "wi-	");
 	if (ret)
-		pr_warning("%s: could not pinmux extra WIFI control: %d\n", __func__, ret);
+		pr_warning("%s: could not request wi-fi enable all gpio: %d\n", __func__, ret);
 
-	ret = gpio_request_array(da850_trik_wifi_gpio_setup, ARRAY_SIZE(da850_trik_wifi_gpio_setup));
+	ret = gpio_export(GPIO_TO_PIN(6,8),1);
 	if (ret)
-		pr_warning("%s: could not setup WIFI pins: %d\n", __func__, ret);
+		pr_warning("%s: could not export wi-fi  enable all gpio: %d\n", __func__, ret);
+
+	ret = gpio_request_one(GPIO_TO_PIN(5,11), GPIOF_OUT_INIT_LOW, "wi-fi_en");
+	if (ret)
+		pr_warning("%s: could not request wi-fi enable gpio: %d\n", __func__, ret);
+	
+	ret = gpio_export(GPIO_TO_PIN(5,11),1);
+	if (ret)
+		pr_warning("%s: could not export wi-fi enable gpio: %d\n", __func__, ret);
+	
+	ret = gpio_request_one(GPIO_TO_PIN(6, 9), GPIOF_IN, "wi-fi_irq");
+	if (ret)
+		pr_warning("%s: could not request wi-fi irq gpio: %d\n",__func__, ret);
+
+	ret = gpio_export(GPIO_TO_PIN(6,9),1);
+	if (ret)
+		pr_warning("%s: could not export wi-fi wi-fi irq gpio: %d\n", __func__, ret);
+
 
 	da850_trik_wl12xx_wlan_data.irq = gpio_to_irq(GPIO_TO_PIN(6, 9));
 	ret = wl12xx_set_platform_data(&da850_trik_wl12xx_wlan_data);
 	if (ret) {
 		pr_err("%s: could not set wl12xx platform data: %d\n", __func__, ret);
 		goto exit_release_gpio;
+	}
+	{
+		u32 cfg_pupdsel = 0;
+		u32 cfg_pupdena = 0;
+		cfg_pupdena = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+		cfg_pupdena |= 0x40000000;
+		__raw_writel(cfg_pupdena, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA));
+
+		cfg_pupdsel = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+		cfg_pupdsel |= 0x40000000;
+		__raw_writel(cfg_pupdsel, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
 	}
 
 	ret = da850_register_mmcsd1(&da850_trik_wl12xx_mmc_config);
@@ -1016,13 +1002,11 @@ static __init int da850_trik_wifi_init(void){
 	return 0;
 
 exit_release_gpio:
-	gpio_free_array(da850_trik_wifi_gpio_setup, ARRAY_SIZE(da850_trik_wifi_gpio_setup));
+	gpio_free(GPIO_TO_PIN(6, 9));
+	gpio_free(GPIO_TO_PIN(5,11));
+	gpio_free(GPIO_TO_PIN(6, 8));
 	return ret;
 }
-
-
-
-
 static const short da850_trik_bluetooth_pins[] __initconst = {
 	DA850_GPIO6_11, /*BT_EN_33 */
 	DA850_GPIO6_10,  /*BT_WU_33*/
@@ -1595,51 +1579,53 @@ static __init void da850_trik_init(void)
 	ret = da850_trik_i2c0_init();
 	if (ret)
 		pr_warning("%s: i2c0 bus init failed: %d\n", __func__, ret);
-
 	ret = da850_trik_i2c1_init();
 	if (ret)
 		pr_warning("%s: i2c1 bus init failed: %d\n", __func__, ret);
 
 	ret = da850_trik_audio_init();
-	if (ret)
-		pr_warning("%s: audio init failed: %d\n", __func__, ret);
+        if (ret)
+                pr_warning("%s: audio init failed: %d\n", __func__, ret);
 
 	ret = da850_trik_spi0_init();
 	if (ret)
 		pr_warning("%s: spi0 bus init failed: %d\n", __func__, ret);
+
 
 	ret = da850_trik_spi1_init();
 	if (ret)
 		pr_warning("%s: spi1 bus init failed: %d\n", __func__, ret);
 
 	ret = da850_trik_lcd_init();
-	if (ret)
+	if (ret){
 		pr_warning("%s: lcd init failed: %d\n", __func__, ret);
-
+	}
 	ret = da850_trik_led_init();
-	if (ret)
+	if (ret){
 		pr_warning("%s: led init failed: %d\n", __func__, ret);
-
+	}
 	ret = da850_trik_keys_init();
-	if (ret)
+	if (ret){
 		pr_warning("%s: keys init failed: %d\n", __func__, ret);
+	}
 
 	ret = da850_trik_gpio_extra_init();
-	if (ret)
+	if (ret){
 		pr_warning("%s: gpio_extra init failed: %d\n", __func__, ret);
-
+	}
+	
 	ret = da850_trik_cap_apwm_init();
-	if (ret)
+	if (ret){
 		pr_warning("%s: cap apwm init failed: %d\n", __func__, ret);
-
+	}
 	ret = da850_trik_ehrpwm_init();
-	if (ret)
+	if (ret){
 		pr_warning("%s: ehrpwm init failed: %d\n", __func__, ret);
-
+	}
 	ret = da850_trik_pwr_con_init();
-	if (ret)
+	if (ret){
 		pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
-
+	}
 	//pwm
 	//vpif 
 
