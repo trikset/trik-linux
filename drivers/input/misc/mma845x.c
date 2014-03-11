@@ -55,7 +55,7 @@
 
 #define MMA845X_PULSE_THSX		0x23
 #define MMA845X_PULSE_THSY		0x24
-#define MMA845X_PULSE_THSY		0x25
+#define MMA845X_PULSE_THSZ		0x25
 #define MMA845X_PULSE_TMLT		0x26
 #define MMA845X_PULSE_LTCY		0x27
 #define MMA845X_PULSE_WIND		0x28
@@ -135,14 +135,14 @@ static char* mma845x_modes_names[] = {
 	"8g",
 };
 static char* mma845x_rate_names[] = {
-	"800",
-	"400",
-	"200",
-	"100",
-	"50",
-	"12.5",
-	"6.25",
-	"1.56"
+	"800hz",
+	"400hz",
+	"200hz",
+	"100hz",
+	"50hz",
+	"12.5hz",
+	"6.25hz",
+	"1.56hz"
 };
 static int mma845x_write_data(struct i2c_client *client, unsigned char reg, unsigned char data){
 	return i2c_smbus_write_byte_data(client, reg, data);
@@ -162,13 +162,24 @@ static int mma845x_set_state(struct mm845x_driver_data *pdata, u8 state){
 	u8 value = 0;
 	switch (state){
 	case MMA_STANDBY:
-	case MMA_ACTIVED:
+		//mma845x_write_data(pdata->client, MMA845X_CTRL_REG4, 0x00 );
 		value = mma845x_read_data(pdata->client, MMA845X_CTRL_REG1);
 		value = ((value& 0xFE)|state);
 		res = mma845x_write_data(pdata->client, MMA845X_CTRL_REG1,value);
-		if(!res){
+		pr_err("resulting = %d \n",res);
+		if(!res)
 			pdata->params.state = state;
-		}
+		
+		break;
+	case MMA_ACTIVED:
+		//mma845x_write_data(pdata->client, MMA845X_CTRL_REG4, 0x01 );
+		value = mma845x_read_data(pdata->client, MMA845X_CTRL_REG1);
+		value = ((value& 0xFE)|state);
+		res = mma845x_write_data(pdata->client, MMA845X_CTRL_REG1,value);
+		
+		if(!res)
+			pdata->params.state = state;
+		
 		break;
 	default:
 		break;
@@ -187,13 +198,17 @@ static int mma845x_set_sample_rate(struct mm845x_driver_data *pdata,u8 rate){
 		case SAMPLE_RATE_200:
 		case SAMPLE_RATE_400:
 		case SAMPLE_RATE_800:
+	
 			value = mma845x_read_data(pdata->client, MMA845X_CTRL_REG1);
+			
 			value = ((value & MMA845X_ODR_BITS)|(rate<<3));
-			pr_err("%s: register_value = 0x%2x\n",__func__, value);
+
 			res = mma845x_write_data(pdata->client, MMA845X_CTRL_REG1,value);
-		if(!res){
-			pdata->params.sample_rate_hz = rate;
-		}
+			
+			if(!res){
+				pdata->params.sample_rate_hz = rate;
+				pr_err("HERE \n");
+			}
 		break;
 		default:
 		break;
@@ -220,7 +235,20 @@ static int mma845x_set_mode(struct mm845x_driver_data *pdata, u8 mode){
 	return res;
 }
 static int mma845x_init_chip(struct mm845x_driver_data * pdata){
-
+	
+	// soft reset mma845x device
+	mma845x_write_data(pdata->client, MMA845X_CTRL_REG2, 0x40);
+	while((mma845x_read_data(pdata->client, MMA845X_CTRL_REG2)&0x40));
+	//set primary parameters
+	mma845x_set_state(pdata,MMA_STANDBY);
+	mma845x_set_sample_rate(pdata,SAMPLE_RATE_50);
+	mma845x_set_state(pdata,MODE_2G);
+	
+	mma845x_write_data(pdata->client, MMA845X_CTRL_REG3, 0x00);
+	//enable INTERRUPT ENABLE DATA READY
+	mma845x_write_data(pdata->client, MMA845X_CTRL_REG4, 0x01);
+	
+	return 0;
 }
 static char * mma845x_id2name(u8 id){
 	int index = 0;
@@ -231,30 +259,6 @@ static char * mma845x_id2name(u8 id){
 	else if(id == MMA8453_ID)
 		index = 2;
 	return mma845x_names[index];
-}
-static ssize_t mma845x_test_store(struct device *dev,
-				    						struct device_attribute *attr,
-				    						const char *buf, 
-				    						size_t count)
-{
-	return 0;
-}
-static ssize_t mma845x_test_show(	struct device *dev,
-		   							struct device_attribute *attr, 
-		   							char *buf	)
-{
-	u8 tmp_data[7];
-	struct input_dev *input_dev = to_input_dev(dev);
-	struct mm845x_driver_data *pdata = input_get_drvdata(input_dev);
-	pr_err("MMA845X_CTRL_REG1  = 0x%02x\n",mma845x_read_data(pdata->client, MMA845X_CTRL_REG1));
-	pr_err("MMA845X_INT_SOURCE = 0x%02x\n",mma845x_read_data(pdata->client, MMA845X_INT_SOURCE));
-	pr_err("MMA845X_SYSMOD	   = 0x%02x\n",mma845x_read_data(pdata->client, MMA845X_SYSMOD));
-
-	//mma845x_read_data(pdata->client, MMA845X_INT_SOURCE);
-	i2c_smbus_read_i2c_block_data(pdata->client,
-					    MMA845X_OUT_X_MSB, 7, tmp_data);
-
-	return 0;
 }
 
 static ssize_t mma845x_sample_rate_hz_store(struct device *dev,
@@ -344,12 +348,11 @@ static ssize_t mma845x_enable_show(struct device *dev,
 static DEVICE_ATTR(sample_rate_hz, S_IRUGO|S_IWUSR|S_IWGRP,mma845x_sample_rate_hz_show,mma845x_sample_rate_hz_store);
 static DEVICE_ATTR(mode_g, S_IRUGO|S_IWUSR|S_IWGRP,mma845x_mode_g_show,mma845x_mode_g_store);
 static DEVICE_ATTR(enable_device, S_IRUGO|S_IWUSR|S_IWGRP,mma845x_enable_show,mma845x_enable_store);
-static DEVICE_ATTR(test, S_IRUGO|S_IWUSR|S_IWGRP,mma845x_test_show,mma845x_test_store);
+
 static struct attribute *mma845x_attributes[] = {
 	&dev_attr_sample_rate_hz.attr,
 	&dev_attr_mode_g.attr,
 	&dev_attr_enable_device.attr,
-	&dev_attr_test.attr,
 	NULL
 };
 
@@ -359,62 +362,59 @@ static const struct attribute_group mma845x_attr_group = {
 
 static int mma845x_input_open(struct input_dev *dev)
 {
-	struct mm845x_driver_data *pdata = input_get_drvdata(input_dev);
-	++pdata->fd_opened;
-	if(pdata->state == MMA_STANDBY){
+#if 0
+	struct mm845x_driver_data *pdata = input_get_drvdata(dev);
+	if(pdata->params.state == MMA_STANDBY){
 		mutex_lock(&pdata->data_lock);
 		mma845x_set_state(pdata,MMA_ACTIVED);
 		mutex_unlock(&pdata->data_lock);
 	}
-
+#endif
     return 0;
 }
 
 static void mma845x_input_close(struct input_dev *dev)
 {
-	struct mm845x_driver_data *pdata = input_get_drvdata(input_dev);
-	--pdata->fd_opened;
-	if (!pdata->fd_opened){
+#if 0
+	struct mm845x_driver_data *pdata = input_get_drvdata(dev);
+	pr_err("mma845x_input_close start\n");
+	if(pdata->params.state == MMA_ACTIVED)
+	{
 		mutex_lock(&pdata->data_lock);
 		mma845x_set_state(pdata,MMA_STANDBY);
 		mutex_unlock(&pdata->data_lock);
+		pr_err("mma845x_input_close stop\n");
+		pr_err("mma845x_input_close end\n");
 	}
-
+#endif	
 }
+
 static void mma845x_work_func(struct work_struct *work)
 {
 	u8 tmp_data[6];
 	struct mma845x_data data;
-	//pr_err("%s: here!!#!@#!$@#@$@$!\n",__func__);
-
 	struct mm845x_driver_data *pdata = container_of(work, struct mm845x_driver_data, work);
-	//mma845x_read_data(pdata->client, MMA845X_INT_SOURCE);
-	if (mma845x_read_data(pdata->client, MMA845X_INT_SOURCE) == 1 ){
-		mma845x_read_data(pdata->client, MMA845X_SYSMOD);
-		i2c_smbus_read_i2c_block_data(pdata->client,
-						    MMA845X_OUT_X_MSB, 6, tmp_data);
-
-		//todo
-
-		data.x = (((u16)tmp_data[0] << 8) & 0xff00) | tmp_data[1];
-		data.x =data.x/4;
-		data.y = (((u16)tmp_data[2] << 8) & 0xff00) | tmp_data[3];
-		data.y = data.y/4;
-		data.z = (((u16)tmp_data[4] << 8) & 0xff00) | tmp_data[5];
-		data.z = data.z/4;
-
-		input_report_abs(pdata->input_dev, ABS_X, data.x);
-		input_report_abs(pdata->input_dev, ABS_Y, data.y);
-		input_report_abs(pdata->input_dev, ABS_Z, data.z);
-		input_sync(pdata->input_dev);
-	}
+	mutex_lock(&pdata->data_lock);
+	i2c_smbus_read_i2c_block_data(pdata->client, MMA845X_OUT_X_MSB, 6, tmp_data);
+	mutex_unlock(&pdata->data_lock);
+	data.x = (((u16)tmp_data[0] << 8) & 0xff00) | tmp_data[1];
+	data.x =data.x/4;
+	data.y = (((u16)tmp_data[2] << 8) & 0xff00) | tmp_data[3];
+	data.y = data.y/4;
+	data.z = (((u16)tmp_data[4] << 8) & 0xff00) | tmp_data[5];
+	data.z = data.z/4;
+	input_report_abs(pdata->input_dev, ABS_X, data.x);
+	input_report_abs(pdata->input_dev, ABS_Y, data.y);
+	input_report_abs(pdata->input_dev, ABS_Z, data.z);
+	input_sync(pdata->input_dev);
 	return;
 }
 
-static irqreturn_t mma845x_irq_callback(int irq, void *dev_id){
+static irqreturn_t mma845x_irq_callback(int irq, void *dev_id)
+{
 	struct mm845x_driver_data* pdata = dev_id;
-    if(pdata){
-    	queue_work(pdata->mma845x_wq,&pdata->work);
+	if(pdata){
+		queue_work(pdata->mma845x_wq,&pdata->work);
 	}
 	return IRQ_HANDLED;
 }
@@ -456,7 +456,6 @@ static int __devinit mma845x_probe(struct i2c_client *client,
 	}
 	pdata->client 					= client;
 	pdata->chip_id 					= chip_id;
-	pdata->params.mode 				= MODE_2G;
 	pdata->irq 						= client->irq;
 
 	mutex_init(&pdata->data_lock);
@@ -498,7 +497,6 @@ static int __devinit mma845x_probe(struct i2c_client *client,
 		res = -ENODEV;
 		goto irq_request_failed;
 	}
-
 	res = input_register_device(pdata->input_dev);
 	if (res) {
 		pr_err("%s: input register device failed\n",__func__);
@@ -506,18 +504,9 @@ static int __devinit mma845x_probe(struct i2c_client *client,
 	}
 	input_set_drvdata(pdata->input_dev, pdata);
 	INIT_WORK(&pdata->work, mma845x_work_func);
-	{
-		mma845x_write_data(pdata->client, MMA845X_CTRL_REG1, 0x00);
-		mma845x_set_state(pdata,MMA_STANDBY);
-		mma845x_set_sample_rate(pdata,SAMPLE_RATE_50);
-		mma845x_write_data(pdata->client, MMA845X_CTRL_REG2, 0x00);
-		mma845x_write_data(pdata->client, MMA845X_CTRL_REG3, 0x01);
-		mma845x_write_data(pdata->client, MMA845X_CTRL_REG4, 0x01);
-		mma845x_write_data(pdata->client, MMA845X_CTRL_REG4, 0x01);
-		mma845x_set_state(pdata,MODE_2G);
-		mma845x_read_data(pdata->client, MMA845X_INT_SOURCE);
-		//mma845x_set_state(pdata,MMA_ACTIVED);
-	}
+	
+	mma845x_init_chip(pdata);
+	
 	res = sysfs_create_group(&pdata->input_dev->dev.kobj, &mma845x_attr_group);
 	if (res) {
 		pr_err("%s: sys create group failed\n",__func__);
@@ -543,6 +532,7 @@ static int __devexit mma845x_remove(struct i2c_client *client)
 	if(pdata){
 		mma845x_set_state(pdata,MMA_STANDBY);
 		sysfs_remove_group(&pdata->input_dev->dev.kobj, &mma845x_attr_group);
+		flush_work_sync(&pdata->work);
 		input_unregister_device(pdata->input_dev);
 		free_irq(pdata->irq, pdata);
 		input_free_device(pdata->input_dev);
