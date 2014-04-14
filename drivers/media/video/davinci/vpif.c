@@ -67,8 +67,9 @@ const struct vpif_channel_config_params ch_params[] = {
 		.hd_sd = 0,
 		.stdid = V4L2_STD_625_50,
 	},
-#else
-	{ // OV7670 setup
+#endif
+#if 0
+	{ // OV7670 640x480 setup
 		.name = "PAL_BDGHIK",
 		.width = 640,
 		.height = 480,
@@ -80,6 +81,25 @@ const struct vpif_channel_config_params ch_params[] = {
 		.l3 = 17,
 		.l5 = 497,
 		.vsize = 510,
+		.capture_format = 0,
+		.vbi_supported = 0,
+		.hd_sd = 0,
+		.stdid = V4L2_STD_625_50,
+	},
+#endif
+#if 0
+	{ // OV7670 320x240 setup
+		.name = "PAL_BDGHIK",
+		.width = 320,
+		.height = 240,
+		.frm_fmt = 1,
+		.ycmux_mode = 1,
+		.eav2sav = 928-8,
+		.sav2eav = 640,
+		.l1 = 1,
+		.l3 = 9,
+		.l5 = 249,
+		.vsize = 255,
 		.capture_format = 0,
 		.vbi_supported = 0,
 		.hd_sd = 0,
