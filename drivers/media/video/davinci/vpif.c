@@ -50,7 +50,7 @@ struct clk *vpif_clk;
  */
 const struct vpif_channel_config_params ch_params[] = {
 #if 0
-	{ // OV7690 setup, incomplete
+	{ // OV7690 640x480 setup, incomplete
 		.name = "PAL_BDGHIK",
 		.width = 640,
 		.height = 480,
@@ -62,6 +62,25 @@ const struct vpif_channel_config_params ch_params[] = {
 		.l3 = 20,
 		.l5 = 500,
 		.vsize = 513,
+		.capture_format = 0,
+		.vbi_supported = 0,
+		.hd_sd = 0,
+		.stdid = V4L2_STD_625_50,
+	},
+#endif
+#if 0
+	{ // OV7690 320x240 setup, incomplete
+		.name = "PAL_BDGHIK",
+		.width = 320,
+		.height = 240,
+		.frm_fmt = 1,
+		.ycmux_mode = 1,
+		.eav2sav = 140-8,
+		.sav2eav = 640,
+		.l1 = 4,
+		.l3 = 14,
+		.l5 = 254,
+		.vsize = 262,
 		.capture_format = 0,
 		.vbi_supported = 0,
 		.hd_sd = 0,
