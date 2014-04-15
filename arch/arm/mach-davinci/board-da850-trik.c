@@ -1051,54 +1051,96 @@ static __init int da850_trik_bluetooth_init(void){
 
 	return 0;
 }
-static const short da850_trik_usb_pins[] __initconst = {
-	DA850_GPIO5_15,	/*USB FAULT*/
-	DA850_GPIO6_1,	/*MODE_B*/
+
+
+
+
+#warning Preliminary USB OTG implementation
+#ifndef CONFIG_USB_MUSB_OTG
+#error Only USB_MUSB_OTG supported!
+#endif
+static const short da850_trik_usb11_pins[] __initconst = {
+	DA850_GPIO5_15,	/* USB FAULT */
+	DA850_GPIO6_1,	/* MODE_B    */
 	-1
 };
-#warning TODO USB HOST & OTG MODE
-#ifndef CONFIG_USB_MUSB_HOST
-#error Only USB_MUSB_HOST supported now!
-#endif
 
-static int da850_trik_set_power(unsigned port, int on)
+static int da850_trik_usb11_set_power(unsigned port, int on)
 {
-	pr_warning("%s: port - %d, value - %d\n", __func__, port, on);
+	pr_warning("%s: USB 1.1 port %d, value %d\n", __func__, port, on);
+#warning TODO actual set
 	return 0;
 }
-static int da850_trik_get_power(unsigned port)
+
+static int da850_trik_usb11_get_power(unsigned port)
 {
-	pr_warning("%s: port - %d\n", __func__, port);
+	pr_warning("%s: USB 1.1 port %d\n", __func__, port);
+#warning TODO actual get
 	return 0;
 }
-static int da850_trik_get_oci(unsigned port)
+
+static int da850_trik_usb11_get_oci(unsigned port)
 {
-	return !gpio_get_value(GPIO_TO_PIN(5,15));
+	int ocic = gpio_get_value(GPIO_TO_PIN(5,15));
+        pr_warning("%s: USB 1.1 port %d, ocic %d\n", __func__, port, ocic);
+	return !ocic;
+	//return !gpio_get_value(GPIO_TO_PIN(5,15));
 }
 
-static int da850_trik_ocic_notify(da8xx_ocic_handler_t handler)
-{
-	pr_warning("%s: \n", __func__);
-	return 0;	
-}
+static irqreturn_t da850_trik_usb11_ocic_irq(int irq, void *dev_id);
+static da8xx_ocic_handler_t da850_trik_usb11_ocic_handler;
+
 static struct da8xx_ohci_root_hub da850_trik_usb11_pdata = {
-	.set_power      = da850_trik_set_power,
-	.get_power      = da850_trik_get_power,
-	.get_oci        = da850_trik_get_oci,
-	.ocic_notify    = da850_trik_ocic_notify,
+	.set_power      = da850_trik_usb11_set_power,
+	.get_power      = da850_trik_usb11_get_power,
+	.get_oci        = da850_trik_usb11_get_oci,
+	.ocic_notify    = da850_trik_usb11_ocic_notify,
+#if 0
 	/* TPS2087 switch @ 5V */
 	.potpgt         = (3 + 1) / 2,  /* 3 ms max */
+#else
+	.potpgt         = 100,
+#endif
 };
 
-static __init int da850_trik_usb_init(void){
+static int da850_trik_usb11_ocic_notify(da8xx_ocic_handler_t handler)
+{
+	int irq         = gpio_to_irq(GPIO_TO_PIN(5,15));
+	int error       = 0;
+
+	if (handler != NULL) {
+		da850_trik_usb11_ocic_handler = handler;
+
+		error = request_irq(irq, da850_trik_usb11_ocic_irq,
+					IRQF_DISABLED | IRQF_TRIGGER_RISING |
+					IRQF_TRIGGER_FALLING,
+					"USB 1.1 OHCI over-current indicator", NULL);
+		if (error)
+			pr_err("%s: could not request IRQ to watch "
+				"over-current indicator changes for USB 1.1\n", __func__);
+	} else {
+		free_irq(irq, NULL);
+	}
+	return error;
+}
+
+static irqreturn_t da850_trik_usb11_ocic_irq(int irq, void *dev_id)
+{
+	if (da850_trik_usb11_ocic_handler)
+		da850_trik_usb11_ocic_handler(&da850_trik_usb11_pdata, 1);
+	return IRQ_HANDLED;
+}
+
+static __init int da850_trik_usb11_init(void){
 	int ret;
 	u32 cfgchip2;
 
-	ret = davinci_cfg_reg_list(da850_trik_usb_pins);
+	ret = davinci_cfg_reg_list(da850_trik_usb11_pins);
 	if (ret) {
-		pr_err("%s: USB mux setup failed: %d\n", __func__, ret);
+		pr_err("%s: USB 1.1 pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
+
 	cfgchip2 = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
 	cfgchip2 &= ~CFGCHIP2_REFFREQ;
 	cfgchip2 |=  CFGCHIP2_REFFREQ_24MHZ;
@@ -1107,34 +1149,55 @@ static __init int da850_trik_usb_init(void){
 	cfgchip2 |=  CFGCHIP2_USB2PHYCLKMUX;
 
 	cfgchip2 &= ~CFGCHIP2_OTGMODE;
-	cfgchip2 |=  CFGCHIP2_FORCE_HOST;
+	cfgchip2 |=  CFGCHIP2_SESENDEN | CFGCHIP2_VBDTCTEN;
 
 	__raw_writel(cfgchip2, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
 
-	ret = gpio_request_one(GPIO_TO_PIN(5,15), GPIOF_DIR_IN, "USB Fault");
+	ret = gpio_request_one(GPIO_TO_PIN(5,15), GPIOF_DIR_IN, "USB 1.1 over-current fault");
 	if (ret) {
-		pr_err("%s: USB Fault gpio request failed: %d\n", __func__, ret);
-		goto request_usb_fault;
+		pr_err("%s: USB 1.1 over-current gpio request failed: %d\n", __func__, ret);
+		goto exit;
 	}
+
+	ret = gpio_request_one(GPIO_TO_PIN(6,1), GPIOF_DIR_IN, "USB 1.1 mode-B");
+	if (ret) {
+		pr_err("%s: USB 1.1 mode-B gpio request failed: %d\n", __func__, ret);
+		goto gpio_free_5_15;
+	}
+
 	ret = da8xx_register_usb11(&da850_trik_usb11_pdata);
 	if (ret) {
 		pr_warning("%s: USB 1.1 registration failed: %d\n", __func__, ret);
-		goto register_ohci;
+		goto gpio_free_6_1;
 	}
+
+	return 0;
+
+ gpio_free_5_15:
+	gpio_free(GPIO_TO_PIN(5,15));
+ gpio_free_6_1:
+	gpio_free(GPIO_TO_PIN(6,1));
+ exit:
+	return ret;
+}
+
+static __init int da850_trik_usb20_init(void){
+	int ret = EINVAL;
 
 	ret = da8xx_register_usb20(500, 20);
 	if (ret) {
 		pr_err("%s: USB 2.0 registration failed: %d\n",__func__, ret);
-		goto register_otg;
+		goto exit;
 	}
 
 	return 0;
-register_otg:
-register_ohci:
-	gpio_free(GPIO_TO_PIN(5,15));
-request_usb_fault:
+
+ exit:
 	return ret;
 }
+
+
+
 
 static const short da850_trik_msp_pins[] __initconst = {
 	DA850_GPIO5_6, /* Interrupt */
@@ -1580,13 +1643,18 @@ static __init void da850_trik_init(void)
 	if (ret)
 		pr_warning("%s: wifi interface init failed: %d\n", __func__, ret);
 
+
 	ret = da850_trik_bluetooth_init();
 	if (ret)
 		pr_warning("%s: bluetooth interface init failed: %d\n", __func__, ret);
 
-	ret = da850_trik_usb_init();
+	ret = da850_trik_usb11_init();
 	if (ret)
-		pr_warning("%s: usb interface init failed: %d\n", __func__, ret);
+		pr_warning("%s: USB 1.1 interface init failed: %d\n", __func__, ret);
+
+	ret = da850_trik_usb20_init();
+	if (ret)
+		pr_warning("%s: USB 2.0 interface init failed: %d\n", __func__, ret);
 
 	ret = da850_trik_msp430_init();
 	if (ret)
