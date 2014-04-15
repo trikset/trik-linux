@@ -42,7 +42,6 @@
 #include <linux/l3g42xxd.h>
 
 #include <media/davinci/vpif_types.h>
-#include <media/tvp514x.h>
 
 static const short da850_trik_uart0_pins[] __initconst = {
 	DA850_UART0_RXD, DA850_UART0_TXD,
@@ -1542,14 +1541,6 @@ static __init int da850_trik_bwsensor_init(void)
 
 
 
-
-
-
-static struct tvp514x_platform_data da850_trik_vpif_capture_tvp5146_pdata = {
-	.clk_polarity = 0,
-	.hs_polarity = 1,
-	.vs_polarity = 1
-};
 
 static const struct vpif_input da850_trik_vpif_capture_ch0_inputs[] = {
 	{
