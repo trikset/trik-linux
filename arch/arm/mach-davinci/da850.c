@@ -30,9 +30,10 @@
 #include <mach/cpufreq.h>
 #include <mach/pm.h>
 #include <mach/gpio-davinci.h>
+#include <media/davinci/vpif_types.h>
+
 #include "clock.h"
 #include "mux.h"
-#include <media/davinci/vpif_types.h>
 
 /* SoC specific clock flags */
 #define DA850_CLK_ASYNC3	BIT(16)
@@ -46,8 +47,6 @@
 #define CFGCHIP3_ASYNC3_CLKSRC	BIT(4)
 #define CFGCHIP3_PLL1_MASTER_LOCK	BIT(5)
 #define CFGCHIP0_PLL_MASTER_LOCK	BIT(4)
-
-#define DA8XX_CHIPCFG1          DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG)
 
 static int da850_set_armrate(struct clk *clk, unsigned long rate);
 static int da850_round_armrate(struct clk *clk, unsigned long rate);
@@ -357,29 +356,29 @@ static struct clk sata_clk = {
 	.gpsc		= 1,
 	.flags		= PSC_FORCE,
 };
+
 static struct clk vpif_clk = {
-        .name           = "vpif",
-        .parent         = &pll0_sysclk2,
-        .lpsc           = DA850_LPSC1_VPIF,
-        .gpsc           = 1,
+	.name		= "vpif",
+	.parent		= &pll0_sysclk2,
+	.lpsc		= DA850_LPSC1_VPIF,
+	.gpsc		= 1,
 };
 
 static struct clk ehrpwm_clk = {
-        .name           = "ehrpwm",
-        .parent         = &pll0_sysclk2,
-        .lpsc           = DA8XX_LPSC1_PWM,
-        .gpsc           = 1,
-        .flags          = DA850_CLK_ASYNC3,
+	.name		= "ehrpwm",
+	.parent		= &pll0_sysclk2,
+	.lpsc		= DA8XX_LPSC1_PWM,
+	.gpsc		= 1,
+	.flags		= DA850_CLK_ASYNC3,
 };
+
 static struct clk ecap_clk = {
-        .name           = "ecap",
-        .parent         = &pll0_sysclk2,
-        .lpsc           = DA8XX_LPSC1_ECAP,
-        .gpsc           = 1,
-        .flags          = DA850_CLK_ASYNC3,
+	.name		= "ecap",
+	.parent		= &pll0_sysclk2,
+	.lpsc		= DA8XX_LPSC1_ECAP,
+	.gpsc		= 1,
+	.flags		= DA850_CLK_ASYNC3,
 };
-
-
 
 static struct clk_lookup da850_clks[] = {
 	CLK(NULL,		"ref",		&ref_clk),
@@ -424,10 +423,10 @@ static struct clk_lookup da850_clks[] = {
 	CLK(NULL,		"usb20",	&usb20_clk),
 	CLK("spi_davinci.0",	NULL,		&spi0_clk),
 	CLK("spi_davinci.1",	NULL,		&spi1_clk),
-	CLK(NULL,               "vpif",         &vpif_clk),
 	CLK("ahci",		NULL,		&sata_clk),
-	CLK(NULL,               "ehrpwm",       &ehrpwm_clk),
-        CLK(NULL,               "ecap",         &ecap_clk),
+	CLK(NULL,               "vpif",         &vpif_clk),
+	CLK(NULL,		"ehrpwm",       &ehrpwm_clk),
+	CLK(NULL,		"ecap",         &ecap_clk),
 	CLK(NULL,		NULL,		NULL),
 };
 
@@ -459,7 +458,7 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, I2C0_SDA,	4,	12,	15,	2,	false)
 	MUX_CFG(DA850, I2C0_SCL,	4,	8,	15,	2,	false)
 	/* SPI0 function */
-	MUX_CFG(DA850, SPI0_SIMO,	3,	12,	15, 1,	false)
+	MUX_CFG(DA850, SPI0_SIMO,	3,	12,	15,	1,	false)
 	MUX_CFG(DA850, SPI0_SOMI,	3,	8,	15,	1,	false)
 	MUX_CFG(DA850, SPI0_CS_0,	4,	4,	15,	1,	false)
 	MUX_CFG(DA850, SPI0_CLK,	3,	0,	15,	1,	false)
@@ -603,7 +602,7 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, EMA_WAIT_1,	6,	24,	15,	1,	false)
 	MUX_CFG(DA850, NEMA_CS_2,	7,	0,	15,	1,	false)
 	/* GPIO function */
-	MUX_CFG(DA850, GPIO0_0,	1,	28,	15,	8,	false)
+	MUX_CFG(DA850, GPIO0_0,		1,	28,	15,	8,	false)
 	MUX_CFG(DA850, GPIO0_13,	0,	8,	15,	8,	false)
 	MUX_CFG(DA850, GPIO1_1,		4,	24,	15,	8,	false)
 	MUX_CFG(DA850, GPIO1_7,		4,	0,	15,	4,	false)
@@ -665,7 +664,7 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, GPIO8_15,	18,	8,	15,	8,	false)
 	MUX_CFG(DA850, RTC_ALARM,	0,	28,	15,	2,	false)
 	/* eHRPWM0 function */
-	MUX_CFG(DA850,  EHRPWM0_A,      3,      0,      15,     2,      false) //???
+	MUX_CFG(DA850,  EHRPWM0_A,      3,      0,      15,     2,      false)
 	MUX_CFG(DA850,  EHRPWM0_B,      3,      4,      15,     2,      false)
 	MUX_CFG(DA850,  EHRPWM0_TZ,     1,      0,      15,     2,      false)
 	/* eHRPWM1 function */
@@ -728,7 +727,6 @@ const short da850_vpif_capture_pins[] __initdata = {
         DA850_VPIF_CLKIN0, DA850_VPIF_CLKIN1,
         -1
 };
-
 
 /* FIQ are pri 0-1; otherwise 2-7, with 7 lowest priority */
 static u8 da850_default_priorities[DA850_N_CP_INTC_IRQ] = {
@@ -1091,244 +1089,251 @@ int __init da850_register_cpufreq(char *async_clk)
 
 	return platform_device_register(&da850_cpufreq_device);
 }
-#define DA8XX_EHRPWM0_BASE      0x01F00000
 
+#define DA8XX_EHRPWM0_BASE	0x01F00000
 static struct resource da850_ehrpwm0_resource[] = {
-        {
-                .start  = DA8XX_EHRPWM0_BASE,
-                .end    = DA8XX_EHRPWM0_BASE + 0x1fff,
-                .flags  = IORESOURCE_MEM,
-        },
-        {
-                .start  = IRQ_DA8XX_EHRPWM0TZ,
-                .end    = IRQ_DA8XX_EHRPWM0TZ,
-                .flags  = IORESOURCE_IRQ,
-        },
-        {
-                .start  = IRQ_DA8XX_EHRPWM0,
-                .end    = IRQ_DA8XX_EHRPWM0,
-                .flags  = IORESOURCE_IRQ,
-         },
+	{
+		.start	= DA8XX_EHRPWM0_BASE,
+		.end	= DA8XX_EHRPWM0_BASE + 0x1fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_DA8XX_EHRPWM0TZ,
+		.end	= IRQ_DA8XX_EHRPWM0TZ,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DA8XX_EHRPWM0,
+		.end	= IRQ_DA8XX_EHRPWM0,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
+
 static struct ehrpwm_platform_data da850_ehrpwm0_data = {
-		.channel_mask = 0xFFFFFFFF
+	.channel_mask	= 0xFFFFFFFF
 };
+
 static struct platform_device da850_ehrpwm0_dev = {
-        .name           = "ehrpwm",
-        .id             = 0,
-        .dev            = {
-                .platform_data  = &da850_ehrpwm0_data,
-        },
-        .resource       = da850_ehrpwm0_resource,
-        .num_resources  = ARRAY_SIZE(da850_ehrpwm0_resource),
+	.name		= "ehrpwm",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &da850_ehrpwm0_data,
+	},
+	.resource	= da850_ehrpwm0_resource,
+	.num_resources	= ARRAY_SIZE(da850_ehrpwm0_resource),
 };
-#define DA8XX_EHRPWM1_BASE      0x01F02000
+
+#define DA8XX_EHRPWM1_BASE	0x01F02000
 static struct resource da850_ehrpwm1_resource[] = {
-        {
-                .start  = DA8XX_EHRPWM1_BASE,
-                .end    = DA8XX_EHRPWM1_BASE + 0x1fff,
-                .flags  = IORESOURCE_MEM,
-        },
-        {
-                .start  = IRQ_DA8XX_EHRPWM1TZ,
-                .end    = IRQ_DA8XX_EHRPWM1TZ,
-                .flags  = IORESOURCE_IRQ,
-        },
-        {
-                .start  = IRQ_DA8XX_EHRPWM1,
-                .end    = IRQ_DA8XX_EHRPWM1,
-                .flags  = IORESOURCE_IRQ,
-        },
+	{
+		.start	= DA8XX_EHRPWM1_BASE,
+		.end	= DA8XX_EHRPWM1_BASE + 0x1fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_DA8XX_EHRPWM1TZ,
+		.end	= IRQ_DA8XX_EHRPWM1TZ,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DA8XX_EHRPWM1,
+		.end	= IRQ_DA8XX_EHRPWM1,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
+
 static struct ehrpwm_platform_data da850_ehrpwm1_data = {
-		.channel_mask =0xFFFFFFFF
+	.channel_mask	= 0xFFFFFFFF
 };
 
 static struct platform_device da850_ehrpwm1_dev = {
-        .name           = "ehrpwm",
-        .id             = 1,
-        .dev            = {
-                .platform_data  = &da850_ehrpwm1_data,
-        },
-        .resource       = da850_ehrpwm1_resource,
-        .num_resources  = ARRAY_SIZE(da850_ehrpwm1_resource),
+	.name		= "ehrpwm",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &da850_ehrpwm1_data,
+	},
+	.resource	= da850_ehrpwm1_resource,
+	.num_resources	= ARRAY_SIZE(da850_ehrpwm1_resource),
 };
-
 
 void __init da850_register_ehrpwm(char mask)
 {
 	int ret = 0;
-	__raw_writew(__raw_readw(DA8XX_CHIPCFG1) | BIT(12), DA8XX_CHIPCFG1);
+
+	__raw_writew(__raw_readw(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG)) | BIT(12),
+	             DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG));
+
 	da850_ehrpwm0_data.channel_mask = mask & 0x3;
 	ret = platform_device_register(&da850_ehrpwm0_dev);
 	if (ret)
 		pr_warning("da850_evm_init: eHRPWM module0 registration failed\n");
-	da850_ehrpwm1_data.channel_mask = mask >> 0x2;
+
+	da850_ehrpwm1_data.channel_mask = (mask >> 2) & 0x3;
 	ret = platform_device_register(&da850_ehrpwm1_dev);
-                if (ret)
-                        pr_warning("da850_evm_init: eHRPWM module1 registration failed\n");
+	if (ret)
+		pr_warning("da850_evm_init: eHRPWM module1 registration failed\n");
 }
-#define DA8XX_ECAP0_BASE        0x01F06000
+
+#define DA8XX_ECAP0_BASE	0x01F06000
 static struct resource da850_ecap0_resource[] = {
-        {
-        .start          = DA8XX_ECAP0_BASE,
-        .end            = DA8XX_ECAP0_BASE + 0xfff,
-        .flags          = IORESOURCE_MEM,
-        },
-        {
-        .start          = IRQ_DA8XX_ECAP0,
-        .end            = IRQ_DA8XX_ECAP0,
-        .flags          = IORESOURCE_IRQ,
-        },
+	{
+		.start	= DA8XX_ECAP0_BASE,
+		.end	= DA8XX_ECAP0_BASE + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_DA8XX_ECAP0,
+		.end	= IRQ_DA8XX_ECAP0,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device da850_ecap0_dev = {
-        .name           = "ecap",
-        .id             = 0,
-        .resource       = da850_ecap0_resource,
-        .num_resources  = ARRAY_SIZE(da850_ecap0_resource),
+	.name		= "ecap",
+	.id		= 0,
+	.resource	= da850_ecap0_resource,
+	.num_resources	= ARRAY_SIZE(da850_ecap0_resource),
 };
-static struct platform_device da850_ecap0_cap_dev = {
-        .name           = "ecap_cap",
-        .id             = 0,
-        .resource       = da850_ecap0_resource,
-        .num_resources  = ARRAY_SIZE(da850_ecap0_resource),
-};
-#define DA8XX_ECAP1_BASE        0x01F07000
 
+static struct platform_device da850_ecap0_cap_dev = {
+	.name		= "ecap_cap",
+	.id		= 0,
+	.resource	= da850_ecap0_resource,
+	.num_resources	= ARRAY_SIZE(da850_ecap0_resource),
+};
+
+#define DA8XX_ECAP1_BASE	0x01F07000
 static struct resource da850_ecap1_resource[] = {
-        {
-        .start          = DA8XX_ECAP1_BASE,
-        .end            = DA8XX_ECAP1_BASE + 0xfff,
-        .flags          = IORESOURCE_MEM,
-        },
-        {
-        .start          = IRQ_DA8XX_ECAP1,
-        .end            = IRQ_DA8XX_ECAP1,
-        .flags          = IORESOURCE_IRQ,
-        },
+	{
+		.start	= DA8XX_ECAP1_BASE,
+		.end	= DA8XX_ECAP1_BASE + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_DA8XX_ECAP1,
+		.end	= IRQ_DA8XX_ECAP1,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device da850_ecap1_dev = {
-        .name           = "ecap",
-        .id             = 1,
-        .resource       = da850_ecap1_resource,
-        .num_resources  = ARRAY_SIZE(da850_ecap1_resource),
+	.name		= "ecap",
+	.id		= 1,
+	.resource	= da850_ecap1_resource,
+	.num_resources	= ARRAY_SIZE(da850_ecap1_resource),
 };
-static struct platform_device da850_ecap1_cap_dev = {
-        .name           = "ecap_cap",
-        .id             = 1,
-        .resource       = da850_ecap1_resource,
-        .num_resources  = ARRAY_SIZE(da850_ecap1_resource),
-};
-#define DA8XX_ECAP2_BASE        0x01F08000
 
+static struct platform_device da850_ecap1_cap_dev = {
+	.name		= "ecap_cap",
+	.id		= 1,
+	.resource	= da850_ecap1_resource,
+	.num_resources	= ARRAY_SIZE(da850_ecap1_resource),
+};
+
+#define DA8XX_ECAP2_BASE	0x01F08000
 static struct resource da850_ecap2_resource[] = {
-        {
-        .start          = DA8XX_ECAP2_BASE,
-        .end            = DA8XX_ECAP2_BASE + 0xfff,
-        .flags          = IORESOURCE_MEM,
-        },
-        {
-        .start          = IRQ_DA8XX_ECAP2,
-        .end            = IRQ_DA8XX_ECAP2,
-        .flags          = IORESOURCE_IRQ,
-        },
+	{
+		.start	= DA8XX_ECAP2_BASE,
+		.end	= DA8XX_ECAP2_BASE + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_DA8XX_ECAP2,
+		.end	= IRQ_DA8XX_ECAP2,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device da850_ecap2_dev = {
-        .name           = "ecap",
-        .id             = 2,
-        .resource       = da850_ecap2_resource,
-        .num_resources  = ARRAY_SIZE(da850_ecap2_resource),
+	.name		= "ecap",
+	.id		= 2,
+	.resource	= da850_ecap2_resource,
+	.num_resources	= ARRAY_SIZE(da850_ecap2_resource),
 };
 static struct platform_device da850_ecap2_cap_dev = {
-        .name           = "ecap_cap",
-        .id             = 2,
-        .resource       = da850_ecap2_resource,
-        .num_resources  = ARRAY_SIZE(da850_ecap2_resource),
+	.name		= "ecap_cap",
+	.id		= 2,
+	.resource	= da850_ecap2_resource,
+	.num_resources	= ARRAY_SIZE(da850_ecap2_resource),
 };
+
 int __init da850_register_ecap(char instance)
 {
-        if (instance == 0)
-                return platform_device_register(&da850_ecap0_dev);
-        else if (instance == 1)
-                return platform_device_register(&da850_ecap1_dev);
-        else if (instance == 2)
-                return platform_device_register(&da850_ecap2_dev);
-        else
-                return -EINVAL;
+	switch (instance) {
+		case 0:		return platform_device_register(&da850_ecap0_dev);
+		case 1:		return platform_device_register(&da850_ecap1_dev);
+		case 2:		return platform_device_register(&da850_ecap2_dev);
+		default:	return -EINVAL;
+	}
 }
 
 int __init da850_register_ecap_cap(char instance)
 {
-        if (instance == 0)
-                return platform_device_register(&da850_ecap0_cap_dev);
-        else if (instance == 1)
-                return platform_device_register(&da850_ecap1_cap_dev);
-        else if (instance == 2)
-                return platform_device_register(&da850_ecap2_cap_dev);
-        else
-                return -EINVAL;
+	switch (instance) {
+		case 0:		return platform_device_register(&da850_ecap0_cap_dev);
+		case 1:		return platform_device_register(&da850_ecap1_cap_dev);
+		case 2:		return platform_device_register(&da850_ecap2_cap_dev);
+		default:	return -EINVAL;
+	}
 }
+
 /* VPIF resource, platform data */
 static u64 da850_vpif_dma_mask = DMA_BIT_MASK(32);
 
 static struct resource da850_vpif_resource[] = {
-        {
-                .start  = DA8XX_VPIF_BASE,
-                .end    = DA8XX_VPIF_BASE + 0xfff,
-                .flags  = IORESOURCE_MEM,
-        }
+	{
+		.start	= DA8XX_VPIF_BASE,
+		.end	= DA8XX_VPIF_BASE + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	}
 };
 static struct platform_device da850_vpif_dev = {
-        .name           = "vpif",
-        .id             = -1,
-        .dev            = {
-                        .dma_mask               = &da850_vpif_dma_mask,
-                        .coherent_dma_mask      = DMA_BIT_MASK(32),
-        },
-        .resource       = da850_vpif_resource,
-        .num_resources  = ARRAY_SIZE(da850_vpif_resource),
+	.name		= "vpif",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= &da850_vpif_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= da850_vpif_resource,
+	.num_resources	= ARRAY_SIZE(da850_vpif_resource),
 };
+
 /* VPIF capture resource, platform data */
 static struct resource da850_vpif_capture_resource[] = {
-        {
-                .start = IRQ_DA850_VPIFINT,
-                .end   = IRQ_DA850_VPIFINT,
-                .flags = IORESOURCE_IRQ,
-        },
-        {
-                .start = IRQ_DA850_VPIFINT,
-                .end   = IRQ_DA850_VPIFINT,
-                .flags = IORESOURCE_IRQ,
-        },
+	{
+		.start	= IRQ_DA850_VPIFINT,
+		.end	= IRQ_DA850_VPIFINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DA850_VPIFINT,
+		.end	= IRQ_DA850_VPIFINT,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device da850_vpif_capture_dev = {
-        .name           = "vpif_capture",
-        .id             = -1,
-        .dev            = {
-                .dma_mask               = &da850_vpif_dma_mask,
-                .coherent_dma_mask      = DMA_BIT_MASK(32),
-        },
-        .resource       = da850_vpif_capture_resource,
-        .num_resources  = ARRAY_SIZE(da850_vpif_capture_resource),
+	.name		= "vpif_capture",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= &da850_vpif_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= da850_vpif_capture_resource,
+	.num_resources	= ARRAY_SIZE(da850_vpif_capture_resource),
 };
+
 int __init da850_register_vpif(void)
 {
-        return platform_device_register(&da850_vpif_dev);
+	return platform_device_register(&da850_vpif_dev);
 }
 
-int __init da850_register_vpif_capture(struct vpif_capture_config
-                                                        *capture_config)
+int __init da850_register_vpif_capture(struct vpif_capture_config *capture_config)
 {
-        da850_vpif_capture_dev.dev.platform_data = capture_config;
-        return platform_device_register(&da850_vpif_capture_dev);
+	da850_vpif_capture_dev.dev.platform_data = capture_config;
+	return platform_device_register(&da850_vpif_capture_dev);
 }
 
-
-/*************************************************/
 
 static int da850_round_armrate(struct clk *clk, unsigned long rate)
 {
@@ -1467,7 +1472,9 @@ static struct davinci_soc_info davinci_soc_info_da850 = {
 void __init da850_init(void)
 {
 	unsigned int v;
+
 	davinci_common_init(&davinci_soc_info_da850);
+
 	da8xx_syscfg0_base = ioremap(DA8XX_SYSCFG0_BASE, SZ_4K);
 	if (WARN(!da8xx_syscfg0_base, "Unable to map syscfg0 module"))
 		return;
@@ -1483,8 +1490,8 @@ void __init da850_init(void)
 	 * both PLL0 and PLL1 to the same frequency so, there should not
 	 * be any noticeable change even in non-DVFS use cases.
 	 */
-
 	da850_set_async3_src(1);
+
 	/* Unlock writing to PLL0 registers */
 	v = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP0_REG));
 	v &= ~CFGCHIP0_PLL_MASTER_LOCK;
@@ -1494,5 +1501,4 @@ void __init da850_init(void)
 	v = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP3_REG));
 	v &= ~CFGCHIP3_PLL1_MASTER_LOCK;
 	__raw_writel(v, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP3_REG));
-
 }

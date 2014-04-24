@@ -29,7 +29,6 @@
 
 #include <media/davinci/vpif_types.h>
 
-
 extern void __iomem *da8xx_syscfg0_base;
 extern void __iomem *da8xx_syscfg1_base;
 
@@ -55,7 +54,7 @@ extern unsigned int da850_max_speed;
 #define DA8XX_SYSCFG0_VIRT(x)	(da8xx_syscfg0_base + (x))
 #define DA8XX_JTAG_ID_REG	0x18
 #define DA8XX_CFGCHIP0_REG	0x17c
-#define DA8XX_CFGCHIP1_REG      0x180
+#define DA8XX_CFGCHIP1_REG	0x180
 #define DA8XX_CFGCHIP2_REG	0x184
 #define DA8XX_CFGCHIP3_REG	0x188
 
@@ -63,9 +62,8 @@ extern unsigned int da850_max_speed;
 #define DA8XX_SYSCFG1_VIRT(x)	(da8xx_syscfg1_base + (x))
 #define DA8XX_DEEPSLEEP_REG	0x8
 #define DA8XX_PWRDN_REG		0x18
-#define DA8XX_PUPD_ENA		0x0c 
-#define DA8XX_PUPD_SEL		0x10 
-
+#define DA8XX_PUPD_ENA		0x0c
+#define DA8XX_PUPD_SEL		0x10
 
 #define DA8XX_PSC0_BASE		0x01c10000
 #define DA8XX_PLL0_BASE		0x01c11000
@@ -78,8 +76,8 @@ extern unsigned int da850_max_speed;
 #define DA8XX_AEMIF_CTL_BASE	0x68000000
 #define DA8XX_ARM_RAM_BASE	0xffff0000
 
-#define DA8XX_VPIF_BASE         0x01e17000
-#define DA8XX_SHARED_RAM_BASE   0x80000000
+#define DA8XX_VPIF_BASE		0x01e17000
+#define DA8XX_SHARED_RAM_BASE	0x80000000
 
 void __init da830_init(void);
 void __init da850_init(void);
@@ -107,8 +105,7 @@ void __init da850_register_ehrpwm(char);
 int __init da850_register_ecap(char);
 int __init da850_register_ecap_cap(char);
 int __init da850_register_vpif(void);
-int __init da850_register_vpif_capture
-                        (struct vpif_capture_config *capture_config);
+int __init da850_register_vpif_capture(struct vpif_capture_config *capture_config);
 void da8xx_restart(char mode, const char *cmd);
 
 extern struct platform_device da8xx_serial_device;
@@ -137,7 +134,6 @@ extern const short da830_mcasp2_pins[];
 extern const short da830_i2c0_pins[];
 extern const short da830_i2c1_pins[];
 extern const short da830_lcdcntl_pins[];
-
 extern const short da830_pwm_pins[];
 extern const short da830_ecap0_pins[];
 extern const short da830_ecap1_pins[];
@@ -145,10 +141,9 @@ extern const short da830_ecap2_pins[];
 extern const short da830_eqep0_pins[];
 extern const short da830_eqep1_pins[];
 
-extern const short da850_vpif_capture_pins[];
-
 extern const short da850_i2c0_pins[];
 extern const short da850_i2c1_pins[];
 extern const short da850_lcdcntl_pins[];
+extern const short da850_vpif_capture_pins[];
 
 #endif /* __ASM_ARCH_DAVINCI_DA8XX_H */
