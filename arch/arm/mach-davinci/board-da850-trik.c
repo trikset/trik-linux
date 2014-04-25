@@ -204,10 +204,8 @@ static __init int da850_trik_sd0_init(void)
 	}
 
 	ret = gpio_request_array(da850_trik_sd0_gpio, ARRAY_SIZE(da850_trik_sd0_gpio));
-	if (ret) {
-		pr_err("%s: MMC/SD0 gpio request failed: %d\n", __func__, ret);
-		return ret;
-	}
+	if (ret)
+		pr_warning("%s: MMC/SD0 gpio request failed: %d\n", __func__, ret);
 
 	ret = da8xx_register_mmcsd0(&da850_trik_sd0_config);
 	if (ret) {
@@ -218,7 +216,7 @@ static __init int da850_trik_sd0_init(void)
 	return 0;
 
  exit_gpio_free_array:
-	gpio_free_array(da850_trik_sd0_gpio_setup, ARRAY_SIZE(da850_trik_sd0_gpio_setup));
+	gpio_free_array(da850_trik_sd0_gpio, ARRAY_SIZE(da850_trik_sd0_gpio));
 	return ret;
 }
 
