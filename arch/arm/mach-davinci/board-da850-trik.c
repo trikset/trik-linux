@@ -210,7 +210,7 @@ static __init int da850_trik_sd0_init(void)
 	ret = da8xx_register_mmcsd0(&da850_trik_sd0_config);
 	if (ret) {
 		pr_err("%s: MMC/SD0 registration failed: %d\n", __func__, ret);
-		goto exit_sd0_init;
+		goto exit_gpio_free_array;
 	}
 
 	return 0;
