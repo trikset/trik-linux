@@ -69,7 +69,7 @@ static const short da850_trik_uart1_pins[] __initconst = {
 	-1
 };
 
-static const struct gpio da850_trik_uart1_gpio_setup[] __initconst = {
+static const struct gpio da850_trik_uart1_gpio[] __initconst = {
 	{ GPIO_TO_PIN(0,13), GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED, "uart1 enable" },
 	{ GPIO_TO_PIN(1,14), GPIOF_OUT_INIT_LOW|GPIOF_EXPORT_DIR_FIXED,  "uart1 power" },
 };
@@ -85,7 +85,7 @@ static __init int da850_trik_uart1_init(void)
 		return ret;
 	}
 
-	ret = gpio_request_array(da850_trik_uart_config, ARRAY_SIZE(da850_trik_uart1_gpio_setup));
+	ret = gpio_request_array(da850_trik_uart1_gpio, ARRAY_SIZE(da850_trik_uart1_gpio));
 	if (ret)
 		pr_warning("%s: UART1 gpio request failed: %d\n", __func__, ret);
 
@@ -189,7 +189,7 @@ static struct davinci_mmc_config da850_trik_sd0_config = {
 	.version	= MMC_CTLR_VERSION_2,
 };
 
-static const struct gpio da850_trik_sd0_gpio_setup[] __initconst = {
+static const struct gpio da850_trik_sd0_gpio[] __initconst = {
 	{ GPIO_TO_PIN(4, 1), GPIOF_IN|GPIOF_EXPORT_DIR_FIXED, "sd0 card detect" },
 };
 
@@ -203,11 +203,9 @@ static __init int da850_trik_sd0_init(void)
 		return ret;
 	}
 
-	ret = gpio_request_array(da850_trik_sd0_gpio_setup, ARRAY_SIZE(da850_trik_sd0_gpio_setup));
-	if (ret) {
-		pr_err("%s: MMC/SD0 gpio request failed: %d\n", __func__, ret);
-		return ret;
-	}
+	ret = gpio_request_array(da850_trik_sd0_gpio, ARRAY_SIZE(da850_trik_sd0_gpio));
+	if (ret)
+		pr_warning("%s: MMC/SD0 gpio request failed: %d\n", __func__, ret);
 
 	ret = da8xx_register_mmcsd0(&da850_trik_sd0_config);
 	if (ret) {
@@ -218,7 +216,7 @@ static __init int da850_trik_sd0_init(void)
 	return 0;
 
  exit_gpio_free_array:
-	gpio_free_array(da850_trik_sd0_gpio_setup, ARRAY_SIZE(da850_trik_sd0_gpio_setup));
+	gpio_free_array(da850_trik_sd0_gpio, ARRAY_SIZE(da850_trik_sd0_gpio));
 	return ret;
 }
 
