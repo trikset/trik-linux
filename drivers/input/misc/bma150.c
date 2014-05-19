@@ -523,7 +523,9 @@ static int __devinit bma150_register_polled_device(struct bma150_data *bma150)
 
 	bma150_init_input_device(bma150, ipoll_dev->input);
 #warning Why is it required here? Why it is not done in latest kernel? Is it true that ipoll_dev->input initialized at this point?
+#if 1
 	bma150->input = ipoll_dev->input;
+#endif
 
 	error = input_register_polled_device(ipoll_dev);
 	if (error) {
@@ -532,7 +534,9 @@ static int __devinit bma150_register_polled_device(struct bma150_data *bma150)
 	}
 
 	bma150->input_polled = ipoll_dev;
-//	bma150->input = ipoll_dev->input;
+#if 0
+	bma150->input = ipoll_dev->input;
+#endif
 
 	return 0;
 }
@@ -581,7 +585,10 @@ static int __devinit bma150_probe(struct i2c_client *client,
 	error = bma150_initialize(bma150, cfg);
 	if (error)
 		goto err_free_mem;
+#warning Why is it required here? Why it is not done in latest kernel?
+#if 1
 	i2c_set_clientdata(client, bma150);
+#endif
 
 	if (client->irq > 0) {
 		error = bma150_register_input_device(bma150);
@@ -604,7 +611,9 @@ static int __devinit bma150_probe(struct i2c_client *client,
 		if (error)
 			goto err_free_mem;
 	}
-
+#if 0
+	i2c_set_clientdata(client, bma150);
+#endif
 	pm_runtime_enable(&client->dev);
 
 	return 0;
