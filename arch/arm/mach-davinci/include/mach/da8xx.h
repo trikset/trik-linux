@@ -61,9 +61,9 @@ extern unsigned int da850_max_speed;
 #define DA8XX_SYSCFG1_BASE	(IO_PHYS + 0x22C000)
 #define DA8XX_SYSCFG1_VIRT(x)	(da8xx_syscfg1_base + (x))
 #define DA8XX_DEEPSLEEP_REG	0x8
+#define DA8XX_PUPD_ENA_REG	0x0c
+#define DA8XX_PUPD_SEL_REG	0x10
 #define DA8XX_PWRDN_REG		0x18
-#define DA8XX_PUPD_ENA		0x0c
-#define DA8XX_PUPD_SEL		0x10
 
 #define DA8XX_PSC0_BASE		0x01c10000
 #define DA8XX_PLL0_BASE		0x01c11000
@@ -101,9 +101,9 @@ int da8xx_register_cpuidle(void);
 void __iomem * __init da8xx_get_mem_ctlr(void);
 int da850_register_pm(struct platform_device *pdev);
 int __init da850_register_sata(unsigned long refclkpn);
-void __init da850_register_ehrpwm(char);
-int __init da850_register_ecap(char);
-int __init da850_register_ecap_cap(char);
+void __init da850_register_ehrpwm(unsigned int mask);
+int __init da850_register_ecap(int instance);
+int __init da850_register_ecap_cap(int instance);
 int __init da850_register_vpif(void);
 int __init da850_register_vpif_capture(struct vpif_capture_config *capture_config);
 void da8xx_restart(char mode, const char *cmd);
