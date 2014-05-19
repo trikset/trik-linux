@@ -190,7 +190,7 @@ endchoice
 
 config DA850_WL12XX
 	bool "AM18x wl1271 daughter board"
-	depends on MACH_DAVINCI_DA850_EVM || MACH_DAVINCI_DA850_TRIKBOARD
+	depends on MACH_DAVINCI_DA850_EVM
 	help
 	  The wl1271 daughter card for AM18x EVMs is a combo wireless
 	  connectivity add-on card, based on the LS Research TiWi module with
