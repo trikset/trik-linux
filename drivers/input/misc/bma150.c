@@ -522,7 +522,8 @@ static int __devinit bma150_register_polled_device(struct bma150_data *bma150)
 	ipoll_dev->poll_interval_max = BMA150_POLL_MAX;
 
 	bma150_init_input_device(bma150, ipoll_dev->input);
-        bma150->input = ipoll_dev->input;
+#warning Why is it required here? Why it is not done in latest kernel? Is it true that ipoll_dev->input initialized at this point?
+	bma150->input = ipoll_dev->input;
 
 	error = input_register_polled_device(ipoll_dev);
 	if (error) {
