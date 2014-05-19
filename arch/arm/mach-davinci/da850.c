@@ -415,7 +415,7 @@ static struct clk_lookup da850_clks[] = {
 	CLK("davinci_emac.1",	NULL,		&emac_clk),
 	CLK("davinci-mcasp.0",	NULL,		&mcasp_clk),
 	CLK("da8xx_lcdc.0",	NULL,		&lcdc_clk),
-	CLK("da8xx_lcdc_ili9340.0", NULL,	&lcdc_clk),
+	CLK("da8xx_lcdc_ili9340.0",NULL,	&lcdc_clk),
 	CLK("davinci_mmc.0",	NULL,		&mmcsd0_clk),
 	CLK("davinci_mmc.1",	NULL,		&mmcsd1_clk),
 	CLK(NULL,		"aemif",	&aemif_clk),
@@ -424,9 +424,9 @@ static struct clk_lookup da850_clks[] = {
 	CLK("spi_davinci.0",	NULL,		&spi0_clk),
 	CLK("spi_davinci.1",	NULL,		&spi1_clk),
 	CLK("ahci",		NULL,		&sata_clk),
-	CLK(NULL,               "vpif",         &vpif_clk),
-	CLK(NULL,		"ehrpwm",       &ehrpwm_clk),
-	CLK(NULL,		"ecap",         &ecap_clk),
+	CLK(NULL,		"vpif",		&vpif_clk),
+	CLK(NULL,		"ehrpwm",	&ehrpwm_clk),
+	CLK(NULL,		"ecap",		&ecap_clk),
 	CLK(NULL,		NULL,		NULL),
 };
 
@@ -664,38 +664,38 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, GPIO8_15,	18,	8,	15,	8,	false)
 	MUX_CFG(DA850, RTC_ALARM,	0,	28,	15,	2,	false)
 	/* eHRPWM0 function */
-	MUX_CFG(DA850,  EHRPWM0_A,      3,      0,      15,     2,      false)
-	MUX_CFG(DA850,  EHRPWM0_B,      3,      4,      15,     2,      false)
-	MUX_CFG(DA850,  EHRPWM0_TZ,     1,      0,      15,     2,      false)
+	MUX_CFG(DA850, EHRPWM0_A,	3,	0,	15,	2,	false)
+	MUX_CFG(DA850, EHRPWM0_B,	3,	4,	15,	2,	false)
+	MUX_CFG(DA850, EHRPWM0_TZ,	1,	0,	15,	2,	false)
 	/* eHRPWM1 function */
-	MUX_CFG(DA850,  EHRPWM1_A,      5,      0,      15,     2,      false)
-	MUX_CFG(DA850,  EHRPWM1_B,      5,      4,      15,     2,      false)
-	MUX_CFG(DA850,  EHRPWM1_TZ,     2,      0,      15,     8,      false)
+	MUX_CFG(DA850, EHRPWM1_A,	5,	0,	15,	2,	false)
+	MUX_CFG(DA850, EHRPWM1_B,	5,	4,	15,	2,	false)
+	MUX_CFG(DA850, EHRPWM1_TZ,	2,	0,	15,	8,	false)
 	/* eCAP0 function */
-	MUX_CFG(DA850, ECAP0_APWM0,     2,      28,     15,     2,      false)
+	MUX_CFG(DA850, ECAP0_APWM0,	2,	28,	15,	2,	false)
 	/* eCAP1 function */
-	MUX_CFG(DA850, ECAP1_APWM1,     1,      28,     15,     4,      false)
+	MUX_CFG(DA850, ECAP1_APWM1,	1,	28,	15,	4,	false)
 	/* eCAP2 function */
-	MUX_CFG(DA850, ECAP2_APWM2,     1,      0,      15,     4,      false)
+	MUX_CFG(DA850, ECAP2_APWM2,	1,	0,	15,	4,	false)
 	 /* VPIF Capture */
-	MUX_CFG(DA850, VPIF_DIN0,       15,     4,      15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN1,       15,     0,      15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN2,       14,     28,     15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN3,       14,     24,     15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN4,       14,     20,     15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN5,       14,     16,     15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN6,       14,     12,     15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN7,       14,     8,      15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN8,       16,     4,      15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN9,       16,     0,      15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN10,      15,     28,     15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN11,      15,     24,     15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN12,      15,     20,     15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN13,      15,     16,     15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN14,      15,     12,     15,     1,      false)
-	MUX_CFG(DA850, VPIF_DIN15,      15,     8,      15,     1,      false)
-	MUX_CFG(DA850, VPIF_CLKIN0,     14,     0,      15,     1,      false)
-	MUX_CFG(DA850, VPIF_CLKIN1,     14,     4,      15,     1,      false)
+	MUX_CFG(DA850, VPIF_DIN0,	15,	4,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN1,	15,	0,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN2,	14,	28,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN3,	14,	24,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN4,	14,	20,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN5,	14,	16,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN6,	14,	12,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN7,	14,	8,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN8,	16,	4,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN9,	16,	0,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN10,	15,	28,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN11,	15,	24,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN12,	15,	20,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN13,	15,	16,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN14,	15,	12,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_DIN15,	15,	8,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_CLKIN0,	14,	0,	15,	1,	false)
+	MUX_CFG(DA850, VPIF_CLKIN1,	14,	4,	15,	1,	false)
 
 #endif
 };
@@ -720,12 +720,12 @@ const short da850_lcdcntl_pins[] __initdata = {
 };
 
 const short da850_vpif_capture_pins[] __initdata = {
-        DA850_VPIF_DIN0, DA850_VPIF_DIN1, DA850_VPIF_DIN2, DA850_VPIF_DIN3,
-        DA850_VPIF_DIN4, DA850_VPIF_DIN5, DA850_VPIF_DIN6, DA850_VPIF_DIN7,
-        DA850_VPIF_DIN8, DA850_VPIF_DIN9, DA850_VPIF_DIN10, DA850_VPIF_DIN11,
-        DA850_VPIF_DIN12, DA850_VPIF_DIN13, DA850_VPIF_DIN14, DA850_VPIF_DIN15,
-        DA850_VPIF_CLKIN0, DA850_VPIF_CLKIN1,
-        -1
+	DA850_VPIF_DIN0, DA850_VPIF_DIN1, DA850_VPIF_DIN2, DA850_VPIF_DIN3,
+	DA850_VPIF_DIN4, DA850_VPIF_DIN5, DA850_VPIF_DIN6, DA850_VPIF_DIN7,
+	DA850_VPIF_DIN8, DA850_VPIF_DIN9, DA850_VPIF_DIN10, DA850_VPIF_DIN11,
+	DA850_VPIF_DIN12, DA850_VPIF_DIN13, DA850_VPIF_DIN14, DA850_VPIF_DIN15,
+	DA850_VPIF_CLKIN0, DA850_VPIF_CLKIN1,
+	-1
 };
 
 /* FIQ are pri 0-1; otherwise 2-7, with 7 lowest priority */
@@ -1156,9 +1156,9 @@ static struct platform_device da850_ehrpwm1_dev = {
 	.num_resources	= ARRAY_SIZE(da850_ehrpwm1_resource),
 };
 
-void __init da850_register_ehrpwm(char mask)
+void __init da850_register_ehrpwm(unsigned int mask)
 {
-	int ret = 0;
+	int ret;
 
 	__raw_writew(__raw_readw(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG)) | BIT(12),
 	             DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG));
@@ -1250,6 +1250,7 @@ static struct platform_device da850_ecap2_dev = {
 	.resource	= da850_ecap2_resource,
 	.num_resources	= ARRAY_SIZE(da850_ecap2_resource),
 };
+
 static struct platform_device da850_ecap2_cap_dev = {
 	.name		= "ecap_cap",
 	.id		= 2,
@@ -1257,7 +1258,7 @@ static struct platform_device da850_ecap2_cap_dev = {
 	.num_resources	= ARRAY_SIZE(da850_ecap2_resource),
 };
 
-int __init da850_register_ecap(char instance)
+int __init da850_register_ecap(int instance)
 {
 	switch (instance) {
 		case 0:		return platform_device_register(&da850_ecap0_dev);
@@ -1267,7 +1268,7 @@ int __init da850_register_ecap(char instance)
 	}
 }
 
-int __init da850_register_ecap_cap(char instance)
+int __init da850_register_ecap_cap(int instance)
 {
 	switch (instance) {
 		case 0:		return platform_device_register(&da850_ecap0_cap_dev);
