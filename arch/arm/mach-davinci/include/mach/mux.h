@@ -780,6 +780,7 @@ enum davinci_da850_index {
 	DA850_SPI1_SIMO,
 	DA850_SPI1_SOMI,
 	DA850_SPI1_CLK,
+
 	/* I2C1 function */
 	DA850_I2C1_SCL,
 	DA850_I2C1_SDA,
