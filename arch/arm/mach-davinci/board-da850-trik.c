@@ -1332,65 +1332,58 @@ static __init int da850_trik_buffer_clk_init(void)
 }
 
 static const short da850_trik_ehrpwm0_pins[] __initconst = {
-#if 0
-		DA850_EHRPWM0_A,
-#endif		
-		DA850_EHRPWM0_B,
-		DA850_GPIO2_5/*PE0_EN*/,
-		-1
+	/* DA850_EHRPWM0_A conflicts with SPI0 */
+	DA850_EHRPWM0_B,
+	DA850_GPIO2_5,	/*PE0_EN*/
+	-1
 };
 
 static const short da850_trik_ehrpwm1_pins[] __initconst = {
-		DA850_EHRPWM1_A,
-		DA850_EHRPWM1_B,
-		DA850_GPIO2_3/*PE1_EN*/,
-		-1
+	DA850_EHRPWM1_A,
+	DA850_EHRPWM1_B,
+	DA850_GPIO2_3,	/*PE1_EN*/
+	-1
 };
-static __init int da850_trik_ehrpwm_init(void){
+
+static __init int da850_trik_ehrpwm_init(void)
+{
 	int ret;
 	char mask = 0;
 
 	ret = davinci_cfg_reg_list(da850_trik_ehrpwm0_pins);
-	if (ret){
+	if (ret) {
 		pr_err("%s: ehrpwm0 pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
 	mask |=  BIT(1);
-	ret = gpio_request_one(GPIO_TO_PIN(2,5),GPIOF_OUT_INIT_HIGH,"PE0_EN");
-	if (ret){
+	ret = gpio_request_one(GPIO_TO_PIN(2,5),
+	                       GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED,
+	                       "PE0_EN");
+	if (ret) {
 		pr_err("%s: PE0_EN gpio request failed: %d\n",__func__, ret);
 		goto request_pe0_en_failed;
 	}
-	ret = gpio_export(GPIO_TO_PIN(2,5),1);
-	if (ret){
-		pr_err("%s: PE0_EN gpio export failed: %d\n",__func__, ret);
-		goto export_pe0_en_failed;
-	}
 
 	ret = davinci_cfg_reg_list(da850_trik_ehrpwm1_pins);
-	if (ret){
+	if (ret) {
 		pr_err("%s: ehrpwm1 pinmux setup failed: %d\n", __func__, ret);
 		goto cfg_reg_ehrpwm1_failed;
 	}
 	mask |= BIT(2) | BIT(3);
-	ret = gpio_request_one(GPIO_TO_PIN(2,3),GPIOF_OUT_INIT_HIGH,"PE1_EN");
-	if (ret){
+	ret = gpio_request_one(GPIO_TO_PIN(2,3),
+	                       GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED,
+	                       "PE1_EN");
+	if (ret) {
 		pr_err("%s: PE1_EN gpio request failed: %d\n",__func__, ret);
 		goto request_pe1_en_failed;
 	}
-	ret = gpio_export(GPIO_TO_PIN(2,3),1);
-	if (ret){
-		pr_err("%s: PE1_EN gpio export failed: %d\n",__func__, ret);
-		goto export_pe1_en_failed;
-	}
+
 	da850_register_ehrpwm(mask);
 	return 0;
 
-export_pe1_en_failed:
-	gpio_free(GPIO_TO_PIN(2,3));
+	// gpio_free(GPIO_TO_PIN(2,3));
 request_pe1_en_failed:
 cfg_reg_ehrpwm1_failed:
-export_pe0_en_failed:
 	gpio_free(GPIO_TO_PIN(2,5));
 request_pe0_en_failed:
 	return ret;
