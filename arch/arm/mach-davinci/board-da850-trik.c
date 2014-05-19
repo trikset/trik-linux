@@ -255,14 +255,19 @@ static const short jd1_jd2_pins[] = {
 static void trik_jd1_jd2_init(bool _pullUp)
 {
 	u32 cfg_pupdsel = 0;
+	u32 cfg_pupdena = 0;
 	int ret = 0;
 
-	cfg_pupdsel = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+	cfg_pupdsel = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL_REG));
 	if (_pullUp)
 		cfg_pupdsel |= 0x020000;
 	else
 		cfg_pupdsel &= ~0x020000;
-	__raw_writel(cfg_pupdsel, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+	__raw_writel(cfg_pupdsel, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL_REG));
+
+	cfg_pupdena = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA_REG));
+	cfg_pupdena |= 0x020000;
+	__raw_writel(cfg_pupdena, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA_REG));
 
 	ret = davinci_cfg_reg_list(jd1_jd2_pins);
 	if (ret) {
