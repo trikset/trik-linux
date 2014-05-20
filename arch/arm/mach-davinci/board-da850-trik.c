@@ -93,7 +93,7 @@ static __init int da850_trik_uart1_init(void)
 }
 
 static struct davinci_uart_config da850_trik_uart_config __initdata = {
-	.enabled_uarts = 0x7
+	.enabled_uarts = 0x3 /* UART0 & UART1 only */
 };
 
 static __init int da850_trik_uart_init(void)
