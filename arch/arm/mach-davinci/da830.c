@@ -177,7 +177,7 @@ static struct clk tptc1_clk = {
 static struct clk mmcsd_clk = {
 	.name		= "mmcsd",
 	.parent		= &pll0_sysclk2,
-	.lpsc		= DA8XX_LPSC0_MMC_SD,
+	.lpsc		= DA8XX_LPSC0_MMC_SD0,
 };
 
 static struct clk uart0_clk = {
