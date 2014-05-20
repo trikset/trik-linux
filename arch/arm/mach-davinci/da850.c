@@ -677,7 +677,7 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, ECAP1_APWM1,	1,	28,	15,	4,	false)
 	/* eCAP2 function */
 	MUX_CFG(DA850, ECAP2_APWM2,	1,	0,	15,	4,	false)
-	 /* VPIF Capture */
+	/* VPIF Capture */
 	MUX_CFG(DA850, VPIF_DIN0,	15,	4,	15,	1,	false)
 	MUX_CFG(DA850, VPIF_DIN1,	15,	0,	15,	1,	false)
 	MUX_CFG(DA850, VPIF_DIN2,	14,	28,	15,	1,	false)
@@ -1288,6 +1288,7 @@ static struct resource da850_vpif_resource[] = {
 		.flags	= IORESOURCE_MEM,
 	}
 };
+
 static struct platform_device da850_vpif_dev = {
 	.name		= "vpif",
 	.id		= -1,
@@ -1334,7 +1335,6 @@ int __init da850_register_vpif_capture(struct vpif_capture_config *capture_confi
 	da850_vpif_capture_dev.dev.platform_data = capture_config;
 	return platform_device_register(&da850_vpif_capture_dev);
 }
-
 
 static int da850_round_armrate(struct clk *clk, unsigned long rate)
 {
