@@ -1120,7 +1120,7 @@ static struct resource da850_ehrpwm0_resource[] = {
 };
 
 static struct ehrpwm_platform_data da850_ehrpwm0_data = {
-	.channel_mask	= 0xFFFFFFFF
+	// .channel_mask is set dynamically
 };
 
 static struct platform_device da850_ehrpwm0_dev = {
@@ -1153,7 +1153,7 @@ static struct resource da850_ehrpwm1_resource[] = {
 };
 
 static struct ehrpwm_platform_data da850_ehrpwm1_data = {
-	.channel_mask	= 0xFFFFFFFF
+	// .channel_mask is set dynamically
 };
 
 static struct platform_device da850_ehrpwm1_dev = {
@@ -1173,15 +1173,19 @@ void __init da850_register_ehrpwm(unsigned int mask)
 	__raw_writew(__raw_readw(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG)) | BIT(12),
 	             DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG));
 
-	da850_ehrpwm0_data.channel_mask = mask & 0x3;
-	ret = platform_device_register(&da850_ehrpwm0_dev);
-	if (ret)
-		pr_warning("da850_evm_init: eHRPWM module0 registration failed\n");
+	if (mask & 0x3) {
+		da850_ehrpwm0_data.channel_mask = mask & 0x3;
+		ret = platform_device_register(&da850_ehrpwm0_dev);
+		if (ret)
+			pr_warning("da850_evm_init: eHRPWM module0 registration failed\n");
+	}
 
-	da850_ehrpwm1_data.channel_mask = (mask >> 2) & 0x3;
-	ret = platform_device_register(&da850_ehrpwm1_dev);
-	if (ret)
-		pr_warning("da850_evm_init: eHRPWM module1 registration failed\n");
+	if ((mask >> 2) & 0x3) {
+		da850_ehrpwm1_data.channel_mask = (mask >> 2) & 0x3;
+		ret = platform_device_register(&da850_ehrpwm1_dev);
+		if (ret)
+			pr_warning("da850_evm_init: eHRPWM module1 registration failed\n");
+	}
 }
 
 #define DA8XX_ECAP0_BASE	0x01F06000
