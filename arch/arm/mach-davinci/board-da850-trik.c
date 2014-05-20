@@ -1696,8 +1696,7 @@ static __init void da850_trik_init(void)
 	if (ret)
 		pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
 
-	//pwm
-	//vpif 
+#warning TODO vpif
 
 	if (!jd1_jd2){
 		ret = da850_trik_bwsensor_init();
@@ -1714,6 +1713,7 @@ static __init int da850_trik_console_init(void)
 		return 0;
 
 #warning Maybe console is optional? Also check if ttyS1 is correct
+#warning Somehow, console seems to be initialized from somewhere else as well
 	return add_preferred_console("ttyS", 1, "115200");
 }
 console_initcall(da850_trik_console_init);
