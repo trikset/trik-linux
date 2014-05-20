@@ -46,7 +46,7 @@
 
 static const short da850_trik_uart0_pins[] __initconst = {
 	DA850_UART0_RXD, DA850_UART0_TXD,
-	DA850_NUART0_CTS,DA850_NUART0_RTS,
+	DA850_NUART0_CTS, DA850_NUART0_RTS,
 	-1
 };
 
@@ -65,7 +65,7 @@ static __init int da850_trik_uart0_init(void)
 
 static const short da850_trik_uart1_pins[] __initconst = {
 	DA850_UART1_RXD, DA850_UART1_TXD,
-	DA850_GPIO0_13,DA850_GPIO1_14,
+	DA850_GPIO0_13, DA850_GPIO1_14,
 	-1
 };
 
@@ -78,7 +78,7 @@ static __init int da850_trik_uart1_init(void)
 {
 	int ret;
 
-#warning TODO module parameters uart1 debug on/off
+#warning There should be module parameter to enable/disable debug uart1
 	ret = davinci_cfg_reg_list(da850_trik_uart1_pins);
 	if (ret) {
 		pr_err("%s: UART1 pinmux setup failed: %d\n", __func__, ret);
