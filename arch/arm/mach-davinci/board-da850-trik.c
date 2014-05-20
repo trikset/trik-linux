@@ -1706,18 +1706,7 @@ static __init void da850_trik_init(void)
 	}
 }
 
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-static __init int da850_trik_console_init(void)
-{
-	if (!machine_is_davinci_da850_trik())
-		return 0;
-
-#warning Maybe console is optional? Also check if ttyS1 is correct
-#warning Somehow, console seems to be initialized from somewhere else as well
-	return add_preferred_console("ttyS", 1, "115200");
-}
-console_initcall(da850_trik_console_init);
-#endif
+#warning Somehow, ttyS1 console seems to be initialized from somewhere else. To be investigated.
 
 static __init void da850_trik_map_io(void)
 {
