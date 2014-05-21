@@ -3054,6 +3054,9 @@ static int __devinit serial8250_probe(struct platform_device *dev)
 		irqflag = IRQF_SHARED;
 
 	for (i = 0; p && p->flags != 0; p++, i++) {
+		if (p->flags & UPF_CONS_DISABLED)
+			continue;
+
 		port.iobase		= p->iobase;
 		port.membase		= p->membase;
 		port.irq		= p->irq;
