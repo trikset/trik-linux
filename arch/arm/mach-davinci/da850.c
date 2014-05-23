@@ -1100,6 +1100,113 @@ int __init da850_register_cpufreq(char *async_clk)
 	return platform_device_register(&da850_cpufreq_device);
 }
 
+static int da850_round_armrate(struct clk *clk, unsigned long rate)
+{
+	int i, ret = 0, diff;
+	unsigned int best = (unsigned int) -1;
+	struct cpufreq_frequency_table *table = cpufreq_info.freq_table;
+
+	rate /= 1000; /* convert to kHz */
+
+	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		diff = table[i].frequency - rate;
+		if (diff < 0)
+			diff = -diff;
+
+		if (diff < best) {
+			best = diff;
+			ret = table[i].frequency;
+		}
+	}
+
+	return ret * 1000;
+}
+
+static int da850_set_armrate(struct clk *clk, unsigned long index)
+{
+	struct clk *pllclk = &pll0_clk;
+
+	return clk_set_rate(pllclk, index);
+}
+
+static int da850_set_pll0rate(struct clk *clk, unsigned long index)
+{
+	unsigned int prediv, mult, postdiv;
+	struct da850_opp *opp;
+	struct pll_data *pll = clk->pll_data;
+	int ret;
+
+	opp = (struct da850_opp *) cpufreq_info.freq_table[index].index;
+	prediv = opp->prediv;
+	mult = opp->mult;
+	postdiv = opp->postdiv;
+
+	ret = davinci_set_pllrate(pll, prediv, mult, postdiv);
+	if (WARN_ON(ret))
+		return ret;
+
+	return 0;
+}
+#else
+int __init da850_register_cpufreq(char *async_clk)
+{
+	return 0;
+}
+
+static int da850_set_armrate(struct clk *clk, unsigned long rate)
+{
+	return -EINVAL;
+}
+
+static int da850_set_pll0rate(struct clk *clk, unsigned long armrate)
+{
+	return -EINVAL;
+}
+
+static int da850_round_armrate(struct clk *clk, unsigned long rate)
+{
+	return clk->rate;
+}
+#endif
+
+int __init da850_register_pm(struct platform_device *pdev)
+{
+	int ret;
+	struct davinci_pm_config *pdata = pdev->dev.platform_data;
+
+	ret = davinci_cfg_reg(DA850_RTC_ALARM);
+	if (ret)
+		return ret;
+
+	pdata->ddr2_ctlr_base = da8xx_get_mem_ctlr();
+	pdata->deepsleep_reg = DA8XX_SYSCFG1_VIRT(DA8XX_DEEPSLEEP_REG);
+	pdata->ddrpsc_num = DA8XX_LPSC1_EMIF3C;
+
+	pdata->cpupll_reg_base = ioremap(DA8XX_PLL0_BASE, SZ_4K);
+	if (!pdata->cpupll_reg_base)
+		return -ENOMEM;
+
+	pdata->ddrpll_reg_base = ioremap(DA850_PLL1_BASE, SZ_4K);
+	if (!pdata->ddrpll_reg_base) {
+		ret = -ENOMEM;
+		goto no_ddrpll_mem;
+	}
+
+	pdata->ddrpsc_reg_base = ioremap(DA8XX_PSC1_BASE, SZ_4K);
+	if (!pdata->ddrpsc_reg_base) {
+		ret = -ENOMEM;
+		goto no_ddrpsc_mem;
+	}
+
+	return platform_device_register(pdev);
+
+no_ddrpsc_mem:
+	iounmap(pdata->ddrpll_reg_base);
+no_ddrpll_mem:
+	iounmap(pdata->cpupll_reg_base);
+	return ret;
+}
+
 #define DA8XX_EHRPWM0_BASE	0x01F00000
 static struct resource da850_ehrpwm0_resource[] = {
 	{
@@ -1348,113 +1455,6 @@ int __init da850_register_vpif_capture(struct vpif_capture_config *capture_confi
 {
 	da850_vpif_capture_dev.dev.platform_data = capture_config;
 	return platform_device_register(&da850_vpif_capture_dev);
-}
-
-static int da850_round_armrate(struct clk *clk, unsigned long rate)
-{
-	int i, ret = 0, diff;
-	unsigned int best = (unsigned int) -1;
-	struct cpufreq_frequency_table *table = cpufreq_info.freq_table;
-
-	rate /= 1000; /* convert to kHz */
-
-	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		diff = table[i].frequency - rate;
-		if (diff < 0)
-			diff = -diff;
-
-		if (diff < best) {
-			best = diff;
-			ret = table[i].frequency;
-		}
-	}
-
-	return ret * 1000;
-}
-
-static int da850_set_armrate(struct clk *clk, unsigned long index)
-{
-	struct clk *pllclk = &pll0_clk;
-
-	return clk_set_rate(pllclk, index);
-}
-
-static int da850_set_pll0rate(struct clk *clk, unsigned long index)
-{
-	unsigned int prediv, mult, postdiv;
-	struct da850_opp *opp;
-	struct pll_data *pll = clk->pll_data;
-	int ret;
-
-	opp = (struct da850_opp *) cpufreq_info.freq_table[index].index;
-	prediv = opp->prediv;
-	mult = opp->mult;
-	postdiv = opp->postdiv;
-
-	ret = davinci_set_pllrate(pll, prediv, mult, postdiv);
-	if (WARN_ON(ret))
-		return ret;
-
-	return 0;
-}
-#else
-int __init da850_register_cpufreq(char *async_clk)
-{
-	return 0;
-}
-
-static int da850_set_armrate(struct clk *clk, unsigned long rate)
-{
-	return -EINVAL;
-}
-
-static int da850_set_pll0rate(struct clk *clk, unsigned long armrate)
-{
-	return -EINVAL;
-}
-
-static int da850_round_armrate(struct clk *clk, unsigned long rate)
-{
-	return clk->rate;
-}
-#endif
-
-int __init da850_register_pm(struct platform_device *pdev)
-{
-	int ret;
-	struct davinci_pm_config *pdata = pdev->dev.platform_data;
-
-	ret = davinci_cfg_reg(DA850_RTC_ALARM);
-	if (ret)
-		return ret;
-
-	pdata->ddr2_ctlr_base = da8xx_get_mem_ctlr();
-	pdata->deepsleep_reg = DA8XX_SYSCFG1_VIRT(DA8XX_DEEPSLEEP_REG);
-	pdata->ddrpsc_num = DA8XX_LPSC1_EMIF3C;
-
-	pdata->cpupll_reg_base = ioremap(DA8XX_PLL0_BASE, SZ_4K);
-	if (!pdata->cpupll_reg_base)
-		return -ENOMEM;
-
-	pdata->ddrpll_reg_base = ioremap(DA850_PLL1_BASE, SZ_4K);
-	if (!pdata->ddrpll_reg_base) {
-		ret = -ENOMEM;
-		goto no_ddrpll_mem;
-	}
-
-	pdata->ddrpsc_reg_base = ioremap(DA8XX_PSC1_BASE, SZ_4K);
-	if (!pdata->ddrpsc_reg_base) {
-		ret = -ENOMEM;
-		goto no_ddrpsc_mem;
-	}
-
-	return platform_device_register(pdev);
-
-no_ddrpsc_mem:
-	iounmap(pdata->ddrpll_reg_base);
-no_ddrpll_mem:
-	iounmap(pdata->cpupll_reg_base);
-	return ret;
 }
 
 static struct davinci_soc_info davinci_soc_info_da850 = {
