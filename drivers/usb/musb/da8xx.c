@@ -611,8 +611,6 @@ static int da8xx_musb_init(struct musb *musb)
 	if (IS_ERR_OR_NULL(musb->xceiv))
 		goto fail;
 
-	dev_info(musb->controller, "MUSB controller's USBSS revision = %08x\n", rev);
-
 	if (is_host_enabled(musb))
 		setup_timer(&otg_workaround, otg_timer, (unsigned long)musb);
 

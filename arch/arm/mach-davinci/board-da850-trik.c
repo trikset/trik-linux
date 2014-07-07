@@ -1,5 +1,5 @@
 /*
- * Trikboard based on TI's OMAP-L138 Platform
+ * Trik board based on TI's OMAP-L138 Platform
  *
  * Initial code: Syed Mohammed Khasim
  *
@@ -40,93 +40,103 @@
 #include <linux/wl12xx.h>
 #include <linux/da8xx-ili9340-fb.h>
 #include <linux/l3g42xxd.h>
- 
+
+
+
 
 static const short da850_trik_uart0_pins[] __initconst = {
 	DA850_UART0_RXD, DA850_UART0_TXD,
-	DA850_NUART0_CTS,DA850_NUART0_RTS,
-	-1
-};
-static const short da850_trik_uart1_pins[] __initconst = {
-	DA850_UART1_RXD, DA850_UART1_TXD,
-	DA850_GPIO0_13,DA850_GPIO1_14,
+	DA850_NUART0_CTS, DA850_NUART0_RTS,
 	-1
 };
 
-static struct davinci_uart_config da850_trik_uart_config __initdata = {
-	.enabled_uarts = 0x7
-};
-static __init int da850_trik_uart0(void){
+static __init int da850_trik_uart0_init(void)
+{
 	int ret;
 
 	ret = davinci_cfg_reg_list(da850_trik_uart0_pins);
 	if (ret){
-		pr_err("%s: UART0 mux setup failed: %d\n",__func__,ret);
+		pr_err("%s: UART0 pinmux setup failed: %d\n",__func__,ret);
 		return ret;
 	}
+
 	return 0;
 }
 
-#warning TODO module parameters uart1 debug on/off
-static __init int da850_trik_uart1(void){
-	int ret;
-	ret = davinci_cfg_reg_list(da850_trik_uart1_pins);
-	if (ret){
-		pr_err("%s: UART1 mux setup failed: %d\n", __func__, ret);
-		return ret;
-	}
-	ret = gpio_request_one(GPIO_TO_PIN(0,13), GPIOF_OUT_INIT_HIGH, "ext UART1 enable");
-	if (ret){
-		pr_warning("%s: ext UART1 enable gpio request failed: %d\n", __func__, ret);
-	}
-	ret = gpio_request_one(GPIO_TO_PIN(1,14), GPIOF_OUT_INIT_LOW, "ext UART1 power enable");
-	if (ret){
-		pr_warning("%s: ext UART1 power enable gpio request failed: %d\n", __func__, ret);
-	}
-	ret = gpio_export(GPIO_TO_PIN(0,13), 1);
-	if (ret){
-		pr_warning("%s: ext UART1 enable gpio export failed: %d\n", __func__, ret);
-	}
-	ret = gpio_export(GPIO_TO_PIN(1,14), 1);
-	if (ret){
-		pr_warning("%s: ext UART1 power enable gpio export failed: %d\n", __func__, ret);
-	}
-	return 0;
+static const short da850_trik_uart1_pins[] __initconst = {
+	DA850_UART1_RXD, DA850_UART1_TXD,
+	DA850_GPIO0_13, DA850_GPIO1_14,
+	-1
+};
 
-}
-static __init int da850_trik_serial_init(void)
+static const struct gpio da850_trik_uart1_gpio[] __initconst = {
+	{ GPIO_TO_PIN(0,13), GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED, "uart1 enable" },
+	{ GPIO_TO_PIN(1,14), GPIOF_OUT_INIT_LOW|GPIOF_EXPORT_DIR_FIXED,  "uart1 power" },
+};
+
+static __init int da850_trik_uart1_init(void)
 {
 	int ret;
-	
+
+#warning There should be module parameter to enable/disable debug uart1
+	ret = davinci_cfg_reg_list(da850_trik_uart1_pins);
+	if (ret) {
+		pr_err("%s: UART1 pinmux setup failed: %d\n", __func__, ret);
+		return ret;
+	}
+
+	ret = gpio_request_array(da850_trik_uart1_gpio, ARRAY_SIZE(da850_trik_uart1_gpio));
+	if (ret)
+		pr_warning("%s: UART1 gpio request failed: %d\n", __func__, ret);
+
+	return 0;
+}
+
+static struct davinci_uart_config da850_trik_uart_config __initdata = {
+	.enabled_uarts = 0x3 /* UART0 & UART1 only */
+};
+
+static __init int da850_trik_uart_init(void)
+{
+	int ret;
+
 	ret = davinci_serial_init(&da850_trik_uart_config);
 	if (ret){
 		pr_err("%s: serial init failed: %d\n", __func__, ret);
 		return ret;
-	}
-	ret = da850_trik_uart0();
+        }
+
+	ret = da850_trik_uart0_init();
 	if (ret)
 		pr_warning("%s: uart0 init failed: %d\n", __func__, ret);
-	
-	ret = da850_trik_uart1();
+
+	ret = da850_trik_uart1_init();
 	if (ret)
 		pr_warning("%s: uart1 init failed: %d\n", __func__, ret);
-	
+
 	return 0;
 }
 
+
+
+
 #warning TODO setter cpu frequency
-static __init int da850_trik_init_cpufreq(void){
+static __init int da850_trik_init_cpufreq(void)
+{
 	return 0;
 }
 
 #warning TODO setter cpu cpuidle
-static __init int da850_trik_init_cpuidle(void){
+static __init int da850_trik_init_cpuidle(void)
+{
 	int ret;
+
 	ret = da8xx_register_cpuidle();
 	if (ret) {
 		pr_err("%s: cpuidle registration failed: %d\n", __func__, ret);
 		return ret;
 	}
+
 	return 0;
 }
 
@@ -135,15 +145,16 @@ static struct davinci_pm_config da850_trik_pm_pdata = {
 };
 
 static struct platform_device da850_trik_pm_device = {
-	.name           = "pm-davinci",
-	.dev = {
+	.name	= "pm-davinci",
+	.dev	= {
 		.platform_data	= &da850_trik_pm_pdata,
 	},
-	.id             = -1,
+	.id	= -1,
 };
+
 #warning TODO setter cpu suspend
-static __init int da850_trik_init_cpususpend(void){
-	
+static __init int da850_trik_init_cpususpend(void)
+{
 	int ret;
 
 	ret = da850_register_pm(&da850_trik_pm_device);
@@ -151,8 +162,12 @@ static __init int da850_trik_init_cpususpend(void){
 		pr_err("%s: suspend registration failed: %d\n", __func__, ret);
 		return ret;
 	}
+
 	return 0;
 }
+
+
+
 
 static const short da850_trik_sd0_pins[] __initconst = {
 	DA850_MMCSD0_DAT_0, DA850_MMCSD0_DAT_1, DA850_MMCSD0_DAT_2,
@@ -160,10 +175,12 @@ static const short da850_trik_sd0_pins[] __initconst = {
 	DA850_GPIO4_1,
 	-1
 };
+
 static int da850_trik_sd0_get_cd(int index)
 {
 	return !gpio_get_value(GPIO_TO_PIN(4,1));
 }
+
 static struct davinci_mmc_config da850_trik_sd0_config = {
 	.get_cd		= da850_trik_sd0_get_cd,
 	.wires		= 4,
@@ -172,36 +189,42 @@ static struct davinci_mmc_config da850_trik_sd0_config = {
 	.version	= MMC_CTLR_VERSION_2,
 };
 
+static const struct gpio da850_trik_sd0_gpio[] __initconst = {
+	{ GPIO_TO_PIN(4, 1), GPIOF_IN|GPIOF_EXPORT_DIR_FIXED, "sd0 card detect" },
+};
+
 static __init int da850_trik_sd0_init(void)
 {
 	int ret;
+
 	ret = davinci_cfg_reg_list(da850_trik_sd0_pins);
 	if (ret) {
-		pr_err("%s: MMC/SD0 mux setup failed: %d\n", __func__, ret);
+		pr_err("%s: MMC/SD0 pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
-	ret = gpio_request(GPIO_TO_PIN(4,1),"SD0 card detect");
-	if (ret){
-		pr_err("%s: SD0 card detect gpio request failed: %d\n", __func__,ret);
-		return ret;
-	}
-	ret = gpio_direction_input(GPIO_TO_PIN(4,1));
-	if (ret){
-		pr_err("%s: SD0 card detect gpio direction input failed: %d\n", __func__,ret);
-		goto exit_sd0_init;
-	}
+
+	ret = gpio_request_array(da850_trik_sd0_gpio, ARRAY_SIZE(da850_trik_sd0_gpio));
+	if (ret)
+		pr_warning("%s: MMC/SD0 gpio request failed: %d\n", __func__, ret);
+
 	ret = da8xx_register_mmcsd0(&da850_trik_sd0_config);
 	if (ret) {
-		pr_err("%s: MMC/SD registration failed: %d\n",__func__, ret);
-		goto exit_sd0_init;
+		pr_err("%s: MMC/SD0 registration failed: %d\n", __func__, ret);
+		goto exit_gpio_free_array;
 	}
+
 	return 0;
-exit_sd0_init:
-	gpio_free(GPIO_TO_PIN(4,1));
+
+ exit_gpio_free_array:
+	gpio_free_array(da850_trik_sd0_gpio, ARRAY_SIZE(da850_trik_sd0_gpio));
 	return ret;
 }
 
+
+
+
 #warning Rework jd1_jd2 hack
+#if 1
 static int jd1_jd2 = 1; // '1' - gy-80; '0' - bwsensor
 
 EXPORT_SYMBOL (jd1_jd2);
@@ -218,7 +241,6 @@ static int __init set_jd1_d2(char *str)
 
 __setup("trik.jd1_jd2=", set_jd1_d2);
 
-
 /* JD1 & JD2 pins init */
 
 static const short jd1_jd2_pins[] = {
@@ -226,25 +248,30 @@ static const short jd1_jd2_pins[] = {
 	DA850_GPIO3_2,	/*D1B*/
 	DA850_GPIO3_5,	/*D2B*/
 	DA850_GPIO3_1,	/*D2A*/
-        -1
+	-1
 };
 
 #warning TODO rework required, generic solution for gpio pins mixup should be implemented
 static void trik_jd1_jd2_init(bool _pullUp)
 {
 	u32 cfg_pupdsel = 0;
+	u32 cfg_pupdena = 0;
 	int ret = 0;
 
-	cfg_pupdsel = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+	cfg_pupdsel = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL_REG));
 	if (_pullUp)
 		cfg_pupdsel |= 0x020000;
 	else
 		cfg_pupdsel &= ~0x020000;
-	__raw_writel(cfg_pupdsel, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL));
+	__raw_writel(cfg_pupdsel, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL_REG));
+
+	cfg_pupdena = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA_REG));
+	cfg_pupdena |= 0x020000;
+	__raw_writel(cfg_pupdena, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA_REG));
 
 	ret = davinci_cfg_reg_list(jd1_jd2_pins);
 	if (ret) {
-		pr_err("%s: trik_sensor mux setup failed: %d\n",
+		pr_err("%s: trik_sensor pinmux setup failed: %d\n",
 			__func__, ret);
 		return;
 	}
@@ -264,7 +291,7 @@ static void trik_jd1_jd2_init(bool _pullUp)
 
 static struct i2c_board_info __initdata da850_trik_i2c0_jd1_jd2_devices[] = {
 };
-
+#endif
 
 static struct i2c_board_info __initdata da850_trik_i2c0_devices[] = {
 };
@@ -277,12 +304,14 @@ static struct davinci_i2c_platform_data da850_trik_i2c0_pdata = {
 static __init int da850_trik_i2c0_init(void)
 {
 	int ret;
+
 	ret = davinci_cfg_reg_list(da850_i2c0_pins);
-	if (ret){
-		pr_err("%s: I2C0 mux setup failed: %d\n", __func__, ret);
+	if (ret) {
+		pr_err("%s: I2C0 pinmux setup failed: %d\n", __func__, ret);
 	}
 
 #warning Rework jd1_jd2 hack
+#if 1
 	if (jd1_jd2) {
 		trik_jd1_jd2_init(true);
 		ret = i2c_register_board_info(1,da850_trik_i2c0_jd1_jd2_devices,ARRAY_SIZE(da850_trik_i2c0_jd1_jd2_devices));
@@ -291,24 +320,31 @@ static __init int da850_trik_i2c0_init(void)
 			return ret;
 		}
 	} else {
-		ret = i2c_register_board_info(1,da850_trik_i2c0_devices,ARRAY_SIZE(da850_trik_i2c0_devices));
-		if (ret){
+		ret = i2c_register_board_info(1, da850_trik_i2c0_devices, ARRAY_SIZE(da850_trik_i2c0_devices));
+		if (ret) {
 			pr_err("%s: I2C0 register board info failed: %d\n", __func__, ret);
 			return ret;
 		}
 	}
+#endif
 
 	ret = da8xx_register_i2c(0, &da850_trik_i2c0_pdata);
-	if (ret){
+	if (ret) {
 		pr_err("%s: I2C0 register failed: %d\n", __func__, ret);
 		return ret;
 	}
+
 	return 0;
 }
-static const short da850_trik_accel_pins[] __initconst = {
-	DA850_GPIO5_4,DA850_GPIO5_3,
+
+
+
+
+static const short da850_trik_i2c1_mma845x_pins[] __initconst = {
+	DA850_GPIO5_4, DA850_GPIO5_3,
 	-1
 };
+
 static struct i2c_board_info __initdata da850_trik_i2c1_devices[] = {
 	{
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
@@ -331,32 +367,34 @@ static __init int da850_trik_i2c1_init(void)
 	int ret;
 
 	ret = davinci_cfg_reg_list(da850_i2c1_pins);
-	if (ret){
-		pr_err("%s: I2C1 mux setup failed: %d\n", __func__, ret);
-	}
+	if (ret)
+		pr_warning("%s: I2C1 pinmux setup failed: %d\n", __func__, ret);
 
-	ret = davinci_cfg_reg_list(da850_trik_accel_pins);
-	if (ret){
-		pr_err("%s: accel mux setup failed: %d\n", __func__, ret);
-	}
+	ret = davinci_cfg_reg_list(da850_trik_i2c1_mma845x_pins);
+	if (ret)
+		pr_warning("%s: I2C1 mma845x pinmux setup failed: %d\n", __func__, ret);
 
 	da850_trik_i2c1_devices[1].irq = gpio_to_irq(GPIO_TO_PIN(5,4));
 
-	ret = i2c_register_board_info(2,da850_trik_i2c1_devices,ARRAY_SIZE(da850_trik_i2c1_devices));
-	if (ret){
+	ret = i2c_register_board_info(2, da850_trik_i2c1_devices, ARRAY_SIZE(da850_trik_i2c1_devices));
+	if (ret) {
 		pr_err("%s: I2C1 register board info failed: %d\n", __func__, ret);
 		return ret;
 	}
 
 	ret = da8xx_register_i2c(1, &da850_trik_i2c1_pdata);
-	if (ret){
+	if (ret) {
 		pr_err("%s: I2C1 register failed: %d\n", __func__, ret);
 		return ret;
 	}
+
 	return 0;
 }
 
-static struct mtd_partition da850_trik_spiflash_parts[] = {
+
+
+
+static struct mtd_partition da850_trik_spi0_parts[] = {
 	[0] = {
 		.name = "uboot",
 		.offset = 0,
@@ -392,12 +430,14 @@ static struct mtd_partition da850_trik_spiflash_parts[] = {
 		.size   = MTDPART_SIZ_FULL,
 	},
 };
-static const struct flash_platform_data da850_trik_spiflash_data = {
+
+static const struct flash_platform_data da850_trik_spi0_data = {
 	.name		= "m25p80",
-	.parts		= da850_trik_spiflash_parts,
-	.nr_parts	= ARRAY_SIZE(da850_trik_spiflash_parts),
+	.parts		= da850_trik_spi0_parts,
+	.nr_parts	= ARRAY_SIZE(da850_trik_spi0_parts),
 	.type		= "m25p128",
 };
+
 static struct davinci_spi_config da850_trik_spi0_cfg = {
 	.io_type	= SPI_IO_TYPE_DMA,
 	.c2tdelay	= 8,
@@ -408,43 +448,53 @@ static struct spi_board_info da850_trik_spi0_info[] = {
 	[0] = {
 		.modalias		= "m25p80",
 		.controller_data	= &da850_trik_spi0_cfg,
-		.platform_data		= &da850_trik_spiflash_data,
+		.platform_data		= &da850_trik_spi0_data,
 		.mode			= SPI_MODE_0,
 		.max_speed_hz		= 25000000,
 		.bus_num		= 0,
 		.chip_select		= 0,
 	},
 };
+
 static const short da850_trik_spi0_pins[] __initconst = {
 	DA850_SPI0_SIMO,DA850_SPI0_SOMI,
 	DA850_SPI0_CS_0,DA850_SPI0_CLK,
 	-1
 };
+
 static __init int da850_trik_spi0_init(void)
 {
 	int ret;
+
 	ret = davinci_cfg_reg_list(da850_trik_spi0_pins);
-	if (ret){
-		pr_err("%s: spi0 pinmux setup failed: %d\n", __func__, ret);
+	if (ret) {
+		pr_err("%s: SPI0 pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
+
 	ret = da8xx_register_spi(0, da850_trik_spi0_info, ARRAY_SIZE(da850_trik_spi0_info));
 	if (ret) {
-		pr_err("%s: spi0 setup failed: %d\n",__func__,  ret);
+		pr_err("%s: SPI0 setup failed: %d\n",__func__,  ret);
 		return ret;
 	}
-	return 0;	
+
+	return 0;
 }
+
+
+
 
 static struct davinci_spi_config da850_trik_spi1_cfg = {
 	.io_type	= SPI_IO_TYPE_POLL, // POLL is faster than DMA for small read commands
 	.c2tdelay	= 1, // t=(c2tdelay+2)*40ns 
 	.t2cdelay	= 1,
 };
-const short da850_trik_gyro_pins[] __initconst = {
-	DA850_GPIO2_9,DA850_GPIO2_8,
+
+const short da850_trik_spi1_l3g42xxd_pins[] __initconst = {
+	DA850_GPIO2_9, DA850_GPIO2_8,
 	-1
 };
+
 static struct spi_board_info da850_trik_spi1_info[] = {
 	[0] = {
 		.modalias		= "",                  /* Stub */
@@ -463,50 +513,57 @@ static struct spi_board_info da850_trik_spi1_info[] = {
 		.chip_select		= 1,
 	},
 };
+
 const short da850_trik_spi1_pins[] __initconst = {
 	DA850_SPI1_SIMO,
 	DA850_SPI1_SOMI,
 	DA850_SPI1_CLK,
-	DA850_GPIO4_9, 	/* TP9	*/
+	DA850_GPIO4_9,	/* CS */
 	-1
 };
 
-static u8 da850_trik_spi1_chipselect[] = { SPI_INTERN_CS, GPIO_TO_PIN(4,9)};
+static u8 da850_trik_spi1_chipselect[] = { SPI_INTERN_CS, GPIO_TO_PIN(4,9) };
 
 #warning TODO match driver and gpio irq
 static __init int da850_trik_spi1_init(void)
 {
 	int ret;
+
 	ret = davinci_cfg_reg_list(da850_trik_spi1_pins);
 	if (ret){
-		pr_err("%s: spi1 pinmux setup failed: %d\n", __func__, ret);
-		return ret;
-	}
-	ret = davinci_cfg_reg_list(da850_trik_gyro_pins);
-	if (ret){
-		pr_err("%s: gyro pinmux setup failed: %d\n", __func__, ret);
+		pr_err("%s: SPI1 pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
 
-	da8xx_spi_pdata[1].num_chipselect        = ARRAY_SIZE(da850_trik_spi1_chipselect);
-	da8xx_spi_pdata[1].chip_sel                = da850_trik_spi1_chipselect;
-
-	da850_trik_spi1_info[1].irq = gpio_to_irq(GPIO_TO_PIN(2,8));
-
-	ret = gpio_request_one(GPIO_TO_PIN(4,9),GPIOF_OUT_INIT_HIGH, "GYRO_CS(TP9)");
+	ret = davinci_cfg_reg_list(da850_trik_spi1_l3g42xxd_pins);
 	if (ret){
-		pr_warning("%s: can not open spi1 GYRO_CS(TP9) : %d\n", __func__, ret);
+		pr_err("%s: SPI1 l3g42xxd pinmux setup failed: %d\n", __func__, ret);
+		return ret;
 	}
+
+#warning TODO request l3g42xxd-specific gpios
+	da8xx_spi_pdata[1].num_chipselect	= ARRAY_SIZE(da850_trik_spi1_chipselect);
+	da8xx_spi_pdata[1].chip_sel		= da850_trik_spi1_chipselect;
+
+	da850_trik_spi1_info[1].irq		= gpio_to_irq(GPIO_TO_PIN(2, 8));
+
+	ret = gpio_request(GPIO_TO_PIN(4, 9), "l3g42xxd chip-select");
+	if (ret)
+		pr_warning("%s: SPI1 l3g42xxd chip-select gpio request failed: %d\n", __func__, ret);
 
 	ret = da8xx_register_spi(1, da850_trik_spi1_info, ARRAY_SIZE(da850_trik_spi1_info));
 	if (ret) {
-		pr_err("da837_init_spi1: spi1 setup failed: %d\n", ret);
-		gpio_free(GPIO_TO_PIN(4,9));
+		pr_err("%s: SPI1 setup failed: %d\n", __func__, ret);
+		gpio_free(GPIO_TO_PIN(4, 9));
 		return ret;
 	}
 
 	return 0;
 }
+
+
+
+
 static u8 da850_trik_iis_serializer_direction[] = {
 	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,
 	INACTIVE_MODE,	INACTIVE_MODE,	INACTIVE_MODE,	TX_MODE,
@@ -766,7 +823,7 @@ static __init int da850_trik_led_init(void){
 	int ret;
 	ret = davinci_cfg_reg_list(da850_trik_leds_pins);
 	if (ret) {
-		pr_err("%s: gpio-leds mux setup failed: %d\n", __func__, ret);
+		pr_err("%s: gpio-leds pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
 	ret = platform_device_register(&da850_trik_leds_device);
@@ -870,7 +927,7 @@ static __init int da850_trik_keys_init(void){
 	int ret;
 	ret = davinci_cfg_reg_list(da850_trik_gpio_keys_pins);
 	if (ret) {
-		pr_err("%s: gpio-keys mux setup failed: %d\n", __func__, ret);
+		pr_err("%s: gpio-keys pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
 	ret = platform_device_register(&da850_trik_gpio_keys_device);
@@ -1034,7 +1091,7 @@ static __init int da850_trik_bluetooth_init(void){
 
 	ret = davinci_cfg_reg_list(da850_trik_bluetooth_pins);
 	if (ret) {
-		pr_err("%s: Bluetooth mux setup failed: %d\n", __func__, ret);
+		pr_err("%s: Bluetooth pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
 	ret = gpio_request_one(GPIO_TO_PIN(6, 11), GPIOF_OUT_INIT_HIGH, "BT_EN_33");
@@ -1096,7 +1153,7 @@ static __init int da850_trik_usb_init(void){
 
 	ret = davinci_cfg_reg_list(da850_trik_usb_pins);
 	if (ret) {
-		pr_err("%s: USB mux setup failed: %d\n", __func__, ret);
+		pr_err("%s: USB pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
 	cfgchip2 = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
@@ -1149,7 +1206,7 @@ static __init int da850_trik_msp430_init(void){
 	
 	ret = davinci_cfg_reg_list(da850_trik_msp_pins);
 	if (ret) {
-		pr_err("%s: MSP430 mux setup failed: %d\n", __func__, ret);
+		pr_err("%s: MSP430 pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
 	ret = gpio_request_one(GPIO_TO_PIN(5,13),GPIOF_OUT_INIT_LOW,"MSP Reset");
@@ -1196,7 +1253,7 @@ static __init int da850_trik_gpio_extra_init(void){
 	int ret;
 	ret = davinci_cfg_reg_list(da850_trik_gpio_extra_pins);
 	if (ret) {
-		pr_err("%s: GPIO_EXTRA mux setup failed: %d\n", __func__, ret);
+		pr_err("%s: GPIO_EXTRA pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
 	ret = gpio_request_one(GPIO_TO_PIN(4,12),GPIOF_OUT_INIT_LOW,"TP10");
@@ -1254,7 +1311,7 @@ static __init int da850_trik_buffer_clk_init(void)
 
 	ret = davinci_cfg_reg_list(da850_trik_clk_pins);
 	if (ret) {
-		pr_err("%s: clk buffer  mux setup failed: %d\n",__func__, ret);
+		pr_err("%s: clk buffer pinmux setup failed: %d\n",__func__, ret);
 		return ret;
 	}
 	if (da850_trik_pm_pdata.cpupll_reg_base) {
@@ -1275,65 +1332,58 @@ static __init int da850_trik_buffer_clk_init(void)
 }
 
 static const short da850_trik_ehrpwm0_pins[] __initconst = {
-#if 0
-		DA850_EHRPWM0_A,
-#endif		
-		DA850_EHRPWM0_B,
-		DA850_GPIO2_5/*PE0_EN*/,
-		-1
+	/* DA850_EHRPWM0_A conflicts with SPI0 */
+	DA850_EHRPWM0_B,
+	DA850_GPIO2_5,	/*PE0_EN*/
+	-1
 };
 
 static const short da850_trik_ehrpwm1_pins[] __initconst = {
-		DA850_EHRPWM1_A,
-		DA850_EHRPWM1_B,
-		DA850_GPIO2_3/*PE1_EN*/,
-		-1
+	DA850_EHRPWM1_A,
+	DA850_EHRPWM1_B,
+	DA850_GPIO2_3,	/*PE1_EN*/
+	-1
 };
-static __init int da850_trik_ehrpwm_init(void){
+
+static __init int da850_trik_ehrpwm_init(void)
+{
 	int ret;
 	char mask = 0;
 
 	ret = davinci_cfg_reg_list(da850_trik_ehrpwm0_pins);
-	if (ret){
-		pr_err("%s: ehrpwm0 pins mux setup failed: %d\n", __func__, ret);
+	if (ret) {
+		pr_err("%s: ehrpwm0 pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
 	mask |=  BIT(1);
-	ret = gpio_request_one(GPIO_TO_PIN(2,5),GPIOF_OUT_INIT_HIGH,"PE0_EN");
-	if (ret){
+	ret = gpio_request_one(GPIO_TO_PIN(2,5),
+	                       GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED,
+	                       "PE0_EN");
+	if (ret) {
 		pr_err("%s: PE0_EN gpio request failed: %d\n",__func__, ret);
 		goto request_pe0_en_failed;
 	}
-	ret = gpio_export(GPIO_TO_PIN(2,5),1);
-	if (ret){
-		pr_err("%s: PE0_EN gpio export failed: %d\n",__func__, ret);
-		goto export_pe0_en_failed;
-	}
 
 	ret = davinci_cfg_reg_list(da850_trik_ehrpwm1_pins);
-	if (ret){
-		pr_err("%s: ehrpwm1 pins mux setup failed: %d\n", __func__, ret);
+	if (ret) {
+		pr_err("%s: ehrpwm1 pinmux setup failed: %d\n", __func__, ret);
 		goto cfg_reg_ehrpwm1_failed;
 	}
 	mask |= BIT(2) | BIT(3);
-	ret = gpio_request_one(GPIO_TO_PIN(2,3),GPIOF_OUT_INIT_HIGH,"PE1_EN");
-	if (ret){
+	ret = gpio_request_one(GPIO_TO_PIN(2,3),
+	                       GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED,
+	                       "PE1_EN");
+	if (ret) {
 		pr_err("%s: PE1_EN gpio request failed: %d\n",__func__, ret);
 		goto request_pe1_en_failed;
 	}
-	ret = gpio_export(GPIO_TO_PIN(2,3),1);
-	if (ret){
-		pr_err("%s: PE1_EN gpio export failed: %d\n",__func__, ret);
-		goto export_pe1_en_failed;
-	}
+
 	da850_register_ehrpwm(mask);
 	return 0;
 
-export_pe1_en_failed:
-	gpio_free(GPIO_TO_PIN(2,3));
+	// gpio_free(GPIO_TO_PIN(2,3));
 request_pe1_en_failed:
 cfg_reg_ehrpwm1_failed:
-export_pe0_en_failed:
 	gpio_free(GPIO_TO_PIN(2,5));
 request_pe0_en_failed:
 	return ret;
@@ -1366,7 +1416,7 @@ static __init int da850_trik_cap_apwm_init(void){
 	int ret;
 	ret = davinci_cfg_reg_list(da850_trik_cap_pins);
 	if (ret){
-		pr_err("%s: cap pins mux setup failed: %d\n", __func__, ret);
+		pr_err("%s: cap pinmux setup failed: %d\n", __func__, ret);
 		goto cfg_reg_cap_failed;
 	}
 	ret =  gpio_request_one(GPIO_TO_PIN(2,4),GPIOF_OUT_INIT_HIGH,"PC_EN");
@@ -1423,7 +1473,7 @@ static __init int da850_trik_pwr_con_init(void){
 	int ret;
 	ret = davinci_cfg_reg_list(da850_trik_pwr_con_pins);
 	if (ret){
-		pr_err("%s: power connection pins mux setup failed: %d\n", __func__, ret);
+		pr_err("%s: power connection pinmux setup failed: %d\n", __func__, ret);
 		goto cfg_reg_pwr_con_failed;
 	}
 	ret =  gpio_request_one(GPIO_TO_PIN(5,14),GPIOF_OUT_INIT_HIGH,"POWER_CON");
@@ -1443,6 +1493,8 @@ request_pwr_con_failed:
 cfg_reg_pwr_con_failed:
 	return ret;
 }	
+
+
 
 
 #warning TODO temporary proximity sensor driver code
@@ -1490,7 +1542,6 @@ static const struct attribute *da850_trik_bwsensor_attrs[] = {
 	NULL,
 };
 
-
 static const struct attribute_group da850_trik_bwsensor_attrs_group = {
 	.attrs = (struct attribute **) da850_trik_bwsensor_attrs,
 };
@@ -1532,19 +1583,22 @@ static struct platform_device da850_trik_bwsensor_device = {
 
 module_platform_driver(da850_trik_bwsensor_driver);
 
-
 static __init int da850_trik_bwsensor_init(void)
 {
 	return platform_device_register(&da850_trik_bwsensor_device);
 };
 
+
+
+
+
 static __init void da850_trik_init(void)
 {
 	int ret;
-	
-	ret = da850_trik_serial_init();
+
+	ret = da850_trik_uart_init();
 	if (ret)
-		pr_warning("%s: serial initialized failed: %d\n", __func__, ret);
+		pr_warning("%s: UART initialized failed: %d\n", __func__, ret);
 
 	ret = da850_register_edma(NULL);
 	if (ret)
@@ -1569,9 +1623,11 @@ static __init void da850_trik_init(void)
 	ret = da850_trik_init_cpususpend();
 	if (ret)
 		pr_warning("%s: suspend mode init failed: %d\n", __func__, ret);
+
 	ret = da850_trik_sd0_init();
 	if (ret)
 		pr_warning("%s: sd0 interface init failed: %d\n", __func__, ret);
+
 	ret = da850_trik_buffer_clk_init();
 	if  (ret)
 		pr_warning("%s: buffer clk init failed: %d\n", __func__, ret);
@@ -1640,8 +1696,7 @@ static __init void da850_trik_init(void)
 	if (ret)
 		pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
 
-	//pwm
-	//vpif 
+#warning TODO vpif
 
 	if (!jd1_jd2){
 		ret = da850_trik_bwsensor_init();
@@ -1651,22 +1706,14 @@ static __init void da850_trik_init(void)
 	}
 }
 
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-static __init int da850_trik_console_init(void)
-{
-	if (!machine_is_davinci_da850_trik())
-		return 0;
-	return add_preferred_console("ttyS", 1, "115200");
-}
-console_initcall(da850_trik_console_init);
-#endif
+#warning Somehow, ttyS1 console seems to be initialized from somewhere else. To be investigated.
 
 static __init void da850_trik_map_io(void)
 {
 	da850_init();
 }
 
-MACHINE_START(DAVINCI_DA850_TRIK, "DA850/AM18x/OMAP-L138 Trikboard")
+MACHINE_START(DAVINCI_DA850_TRIK, "DA850/AM18x/OMAP-L138 Trik board")
 	.atag_offset		= 0x100,
 	.map_io			= da850_trik_map_io,
 	.init_irq		= cp_intc_init,

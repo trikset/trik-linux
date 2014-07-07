@@ -85,7 +85,10 @@ int __init davinci_serial_init(struct davinci_uart_config *info)
 	 */
 	for (i = 0; p->flags; i++, p++) {
 		if (!(info->enabled_uarts & (1 << i)))
+		{
+			p->flags |= UPF_CONS_DISABLED;
 			continue;
+		}
 
 		sprintf(name, "uart%d", i);
 		uart_clk = clk_get(dev, name);
@@ -97,6 +100,7 @@ int __init davinci_serial_init(struct davinci_uart_config *info)
 
 		clk_enable(uart_clk);
 		p->uartclk = clk_get_rate(uart_clk);
+		p->clk = uart_clk;
 
 		if (!p->membase && p->mapbase) {
 			p->membase = ioremap(p->mapbase, SZ_4K);
