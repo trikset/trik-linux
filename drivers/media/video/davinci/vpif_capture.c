@@ -2255,8 +2255,11 @@ static __init int vpif_probe(struct platform_device *pdev)
 
 	}
 
+#warning Make adapter index configurable per subdev
 	i2c_adap = i2c_get_adapter(2);
-        /*
+
+#warning Disabled due to missing v4l subdev support
+#if 0
 	subdev_count = config->subdev_count;
 	vpif_obj.sd = kzalloc(sizeof(struct v4l2_subdev *) * subdev_count,
 				GFP_KERNEL);
@@ -2268,14 +2271,11 @@ static __init int vpif_probe(struct platform_device *pdev)
 
 	for (i = 0; i < subdev_count; i++) {
 		subdevdata = &config->subdev_info[i];
-		pr_warning("staring \n");
 		vpif_obj.sd[i] =
 			v4l2_i2c_new_subdev_board(&vpif_obj.v4l2_dev,
 						  i2c_adap,
 						  &subdevdata->board_info,
 						  NULL);
-		
-		pr_warning("endinging = %d %x \n",i,i2c_adap);
 
 		if (!vpif_obj.sd[i]) {
 			vpif_err("Error registering v4l2 subdevice\n");
@@ -2287,7 +2287,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 		if (vpif_obj.sd[i])
 			vpif_obj.sd[i]->grp_id = 1 << i;
 	}
-        */
+#endif
+
 	v4l2_info(&vpif_obj.v4l2_dev, "VPIF capture driver initialized\n");
 	return 0;
 
