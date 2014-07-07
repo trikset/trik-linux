@@ -87,7 +87,7 @@ const struct vpif_channel_config_params ch_params[] = {
 		.stdid = V4L2_STD_625_50,
 	},
 #endif
-#if 0
+#ifdef CONFIG_VIDEO_DAVINCI_VPIF_CAPTURE_TRIK_OV7670_640X480_30FPS
 	{ // OV7670 640x480 setup
 		.name = "PAL_BDGHIK",
 		.width = 640,
@@ -106,7 +106,7 @@ const struct vpif_channel_config_params ch_params[] = {
 		.stdid = V4L2_STD_625_50,
 	},
 #endif
-#if 0
+#ifdef CONFIG_VIDEO_DAVINCI_VPIF_CAPTURE_TRIK_OV7670_320X240_30FPS
 	{ // OV7670 320x240 setup
 		.name = "PAL_BDGHIK",
 		.width = 320,

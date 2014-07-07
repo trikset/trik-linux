@@ -26,6 +26,21 @@ config VIDEO_DAVINCI_VPIF_CAPTURE
 	  To compile this driver as a module, choose M here: the
 	  module will be called vpif_capture.
 
+choice
+	prompt "Select Trikboard VPIF sensor support (TEMPORARY)"
+	depends on MACH_DAVINCI_DA850_TRIK && VIDEO_DAVINCI_VPIF_CAPTURE
+	help
+	  Temporary hardcoded VPIF sensor setups.
+
+config VIDEO_DAVINCI_VPIF_CAPTURE_TRIK_OV7670_320X240_30FPS
+	bool "OV7670 320x240 30fps"
+
+config VIDEO_DAVINCI_VPIF_CAPTURE_TRIK_OV7670_640X480_30FPS
+	bool "OV7670 640x480 30fps"
+
+endchoice
+
+
 config VIDEO_DAVINCI_VPIF
 	tristate "DaVinci VPIF Driver"
 	depends on VIDEO_DAVINCI_VPIF_DISPLAY || VIDEO_DAVINCI_VPIF_CAPTURE
