@@ -65,12 +65,11 @@ static __init int da850_trik_uart0_init(void)
 
 static const short da850_trik_uart1_pins[] __initconst = {
 	DA850_UART1_RXD, DA850_UART1_TXD,
-	DA850_GPIO0_13, DA850_GPIO1_14,
+	DA850_GPIO1_14,
 	-1
 };
 
 static const struct gpio da850_trik_uart1_gpio[] __initconst = {
-	{ GPIO_TO_PIN(0,13), GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED, "uart1 enable" },
 	{ GPIO_TO_PIN(1,14), GPIOF_OUT_INIT_LOW|GPIOF_EXPORT_DIR_FIXED,  "uart1 power" },
 };
 
