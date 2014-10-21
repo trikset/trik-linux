@@ -912,6 +912,7 @@ static struct gpio_keys_button da850_trik_gpio_keys[] = {
 static struct gpio_keys_platform_data da850_trik_gpio_keys_data = {
 	.buttons	= da850_trik_gpio_keys,
 	.nbuttons	= ARRAY_SIZE(da850_trik_gpio_keys),
+	.rep 		= 1,
 	.poll_interval	= DA850_TRIK_GPIO_KEYS_POLL_MS,
 };
 static struct platform_device da850_trik_gpio_keys_device = {
