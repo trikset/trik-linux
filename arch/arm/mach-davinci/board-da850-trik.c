@@ -1243,14 +1243,27 @@ static const short da850_trik_gpio_extra_pins[] __initconst = {
 	DA850_GPIO2_7,  /* TP9 		*/
 	DA850_GPIO6_13, /* VPIF  GPIO_1*/
 	DA850_GPIO2_1,  /* VPIF  GPIO_2*/
-
+	DA850_GPIO3_8,  /*PWR_LEVEL	*/
 //	DA850_GPIO5_9,  /* POWER_ON */
-//	DA850_GPIO3_8,  /*PWR_LEVEL	*/
 	-1
 };
+static int s_da850_trik_power_level = 1;
+static int __init da850_trik_power_level_cmdline(char *str)
+{
+	if (!strcasecmp(str,"6V"))
+		s_da850_trik_wifi_enable = 0;
+	else if (!strcasecmp(str,"12V"))
+		s_da850_trik_power_level = 1;
+	else
+		return 1;
+
+	return 0;
+}
+__setup("trik.power_off=", da850_trik_power_level_cmdline);
 
 static __init int da850_trik_gpio_extra_init(void){
 	int ret;
+	unsigned long flags;
 	ret = davinci_cfg_reg_list(da850_trik_gpio_extra_pins);
 	if (ret) {
 		pr_err("%s: GPIO_EXTRA pinmux setup failed: %d\n", __func__, ret);
@@ -1293,7 +1306,19 @@ static __init int da850_trik_gpio_extra_init(void){
 	if (ret){
 		pr_warning("%s: VPIF_GPIO_2 gpio export failed: %d\n", __func__, ret);
 	}
-
+	if (s_da850_trik_power_level)
+		flags = GPIOF_OUT_INIT_HIGH;
+	else
+		flags = GPIOF_OUT_INIT_LOW;
+	ret = gpio_request_one(GPIO_TO_PIN(3,8),flags,"PWR_LEVEL");
+	if (ret){
+		pr_err("%s: PWR_LEVEL gpio request failed: %d\n",__func__, ret);
+		return ret;
+	}
+	ret = gpio_export(GPIO_TO_PIN(3,8),1);
+	if (ret){
+		pr_warning("%s: PWR_LEVEL gpio export failed: %d\n", __func__, ret);
+	}
 	return 0;
 }
 
