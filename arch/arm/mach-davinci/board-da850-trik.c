@@ -1197,6 +1197,7 @@ static const short da850_trik_msp_pins[] __initconst = {
 	DA850_GPIO5_6, /* Interrupt */
 	DA850_GPIO5_5,/* TEST_MCTRL*/
 	DA850_GPIO5_13, /*RESET_MCTRL*/
+	DA850_GPIO5_0, /*BB_RESET*/
 	-1
 };
 
@@ -1219,12 +1220,19 @@ static __init int da850_trik_msp430_init(void){
 		pr_err("%s: MSP Reset gpio request failed: %d\n",__func__, ret);
 		goto request_msp_test;
 	}
-
+	ret = gpio_request_one(GPIO_TO_PIN(5,0),GPIOF_OUT_INIT_LOW,"BB_RESET");
+	if (ret){
+		pr_err("%s: BB_RESET gpio request failed: %d\n",__func__, ret);
+		goto request_msp_test;
+	}
 	ret = gpio_export(GPIO_TO_PIN(5,13),1);
 	if (ret){
 		pr_warning("%s: MSP reset gpio export failed: %d\n", __func__, ret);
 	}
-
+	ret = gpio_export(GPIO_TO_PIN(5,0),1);
+	if (ret){
+		pr_warning("%s: BB_RESET gpio export failed: %d\n", __func__, ret);
+	}
 	
 	gpio_set_value(GPIO_TO_PIN(5,13), 0);
 	msleep(10);
