@@ -58,8 +58,7 @@ static struct miscdevice l3g42xxd_misc_device = {
         .name = "l3g42xxd",
         .fops = &l3g42xxd_misc_fops,
 };
-#endif 
-
+#endif
 
 static int l3g42xxd_get_gyro_data(struct l3g42xxd_chip *chip,
                                          struct gyro_val *data)
@@ -122,35 +121,17 @@ static void l3g42xxd_input_dev_shutdown(struct l3g42xxd_chip* chip)
 	input_free_device(gyro->input_dev);
 }
 static int l3g42xxd_init_chip(struct l3g42xxd_chip* chip){
-	int err = -1;
+    int err = -1;
     err = chip->write(chip->dev,L3G4200D_CTRL_REG1,0xc7);
-    pr_err("%s: L3G4200D_CTRL_REG1 = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_CTRL_REG1));
-
     err = chip->write(chip->dev,L3G4200D_CTRL_REG2,0x00);
-    pr_err("%s: L3G4200D_CTRL_REG2 = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_CTRL_REG2));
-
     err = chip->write(chip->dev,L3G4200D_CTRL_REG3,0x80);
-    pr_err("%s: L3G4200D_CTRL_REG3 = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_CTRL_REG3));
-
     err = chip->write(chip->dev,L3G4200D_CTRL_REG4,0xa0);
-    pr_err("%s: L3G4200D_CTRL_REG4 = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_CTRL_REG4));
-
     err = chip->write(chip->dev,L3G4200D_CTRL_REG5,0x00);
-    pr_err("%s: L3G4200D_CTRL_REG5 = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_CTRL_REG5));
-
     err = chip->write(chip->dev,L3G4200D_REF_DATA_CAP,0x00);
-    pr_err("%s: L3G4200D_REF_DATA_CAP = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_REF_DATA_CAP));
-
     err = chip->write(chip->dev,L3G4200D_FIFO_CTRL,0x00);
-    pr_err("%s: L3G4200D_FIFO_CTRL = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_FIFO_CTRL));
-
     err = chip->write(chip->dev,L3G4200D_INTERRUPT_CFG,0x7F);
-    pr_err("%s: L3G4200D_INTERRUPT_CFG = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_INTERRUPT_CFG));
-
     err = chip->write(chip->dev,L3G4200D_CTRL_REG1,( 0xc7 | PM_MASK));
-    pr_err("%s: L3G4200D_CTRL_REG1 = 0x%02x\n",__func__,chip->read(chip->dev,L3G4200D_CTRL_REG1));
-    
-	return 0;
+    return 0;
 }
 static int l3g42xxd_open(struct input_dev *dev)
 {
@@ -167,8 +148,7 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_chip* chip)
 	int err;
     int device_id;
     device_id = chip->read(chip->dev,L3G4200D_WHO_AM_I);
-    
-     pr_err("%s:chip :0x%02x (%d)\n",__func__,device_id,device_id);
+
     switch (device_id){
         case L3G4200D_ID:
         break;
@@ -203,8 +183,7 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_chip* chip)
  	input_set_abs_params(gyro->input_dev, ABS_Z,
                              -32768, 32767, 0, 0);
 
-        pr_warning("%s, gyro %p\n", __func__, gyro);
-	err = request_irq(chip->irq,
+    err = request_irq(chip->irq,
 				      l3g42xxd_irq_callback,
                     (IRQF_TRIGGER_RISING),
 					       "l3g42xxd_irq",
@@ -281,9 +260,6 @@ int l3g42xxd_probe(struct device *dev,
     }
 
     // todo misc register
-
-
-    pr_err("%s : pointer = %p\n",__func__,chip);
     *chip_data = chip;
     return 0;
 exit_input_dev_init:
