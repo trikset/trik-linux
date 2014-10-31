@@ -781,7 +781,6 @@ exit_request_one:
 	return ret;
 }
 static const short da850_trik_leds_pins[] __initconst = {
-	DA850_GPIO5_9,
 	DA850_GPIO5_8,
 	DA850_GPIO5_7,
 	-1
@@ -799,12 +798,6 @@ static struct gpio_led da850_trik_leds[] = {
 		.name = "led_green", /* assigned at runtime */
 		.default_state = LEDS_GPIO_DEFSTATE_ON,
 	},
-	{
-		.active_low = 1,
-		.gpio = GPIO_TO_PIN(5,9), /* assigned at runtime */
-		.name = "led_power", /* assigned at runtime */
-	},
-
 };
 static struct gpio_led_platform_data da850_trik_leds_pdata = {
 	.leds = da850_trik_leds,
@@ -1499,12 +1492,18 @@ cfg_reg_cap_failed:
 	return ret;
 }
 static const short da850_trik_pwr_con_pins[] __initconst = {
+	DA850_GPIO5_9,
 	DA850_GPIO5_14,
 	-1
 };
+static void da850_trik_power_off(void)
+{
+        gpio_request_one(GPIO_TO_PIN(5,9),GPIOF_OUT_INIT_LOW,"POWER_OFF");
+}
 static __init int da850_trik_pwr_con_init(void){
 	int ret;
 	ret = davinci_cfg_reg_list(da850_trik_pwr_con_pins);
+	pm_power_off = da850_trik_power_off;
 	if (ret){
 		pr_err("%s: power connection pinmux setup failed: %d\n", __func__, ret);
 		goto cfg_reg_pwr_con_failed;
@@ -1519,6 +1518,7 @@ static __init int da850_trik_pwr_con_init(void){
 		pr_err("%s: POWER_CON gpio export failed: %d\n",__func__, ret);
 		goto export_pwr_con_failed;
 	}
+
 	return 0;
 export_pwr_con_failed:
 	gpio_free(GPIO_TO_PIN(5,14));
