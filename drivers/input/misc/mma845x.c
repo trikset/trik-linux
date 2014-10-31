@@ -166,7 +166,6 @@ static int mma845x_set_state(struct mm845x_driver_data *pdata, u8 state){
 		value = mma845x_read_data(pdata->client, MMA845X_CTRL_REG1);
 		value = ((value& 0xFE)|state);
 		res = mma845x_write_data(pdata->client, MMA845X_CTRL_REG1,value);
-		pr_err("resulting = %d \n",res);
 		if(!res)
 			pdata->params.state = state;
 		
@@ -207,7 +206,6 @@ static int mma845x_set_sample_rate(struct mm845x_driver_data *pdata,u8 rate){
 			
 			if(!res){
 				pdata->params.sample_rate_hz = rate;
-				pr_err("HERE \n");
 			}
 		break;
 		default:
