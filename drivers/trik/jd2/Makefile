@@ -1,0 +1,1 @@
+obj-$(CONFIG_TRIK_JD2_HSCR04)		+= jd2_hscr04.o

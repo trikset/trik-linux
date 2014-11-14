@@ -631,7 +631,7 @@ config INPUT_L3G42XXD_I2C
 	tristate "support I2C BUS support"
 	depends on INPUT_L3G42XXD && I2C 
 	help
-		Say Y here if you want to use VTI CMA3000_D0x Accelerometer
+		Say Y here if you want to use L3G42XXD Gyroscope
 		through I2C interface.
 
 		To compile this driver as a module, choose M here: the
@@ -641,8 +641,8 @@ config INPUT_L3G42XXD_SPI
 	tristate "support SPI BUS support"
 	depends on INPUT_L3G42XXD && SPI
 	help
-	Say Y here if you want to use VTI CMA3000_D0x Accelerometer
-	through I2C interface.
+	Say Y here if you want to use L3G42XXD Gyroscope
+	through SPI interface.
 
 	To compile this driver as a module, choose M here: the
 	module will be called l3g42xx_spi.
