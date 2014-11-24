@@ -11,6 +11,9 @@ comment "Ports"
 
 source "drivers/trik/jd1/Kconfig"
 source "drivers/trik/jd2/Kconfig"
+comment "Sensors"
+
+source "drivers/trik/sensors/Kconfig"
 
 endif
 	
