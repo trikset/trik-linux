@@ -603,6 +603,7 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, NEMA_CS_2,	7,	0,	15,	1,	false)
 	/* GPIO function */
 	MUX_CFG(DA850, GPIO0_0,		1,	28,	15,	8,	false)
+	MUX_CFG(DA850, GPIO0_11,	0,	16,	15,	8,	false)
 	MUX_CFG(DA850, GPIO0_13,	0,	8,	15,	8,	false)
 	MUX_CFG(DA850, GPIO1_1,		4,	24,	15,	8,	false)
 	MUX_CFG(DA850, GPIO1_7,		4,	0,	15,	4,	false)
