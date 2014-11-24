@@ -1,0 +1,1 @@
+obj-$(CONFIG_HSCR04)		+= hscr04.o
