@@ -24,6 +24,11 @@ static struct trik_jdx_platform_data trik_jd2_pdata = {
 	.gpio_d1e = GPIO_TO_PIN(0,11),
 	.gpio_d1b = GPIO_TO_PIN(3,5),
 };
+static const struct gpio trik_jd2_gpio_array[] = {
+	{GPIO_TO_PIN(3,1),	GPIOF_OUT_INIT_LOW|GPIOF_EXPORT_DIR_FIXED,	"trik_jd2->gpio_d1a"},
+	{GPIO_TO_PIN(3,5),	GPIOF_IN|GPIOF_EXPORT_DIR_FIXED,			"trik_jd2->gpio_d1b"},
+	{GPIO_TO_PIN(0,11),	GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED,	"trik_jd2->gpio_d1e"},
+};
 static const short trik_jd2_pins[] = {
 	DA850_GPIO3_1,
 	DA850_GPIO3_5,
@@ -38,25 +43,10 @@ int init_module(void)
 		pr_err("%s: trik jd1 pins failed: %d\n",__func__,ret);
 		goto exit_mux_failed;
 	}
-	ret = gpio_request_one(trik_jd2_pdata.gpio_d1a, 
-									GPIOF_OUT_INIT_LOW|GPIOF_EXPORT_DIR_FIXED|GPIOF_EXPORT,
-									"trik_jd2->gpio_d1a");
+	ret = gpio_request_array(trik_jd2_gpio_array,ARRAY_SIZE(trik_jd2_gpio_array));
 	if(ret){
-		pr_err("%s: trik_jd2->gpio_d1a failed\n",__func__);
-		goto exit_gp_rq_d1a;
-	}
-	ret = gpio_request(trik_jd2_pdata.gpio_d1b,
-									"trik_jd2->gpio_d1b");
-	if(ret){
-		pr_err("%s: gtrik_jd2->gpio_d1b failed\n",__func__);
-		goto exit_gp_rq_d1b;
-	}
-	ret = gpio_request_one(trik_jd2_pdata.gpio_d1e,
-									GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED|GPIOF_EXPORT, 
-									"trik_jd2->gpio_d1e");
-	if(ret){
-		pr_err("%s: trik_jd2->gpio_d1e failed\n",__func__);
-		goto exit_gp_rq_d1e;
+		pr_err("%s: trik_jd1_gpio_array request failed\n",__func__);
+		goto exit_gpio_request;
 	}
 
 	platform_set_drvdata(&trik_jd2_device,&trik_jd2_pdata);
@@ -66,12 +56,10 @@ int init_module(void)
 		goto exit_register_failed;
 	}
 	return 0;
-exit_gp_rq_d1e:
-	gpio_free(trik_jd2_pdata.gpio_d1b);
-exit_gp_rq_d1b:
-	gpio_free(trik_jd2_pdata.gpio_d1a);
-exit_gp_rq_d1a:
+
 exit_register_failed:
+	gpio_free_array(trik_jd2_gpio_array, ARRAY_SIZE(trik_jd2_gpio_array));
+exit_gpio_request:
 exit_mux_failed:
 	return ret;
 }
@@ -80,9 +68,7 @@ exit_mux_failed:
 void cleanup_module(void)
 {
 	platform_device_unregister(&trik_jd2_device);
-	gpio_free(trik_jd2_pdata.gpio_d1e);
-	gpio_free(trik_jd2_pdata.gpio_d1b);
-	gpio_free(trik_jd2_pdata.gpio_d1a);
+	gpio_free_array(trik_jd2_gpio_array, ARRAY_SIZE(trik_jd2_gpio_array));
 }
 
 MODULE_LICENSE("GPL");
