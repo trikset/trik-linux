@@ -1,1 +1,1 @@
-obj-$(CONFIG_HSCR04)		+= hscr04.o
+obj-$(CONFIG_HCSR04)		+= hcsr04.o
