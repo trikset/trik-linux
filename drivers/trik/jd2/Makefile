@@ -1,1 +1,1 @@
-obj-$(CONFIG_TRIK_JD2_HSCR04)		+= jd2_hscr04.o
+obj-$(CONFIG_TRIK_JD2_HCSR04)		+= jd2_hcsr04.o
