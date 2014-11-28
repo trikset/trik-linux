@@ -602,7 +602,7 @@ static __init int da850_trik_audio_init(void)
 			__func__, ret);
 		return ret;
 	}
-	ret = gpio_direction_output(GPIO_TO_PIN(6,15), 1);
+	ret = gpio_direction_output(GPIO_TO_PIN(6,15), 0);
 	if (ret) {
 		pr_err("%s: GPIO audio reset pin direction request failed: %d\n", __func__, ret);
 		goto exit_audio_init;
@@ -612,6 +612,9 @@ static __init int da850_trik_audio_init(void)
 		pr_err("%s: GPIO audio reset pin export failed: %d \n", __func__, ret);
 		goto exit_audio_init;
 	}
+	udelay(10);
+	gpio_set_value(GPIO_TO_PIN(6,15),1);
+
 	da8xx_register_mcasp(0,&da850_trik_snd_data);
 	return 0;
 exit_audio_init:
