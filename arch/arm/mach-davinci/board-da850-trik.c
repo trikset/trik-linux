@@ -1273,140 +1273,7 @@ static __init int da850_trik_buffer_clk_init(void)
 	return 0;
 }
 
-static const short da850_trik_ehrpwm0_pins[] __initconst = {
-	/* DA850_EHRPWM0_A conflicts with SPI0 */
-	DA850_EHRPWM0_B,
-	DA850_GPIO2_5,	/*PE0_EN*/
-	-1
-};
 
-static const short da850_trik_ehrpwm1_pins[] __initconst = {
-	DA850_EHRPWM1_A,
-	DA850_EHRPWM1_B,
-	DA850_GPIO2_3,	/*PE1_EN*/
-	-1
-};
-
-static __init int da850_trik_ehrpwm_init(void)
-{
-	int ret;
-	char mask = 0;
-
-	ret = davinci_cfg_reg_list(da850_trik_ehrpwm0_pins);
-	if (ret) {
-		pr_err("%s: ehrpwm0 pinmux setup failed: %d\n", __func__, ret);
-		return ret;
-	}
-	mask |=  BIT(1);
-	ret = gpio_request_one(GPIO_TO_PIN(2,5),
-	                       GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED,
-	                       "PE0_EN");
-	if (ret) {
-		pr_err("%s: PE0_EN gpio request failed: %d\n",__func__, ret);
-		goto request_pe0_en_failed;
-	}
-
-	ret = davinci_cfg_reg_list(da850_trik_ehrpwm1_pins);
-	if (ret) {
-		pr_err("%s: ehrpwm1 pinmux setup failed: %d\n", __func__, ret);
-		goto cfg_reg_ehrpwm1_failed;
-	}
-	mask |= BIT(2) | BIT(3);
-	ret = gpio_request_one(GPIO_TO_PIN(2,3),
-	                       GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED,
-	                       "PE1_EN");
-	if (ret) {
-		pr_err("%s: PE1_EN gpio request failed: %d\n",__func__, ret);
-		goto request_pe1_en_failed;
-	}
-
-	da850_register_ehrpwm(mask);
-	return 0;
-
-	// gpio_free(GPIO_TO_PIN(2,3));
-request_pe1_en_failed:
-cfg_reg_ehrpwm1_failed:
-	gpio_free(GPIO_TO_PIN(2,5));
-request_pe0_en_failed:
-	return ret;
-}
-
-static int ecap = 1; // '1' - PWM; '0' - ECAp
-
-EXPORT_SYMBOL (ecap);
-static int __init set_ecap(char *str)
-{
-	if (!strcasecmp(str,"pwm"))
-		ecap = 1;
-	else if (!strcasecmp(str,"ecap"))
-		ecap = 0;
-	else 
-		return 1;
-	return 0;
-}
-
-__setup("trik.jcx=", set_ecap);
-
-static const short da850_trik_cap_pins[] __initconst = {
-	DA850_ECAP0_APWM0,
-	DA850_ECAP1_APWM1,
-	DA850_ECAP2_APWM2,
-	DA850_GPIO2_4/*PC_EN*/,
-	-1
-};
-static __init int da850_trik_cap_apwm_init(void){
-	int ret;
-	ret = davinci_cfg_reg_list(da850_trik_cap_pins);
-	if (ret){
-		pr_err("%s: cap pinmux setup failed: %d\n", __func__, ret);
-		goto cfg_reg_cap_failed;
-	}
-	ret =  gpio_request_one(GPIO_TO_PIN(2,4),GPIOF_OUT_INIT_HIGH,"PC_EN");
-	if (ret){
-		pr_err("%s: PC_EN gpio request failed: %d\n",__func__, ret);
-		goto request_pc_en_failed;
-	}
-	ret = gpio_export(GPIO_TO_PIN(2,4),1);
-	if (ret){
-		pr_err("%s: PC_EN gpio export failed: %d\n",__func__, ret);
-		goto export_pc_en_failed;
-	}
-	if (ecap){
-		ret = da850_register_ecap(0);
-		if (ret){
-			pr_warning("%s: register ecap.pwm 0 failed: %d\n",__func__, ret);
-		}
-		ret = da850_register_ecap(1);
-		if (ret){
-			pr_warning("%s: register ecap.pwm 1 failed: %d\n",__func__, ret);
-		}
-		ret = da850_register_ecap(2);
-		if (ret){
-			pr_warning("%s: register ecap.pwm 2 failed: %d\n",__func__, ret);
-		}
-	}
-	else
-	{
-		ret = da850_register_ecap_cap(0);
-		if (ret){
-			pr_warning("%s: register ecap.cpwm 0 failed: %d\n",__func__, ret);
-		}
-		ret = da850_register_ecap_cap(1);
-		if (ret){
-			pr_warning("%s: register ecap.cpwm 1 failed: %d\n",__func__, ret);
-		}
-		ret = da850_register_ecap_cap(2);
-		if (ret){
-			pr_warning("%s: register ecap.cpwm 2 failed: %d\n",__func__, ret);
-		}
-	}
-	return 0;
-export_pc_en_failed:
-	gpio_free(GPIO_TO_PIN(2,4));
-request_pc_en_failed:
-cfg_reg_cap_failed:
-	return ret;
-}
 static const short da850_trik_pwr_con_pins[] __initconst = {
 	DA850_GPIO5_9,
 	DA850_GPIO5_14,
@@ -1442,6 +1309,12 @@ request_pwr_con_failed:
 cfg_reg_pwr_con_failed:
 	return ret;
 }	
+#warning Temporary ehrpwm module sync clocks 
+static __init int da850_trik_port_configuration(void){
+	__raw_writew(__raw_readw(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG)) | BIT(12),
+							 DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG));
+	return 0;
+}
 static __init void da850_trik_init(void)
 {
 	int ret;
@@ -1533,19 +1406,15 @@ static __init void da850_trik_init(void)
 	ret = da850_trik_gpio_extra_init();
 	if (ret)
 		pr_warning("%s: gpio_extra init failed: %d\n", __func__, ret);
-
-	ret = da850_trik_cap_apwm_init();
+	
+	ret = da850_trik_port_configuration();
 	if (ret)
-		pr_warning("%s: cap apwm init failed: %d\n", __func__, ret);
-
-	ret = da850_trik_ehrpwm_init();
-	if (ret)
-		pr_warning("%s: ehrpwm init failed: %d\n", __func__, ret);
-
+		pr_warning("%s: trik_port_configuration init failed: %d\n", __func__, ret);
+	
 	ret = da850_trik_pwr_con_init();
 	if (ret)
 		pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
-
+	
 }
 
 #warning Somehow, ttyS1 console seems to be initialized from somewhere else. To be investigated.

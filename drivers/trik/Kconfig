@@ -11,6 +11,9 @@ comment "Ports"
 
 source "drivers/trik/jd1/Kconfig"
 source "drivers/trik/jd2/Kconfig"
+source "drivers/trik/jf1/Kconfig"
+source "drivers/trik/jcx/Kconfig"
+source "drivers/trik/jex/Kconfig"
 comment "Sensors"
 
 source "drivers/trik/sensors/Kconfig"
