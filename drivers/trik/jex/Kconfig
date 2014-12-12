@@ -1,0 +1,4 @@
+config TRIK_JEX_PWM
+	tristate "Trik JCX ports platform driver for pwm support"
+	default n
+	

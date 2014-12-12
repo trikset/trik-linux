@@ -1,0 +1,6 @@
+config TRIK_JCX_PWM
+	tristate "Trik JCX ports platform driver for pwm support"
+	default n
+config TRIK_JCX_ECAP_PWM
+	tristate "Trik JCX ports platform driver for capture pwm support"
+	default n

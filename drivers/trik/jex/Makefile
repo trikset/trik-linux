@@ -1,0 +1,1 @@
+obj-$(CONFIG_TRIK_JEX_PWM)		+= jex_epwm.o

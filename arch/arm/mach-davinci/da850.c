@@ -1208,7 +1208,8 @@ no_ddrpll_mem:
 	iounmap(pdata->cpupll_reg_base);
 	return ret;
 }
-
+#warning Ecap and Ehrpwm platform device register moved into port configuration
+#if 0
 #define DA8XX_EHRPWM0_BASE	0x01F00000
 static struct resource da850_ehrpwm0_resource[] = {
 	{
@@ -1296,7 +1297,9 @@ void __init da850_register_ehrpwm(unsigned int mask)
 			pr_warning("da850_evm_init: eHRPWM module1 registration failed\n");
 	}
 }
+#endif
 
+#if 0
 #define DA8XX_ECAP0_BASE	0x01F06000
 static struct resource da850_ecap0_resource[] = {
 	{
@@ -1400,6 +1403,7 @@ int __init da850_register_ecap_cap(int instance)
 		default:	return -EINVAL;
 	}
 }
+#endif
 
 /* VPIF resource, platform data */
 static u64 da850_vpif_dma_mask = DMA_BIT_MASK(32);
