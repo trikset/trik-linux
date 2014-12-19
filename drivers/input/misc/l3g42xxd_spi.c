@@ -103,3 +103,4 @@ module_spi_driver(l3g42xxd_spi_driver);
 MODULE_AUTHOR("Roman Meshkevich <romik.momik@trikset.com>");
 MODULE_DESCRIPTION("L3gd20 Three-Axis Digital Accelerometer SPI Bus Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:l3g42xxd");
