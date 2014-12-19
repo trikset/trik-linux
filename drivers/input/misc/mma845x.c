@@ -476,6 +476,7 @@ static int __devinit mma845x_probe(struct i2c_client *client,
 	}
 	pdata->input_dev->name 			= "mma845x";
 	pdata->input_dev->id.bustype 	= BUS_I2C;
+	pdata->input_dev->dev.parent    = &client->dev;
 	pdata->input_dev->uniq 			= mma845x_id2name(pdata->chip_id);
 	pdata->input_dev->open 			= mma845x_input_open;
 	pdata->input_dev->close 		= mma845x_input_close;
