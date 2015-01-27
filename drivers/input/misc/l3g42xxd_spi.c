@@ -55,14 +55,12 @@ static int __devinit l3g42xxd_spi_probe(struct spi_device *spi)
 		pr_err("%s: l3g42xxd_probe failed\n",__func__);
 		return ret;
 	}
-	pr_err("%s : pointer = %p\n",__func__,chip);
 	spi_set_drvdata(spi, chip);
 	return 0;
 }
 static int __devexit l3g42xxd_spi_remove(struct spi_device *spi)
 {
 	struct l3g42xxd_chip *chip = spi_get_drvdata(spi);
-	pr_err("%s : pointer = %p\n",__func__,chip);
 	l3g42xxd_remove(chip);
 	spi_set_drvdata(spi, NULL);
 
