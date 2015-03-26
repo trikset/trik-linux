@@ -25,7 +25,4 @@ struct ecap_cap {
 	int prescale;
 };
 
-int ecap_get_cap_value(int *cap_value, int instance);
-int ecap_cap_config(int instance, struct ecap_cap *ecap_cap);
-
 #endif
