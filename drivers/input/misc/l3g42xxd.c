@@ -20,11 +20,30 @@
 
 /** Register map */
 
+enum {
+    L3GD42XXD_STANDBY = 0,
+    L3GD42XXD_NORMAL,
+};
+
+enum {
+  L3GD42XXD_SAMPLE_RATE_95 = 0,  
+  L3GD42XXD_SAMPLE_RATE_190,
+  L3GD42XXD_SAMPLE_RATE_380,
+  L3GD42XXD_SAMPLE_RATE_760,
+};
+
+enum {
+  L3GD42XXD_MODE_250 = 0,  
+  L3GD42XXD_MODE_500,
+  L3GD42XXD_MODE_2000,
+};
+
+
 struct l3g42xxd_data {
-	struct input_dev *input_dev;
-//	struct input_polled_dev *input_polled;
-	struct platform_device *platform_device;
-	struct l3g42xxd_platform_data *pdata;
+	struct input_dev               *input_dev;
+	struct platform_device         *platform_device;
+	struct l3g42xxd_platform_data  *pdata;
+    struct mutex                    data_lock;
 };
 
 struct gyro_val {
@@ -52,13 +71,13 @@ static const struct file_operations l3g42xxd_misc_fops = {
     .release =l3g42xxd_misc_release,
     .unlocked_ioctl = l3g42xxd_misc_ioctl,
 };
-#if 0
+
 static struct miscdevice l3g42xxd_misc_device = {
         .minor = MISC_DYNAMIC_MINOR,
         .name = "l3g42xxd",
         .fops = &l3g42xxd_misc_fops,
 };
-#endif
+
 
 static int l3g42xxd_get_gyro_data(struct l3g42xxd_chip *chip,
                                          struct gyro_val *data)
@@ -93,24 +112,10 @@ static irqreturn_t l3g42xxd_irq_callback(int irq, void *dev_id){
 
 
 static void l3g42xxd_irq_worker(struct work_struct *work){
-#if 0
-    static u64 _timestamp [2];
-    static u32 _counter = 0;
-#endif 
     struct l3g42xxd_chip *chip = container_of(work, struct l3g42xxd_chip, irq_work);
     struct gyro_val data;
-#if 0    
-    _timestamp[0] = local_clock();
-#endif
 	l3g42xxd_get_gyro_data(chip, &data);
     l3g42xxd_report_values(chip, &data);
-#if 0
-    _timestamp[1] = local_clock();
-    if (_counter %1600 == 0){
-        pr_err("[l3g42xxd] operation time = %lld \n", _timestamp[1] - _timestamp[0]);
-    }
-    _counter++;
-#endif
 }
 
 static void l3g42xxd_input_dev_shutdown(struct l3g42xxd_chip* chip)
@@ -130,16 +135,50 @@ static int l3g42xxd_init_chip(struct l3g42xxd_chip* chip){
     err = chip->write(chip->dev,L3G4200D_REF_DATA_CAP,0x00);
     err = chip->write(chip->dev,L3G4200D_FIFO_CTRL,0x00);
     err = chip->write(chip->dev,L3G4200D_INTERRUPT_CFG,0x7F);
-    err = chip->write(chip->dev,L3G4200D_CTRL_REG1,( 0xc7 | PM_MASK));
+    //err = chip->write(chip->dev,L3G4200D_CTRL_REG1,( 0xc7 | PM_MASK));
     return 0;
+}
+static int l3g42xxd_set_state(struct l3g42xxd_chip *chip, u8 state){
+    int res = -EINVAL;
+    u8 value = 0; 
+    struct gyro_val data;
+    switch (state){
+        case L3GD42XXD_NORMAL:
+            value = chip->read(chip->dev,L3G4200D_CTRL_REG1);
+            pr_err ("%s: value = %d\n",__func__,value);
+            value = (value|PM_MASK);
+            pr_err ("%s: new value = %d\n",__func__,value);
+            res = chip->write(chip->dev,L3G4200D_CTRL_REG1,value);
+            l3g42xxd_get_gyro_data(chip, &data);
+        break;
+        case L3GD42XXD_STANDBY:
+            value = chip->read(chip->dev,L3G4200D_CTRL_REG1);
+            pr_err ("%s: value = %d\n",__func__,value);
+            value = (value & (~PM_MASK));
+            pr_err ("%s: new value = %d\n",__func__,value);
+            res = chip->write(chip->dev,L3G4200D_CTRL_REG1,value);
+        break;
+        default:
+        break;
+    }
+
+    return res;
 }
 static int l3g42xxd_open(struct input_dev *dev)
 {
+    struct l3g42xxd_chip* gyro = input_get_drvdata(dev);
+    mutex_lock(&gyro->data->data_lock);
+    l3g42xxd_set_state(gyro,L3GD42XXD_NORMAL);
+    mutex_unlock(&gyro->data->data_lock);
     return 0;
 }
 
 static void l3g42xxd_close(struct input_dev *dev)
 {
+    struct l3g42xxd_chip* gyro = input_get_drvdata(dev);
+    mutex_lock(&gyro->data->data_lock);
+    l3g42xxd_set_state(gyro,L3GD42XXD_STANDBY);
+    mutex_unlock(&gyro->data->data_lock);
 }
 
 static int l3g42xxd_input_dev_init(struct l3g42xxd_chip* chip)
@@ -175,7 +214,7 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_chip* chip)
 	gyro->input_dev->close  = l3g42xxd_close;
 
 	set_bit(EV_ABS, gyro->input_dev->evbit);
-	input_set_drvdata(gyro->input_dev, gyro);
+	input_set_drvdata(gyro->input_dev, chip);
 	input_set_abs_params(gyro->input_dev, ABS_X,
                              -32768, 32767, 0, 0);
  	input_set_abs_params(gyro->input_dev, ABS_Y,
@@ -205,11 +244,6 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_chip* chip)
 	if (err < 0){
 		goto exit_init_chip;
 	}
-	{
-		struct gyro_val data;
-        l3g42xxd_get_gyro_data(chip, &data);
-	}
-
 	return 0;
 exit_init_chip:
 	input_unregister_device(gyro->input_dev);
@@ -252,7 +286,7 @@ int l3g42xxd_probe(struct device *dev,
     chip->dev = dev;
     
     INIT_WORK(&chip->irq_work, l3g42xxd_irq_worker);
-    
+    mutex_init(&chip->data->data_lock);
     ret = l3g42xxd_input_dev_init(chip);
     if (ret){
         pr_err("%s:failed to init input device \n",__func__);
