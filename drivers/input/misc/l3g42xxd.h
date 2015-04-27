@@ -6,11 +6,16 @@
 
 #define L3G42XXD_MAX_SPI_FREQ_HZ	10000000
 
+
 struct device;
+struct miscdevice;
+struct work_struct;
+
 struct l3g42xxd_platform_data;
 struct l3g42xxd_data;
 struct l3g42xxd_chip;
-struct work_struct irq_work;
+
+
 
 typedef int (*l3g42xxd_read_t)(struct device * dev,  unsigned char reg);
 typedef int (*l3g42xxd_write_t)(struct device * dev , unsigned char reg, unsigned char val);
@@ -27,7 +32,7 @@ struct l3g42xxd_chip {
 	struct l3g42xxd_data *data;
 	short device_address;
 	struct work_struct irq_work;
-	struct mutex mutex;
+	struct miscdevice misc_dev;
 	int irq;
 };
 void l3g42xxd_suspend(struct l3g42xxd_chip *chip);

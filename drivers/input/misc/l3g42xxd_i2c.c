@@ -3,6 +3,7 @@
 #include <linux/i2c.h>
 #include <linux/pm.h>
 #include <linux/types.h>
+#include <linux/miscdevice.h>
 #include "l3g42xxd.h"
 static int l3g42xxd_i2c_suspend(struct device *dev)
 {

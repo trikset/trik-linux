@@ -3,6 +3,7 @@
 #include <linux/spi/spi.h>
 #include <linux/pm.h>
 #include <linux/types.h>
+#include <linux/miscdevice.h>
 
 #include "l3g42xxd.h"
 

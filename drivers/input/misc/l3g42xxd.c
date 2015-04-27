@@ -20,13 +20,55 @@
 
 /** Register map */
 
+#define L3G42XXD_WHO_AM_I               0x0f
+#define L3G42XXD_CTRL_REG1              0x20
+#define L3G42XXD_CTRL_REG2              0x21
+#define L3G42XXD_CTRL_REG3              0x22
+#define L3G42XXD_CTRL_REG4              0x23
+#define L3G42XXD_CTRL_REG5              0x24
+
+#define L3G42XXD_REF_DATA_CAP           0x25
+#define L3G42XXD_OUT_TEMP               0x26
+#define L3G42XXD_STATUS_REG             0x27
+
+#define L3G42XXD_STATUS_REG_EXPECTED    0x0f
+
+
+#define L3G42XXD_OUT_X_L                0x28
+#define L3G42XXD_OUT_X_H                0x29
+#define L3G42XXD_OUT_Y_L                0x2a
+#define L3G42XXD_OUT_Y_H                0x2b
+#define L3G42XXD_OUT_Z_L                0x2c
+#define L3G42XXD_OUT_Z_H                0x2d
+
+#define L3G42XXD_FIFO_CTRL              0x2e
+#define L3G42XXD_FIFO_SRC               0x2f
+
+#define L3G42XXD_INTERRUPT_CFG          0x30
+#define L3G42XXD_INTERRUPT_SRC          0x31
+#define L3G42XXD_INTERRUPT_THRESH_X_H   0x32
+#define L3G42XXD_INTERRUPT_THRESH_X_L   0x33
+#define L3G42XXD_INTERRUPT_THRESH_Y_H   0x34
+#define L3G42XXD_INTERRUPT_THRESH_Y_L   0x35
+#define L3G42XXD_INTERRUPT_THRESH_Z_H   0x36
+#define L3G42XXD_INTERRUPT_THRESH_Z_L   0x37
+#define L3G42XXD_INTERRUPT_DURATION     0x38
+
+#define L3G42XXD_PM_MASK                0x08
+#define L3G42XXD_SR_MASK                0xC0
+
+#define I2C_RETRY_DELAY                 5
+#define I2C_RETRIES                     5
+#define AUTO_INCREMENT                  0x80
+
+
 enum {
     L3GD42XXD_STANDBY = 0,
     L3GD42XXD_NORMAL,
 };
 
 enum {
-  L3GD42XXD_SAMPLE_RATE_95 = 0,  
+  L3GD42XXD_SAMPLE_RATE_95  = 0,  
   L3GD42XXD_SAMPLE_RATE_190,
   L3GD42XXD_SAMPLE_RATE_380,
   L3GD42XXD_SAMPLE_RATE_760,
@@ -54,7 +96,14 @@ struct gyro_val {
 
 
 static int l3g42xxd_misc_open(struct inode *inode, struct file *file){
-	pr_info("%s \n",__func__);
+	int res;
+    struct l3g42xxd_chip* chip = container_of(file->private_data, struct l3g42xxd_chip, misc_dev);
+    pr_info("%s \n",__func__);
+    res = nonseekable_open(inode, file);
+    if (res < 0)
+        return res;
+    file->private_data = chip;
+
 	return 0;
 }
 static int l3g42xxd_misc_release(struct inode *inode, struct file *file){
@@ -62,7 +111,13 @@ static int l3g42xxd_misc_release(struct inode *inode, struct file *file){
 	return 0;
 }
 static long l3g42xxd_misc_ioctl(struct file *file, unsigned int cmd, unsigned long arg){
-	pr_info("%s \n",__func__);
+    void __user *argp = (void __user *)arg;
+    struct l3g42xxd_chip *chip =  file->private_data;
+    pr_info("%s: pdata pointer = %p\n",__func__, file->private_data);
+	switch (cmd){
+        default:
+        break;
+    }
 	return 0;
 }
 static const struct file_operations l3g42xxd_misc_fops = {
@@ -82,16 +137,16 @@ static struct miscdevice l3g42xxd_misc_device = {
 static int l3g42xxd_get_gyro_data(struct l3g42xxd_chip *chip,
                                          struct gyro_val *data)
 {
-    u8 _data[L3G4200D_OUT_Z_H - L3G4200D_STATUS_REG+1];
-    chip->read_block(chip->dev, L3G4200D_STATUS_REG, sizeof(_data)/sizeof(_data[0]), _data);
+    u8 _data[L3G42XXD_OUT_Z_H - L3G42XXD_STATUS_REG+1];
+    chip->read_block(chip->dev, L3G42XXD_STATUS_REG, sizeof(_data)/sizeof(_data[0]), _data);
     //todo: check why overflow is true
-    if ((_data[L3G4200D_STATUS_REG - L3G4200D_STATUS_REG] != 0xff/*L3G4200D_STATUS_REG_EXPECTED*/) && printk_ratelimit()){
-        pr_warning("%s: L3G4200D_STATUS_REG unexpected value (0x%02x)\n", __func__, _data[L3G4200D_STATUS_REG - L3G4200D_STATUS_REG]);  
+    if ((_data[L3G42XXD_STATUS_REG - L3G42XXD_STATUS_REG] != 0xff/*L3G42XXD_STATUS_REG_EXPECTED*/) && printk_ratelimit()){
+        pr_warning("%s: L3G42XXD_STATUS_REG unexpected value (0x%02x)\n", __func__, _data[L3G42XXD_STATUS_REG - L3G42XXD_STATUS_REG]);  
     }
-    data->x = (_data[L3G4200D_OUT_X_H - L3G4200D_STATUS_REG] << 8) | _data[L3G4200D_OUT_X_L - L3G4200D_STATUS_REG];
-    data->y = (_data[L3G4200D_OUT_Y_H - L3G4200D_STATUS_REG] << 8) | _data[L3G4200D_OUT_Y_L - L3G4200D_STATUS_REG];
-    data->z = (_data[L3G4200D_OUT_Z_H - L3G4200D_STATUS_REG] << 8) | _data[L3G4200D_OUT_Z_L - L3G4200D_STATUS_REG];
-    chip->read(chip->dev,L3G4200D_INTERRUPT_SRC);
+    data->x = (_data[L3G42XXD_OUT_X_H - L3G42XXD_STATUS_REG] << 8) | _data[L3G42XXD_OUT_X_L - L3G42XXD_STATUS_REG];
+    data->y = (_data[L3G42XXD_OUT_Y_H - L3G42XXD_STATUS_REG] << 8) | _data[L3G42XXD_OUT_Y_L - L3G42XXD_STATUS_REG];
+    data->z = (_data[L3G42XXD_OUT_Z_H - L3G42XXD_STATUS_REG] << 8) | _data[L3G42XXD_OUT_Z_L - L3G42XXD_STATUS_REG];
+    chip->read(chip->dev,L3G42XXD_INTERRUPT_SRC);
     return 0;
 }
 static void l3g42xxd_report_values(struct l3g42xxd_chip *chip,
@@ -127,15 +182,16 @@ static void l3g42xxd_input_dev_shutdown(struct l3g42xxd_chip* chip)
 }
 static int l3g42xxd_init_chip(struct l3g42xxd_chip* chip){
     int err = -1;
-    err = chip->write(chip->dev,L3G4200D_CTRL_REG1,0xc7);
-    err = chip->write(chip->dev,L3G4200D_CTRL_REG2,0x00);
-    err = chip->write(chip->dev,L3G4200D_CTRL_REG3,0x80);
-    err = chip->write(chip->dev,L3G4200D_CTRL_REG4,0xa0);
-    err = chip->write(chip->dev,L3G4200D_CTRL_REG5,0x00);
-    err = chip->write(chip->dev,L3G4200D_REF_DATA_CAP,0x00);
-    err = chip->write(chip->dev,L3G4200D_FIFO_CTRL,0x00);
-    err = chip->write(chip->dev,L3G4200D_INTERRUPT_CFG,0x7F);
-    //err = chip->write(chip->dev,L3G4200D_CTRL_REG1,( 0xc7 | PM_MASK));
+    err = chip->write(chip->dev,L3G42XXD_CTRL_REG1,0xc7);
+
+    err = chip->write(chip->dev,L3G42XXD_CTRL_REG2,0x00);
+    err = chip->write(chip->dev,L3G42XXD_CTRL_REG3,0x80);
+    err = chip->write(chip->dev,L3G42XXD_CTRL_REG4,0xa0);
+    err = chip->write(chip->dev,L3G42XXD_CTRL_REG5,0x00);
+    err = chip->write(chip->dev,L3G42XXD_REF_DATA_CAP,0x00);
+    err = chip->write(chip->dev,L3G42XXD_FIFO_CTRL,0x00);
+    err = chip->write(chip->dev,L3G42XXD_INTERRUPT_CFG,0x7F);
+    //err = chip->write(chip->dev,L3G42XXD_CTRL_REG1,( 0xc7 | PM_MASK));
     return 0;
 }
 static int l3g42xxd_set_state(struct l3g42xxd_chip *chip, u8 state){
@@ -144,24 +200,38 @@ static int l3g42xxd_set_state(struct l3g42xxd_chip *chip, u8 state){
     struct gyro_val data;
     switch (state){
         case L3GD42XXD_NORMAL:
-            value = chip->read(chip->dev,L3G4200D_CTRL_REG1);
-            pr_err ("%s: value = %d\n",__func__,value);
-            value = (value|PM_MASK);
-            pr_err ("%s: new value = %d\n",__func__,value);
-            res = chip->write(chip->dev,L3G4200D_CTRL_REG1,value);
+            value = chip->read(chip->dev,L3G42XXD_CTRL_REG1);
+            value = (value|L3G42XXD_PM_MASK);
+            res = chip->write(chip->dev,L3G42XXD_CTRL_REG1,value);
             l3g42xxd_get_gyro_data(chip, &data);
         break;
         case L3GD42XXD_STANDBY:
-            value = chip->read(chip->dev,L3G4200D_CTRL_REG1);
-            pr_err ("%s: value = %d\n",__func__,value);
-            value = (value & (~PM_MASK));
-            pr_err ("%s: new value = %d\n",__func__,value);
-            res = chip->write(chip->dev,L3G4200D_CTRL_REG1,value);
+            value = chip->read(chip->dev,L3G42XXD_CTRL_REG1);
+            value = (value & (~L3G42XXD_PM_MASK));
+            res = chip->write(chip->dev,L3G42XXD_CTRL_REG1,value);
         break;
         default:
         break;
     }
 
+    return res;
+}
+
+static int l3g42xxd_set_sample_rate(struct l3g42xxd_chip *chip,u8 rate){
+    int res = -EINVAL;
+    u8 value = 0;
+    switch(rate){
+        case L3GD42XXD_SAMPLE_RATE_95:
+        case L3GD42XXD_SAMPLE_RATE_190:
+        case L3GD42XXD_SAMPLE_RATE_380:
+        case L3GD42XXD_SAMPLE_RATE_760:
+        value = chip->read(chip->dev,L3G42XXD_CTRL_REG1);
+        value = (value & (~L3G42XXD_SR_MASK))|(rate << 6);
+        res = chip->write(chip->dev,L3G42XXD_CTRL_REG1,value);
+        break;
+        default:
+        break;
+    }
     return res;
 }
 static int l3g42xxd_open(struct input_dev *dev)
@@ -186,10 +256,10 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_chip* chip)
     struct l3g42xxd_data* gyro = chip->data;
 	int err;
     int device_id;
-    device_id = chip->read(chip->dev,L3G4200D_WHO_AM_I);
+    device_id = chip->read(chip->dev,L3G42XXD_WHO_AM_I);
 
     switch (device_id){
-        case L3G4200D_ID:
+        case L3G42XXD_ID:
         break;
         case L3GD20_ID:
         break;
