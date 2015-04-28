@@ -32,7 +32,7 @@ struct l3g42xxd_chip {
 	struct l3g42xxd_data *data;
 	short device_address;
 	struct work_struct irq_work;
-	struct miscdevice misc_dev;
+	struct miscdevice *misc_dev;
 	int irq;
 };
 void l3g42xxd_suspend(struct l3g42xxd_chip *chip);
