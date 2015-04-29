@@ -125,9 +125,7 @@ static int l3g42xxd_set_state(struct l3g42xxd_chip *chip, u8 state){
             if (chip->data->params.state == L3GD42XXD_STANDBY)
             {
                 value = chip->read(chip->dev,L3G42XXD_CTRL_REG1);
-                pr_err("%s : value = 0x%x\n",__func__,value);
                 value = (value & L3G42XXD_PM_MASK)|(state<<3);
-                pr_err("%s : new value = 0x%x\n",__func__,value);
                 res = chip->write(chip->dev,L3G42XXD_CTRL_REG1,value);
                 chip->data->params.state = state;
             }
@@ -137,9 +135,7 @@ static int l3g42xxd_set_state(struct l3g42xxd_chip *chip, u8 state){
             if (chip->data->params.state == L3GD42XXD_ACTIVE)
             {
                 value = chip->read(chip->dev,L3G42XXD_CTRL_REG1);
-                pr_err("%s : value = 0x%x\n",__func__,value);
                 value = (value & L3G42XXD_PM_MASK);
-                pr_err("%s : value = 0x%x\n",__func__,value);
                 res = chip->write(chip->dev,L3G42XXD_CTRL_REG1,value);
                 chip->data->params.state = state;
 
@@ -161,9 +157,7 @@ static int l3g42xxd_set_sample_rate(struct l3g42xxd_chip *chip,u8 rate){
         case L3GD42XXD_ODR_380:
         case L3GD42XXD_ODR_760:
         value = chip->read(chip->dev,L3G42XXD_CTRL_REG1);
-        pr_err("%s : value = 0x%x\n",__func__,value);
         value = (value & L3G42XXD_ODR_MASK)|(rate << 6);
-        pr_err("%s : new value = 0x%x\n",__func__,value);
         res = chip->write(chip->dev,L3G42XXD_CTRL_REG1,value);
         chip->data->params.odr_sel = rate;
         break;
@@ -181,9 +175,7 @@ static int l3g42xxd_set_fs_range(struct l3g42xxd_chip *chip, u8 mode){
         case L3GD42XXD_FS_500:
         case L3GD42XXD_FS_2000:
         value = chip->read(chip->dev,L3G42XXD_CTRL_REG4);
-        pr_err("%s : value = 0x%x\n",__func__,value);
         value = (value & L3G42XXD_FS_MASK)|(mode << 4);
-        pr_err("%s : new value = 0x%x\n",__func__,value);
         res = chip->write(chip->dev,L3G42XXD_CTRL_REG4,value);
         chip->data->params.fs_sel = mode;
         break;
@@ -283,6 +275,16 @@ static ssize_t l3g42xxd_odr_store(struct device *dev,
                                             struct device_attribute *attr,
                                             const char *buf, 
                                             size_t count){
+    struct l3g42xxd_chip *chip = dev_get_drvdata(dev->parent);
+    unsigned long odr_sel;
+    u8 current_state = chip->data->params.state;
+    odr_sel = simple_strtoul(buf, NULL, 10);
+    mutex_lock(&chip->data->lock);
+    l3g42xxd_set_state(chip,L3GD42XXD_STANDBY);
+    l3g42xxd_set_sample_rate(chip,odr_sel);
+    l3g42xxd_set_state(chip,current_state);
+    mutex_unlock(&chip->data->lock);
+    
     return count;
 }
 static ssize_t l3g42xxd_odr_show( struct device *dev,
@@ -300,6 +302,13 @@ static ssize_t l3g42xxd_state_store(struct device *dev,
                                             struct device_attribute *attr,
                                             const char *buf, 
                                             size_t count){
+    struct l3g42xxd_chip *chip = dev_get_drvdata(dev->parent);
+    unsigned long state;
+    state = simple_strtoul(buf, NULL, 10);
+    mutex_lock(&chip->data->lock);
+    l3g42xxd_set_state(chip,state);
+    
+    mutex_unlock(&chip->data->lock);
 
     return count;
 }
@@ -330,7 +339,6 @@ static const struct attribute_group l3g42xxd_attr_group = {
 static int l3g42xxd_misc_open(struct inode *inode, struct file *file){
     int res;
     struct l3g42xxd_chip* chip = container_of(file->private_data, struct l3g42xxd_chip, misc_dev);
-    pr_info("%s \n",__func__);
     res = nonseekable_open(inode, file);
     if (res < 0)
         return res;
@@ -339,7 +347,6 @@ static int l3g42xxd_misc_open(struct inode *inode, struct file *file){
     return 0;
 }
 static int l3g42xxd_misc_release(struct inode *inode, struct file *file){
-    pr_info("%s \n",__func__);
     return 0;
 }
 static long l3g42xxd_misc_ioctl(struct file *file, unsigned int cmd, unsigned long arg){
@@ -348,16 +355,58 @@ static long l3g42xxd_misc_ioctl(struct file *file, unsigned int cmd, unsigned lo
     int tmp;
     switch (cmd){
         case L3G42XXD_IOCTL_SET_FS_MODE:
-        break;
+        {
+            u8 current_state =  chip->data->params.state;
+            if (copy_from_user(argp, &tmp, sizeof(tmp)))
+                return -EFAULT;
+
+            mutex_lock(&chip->data->lock);
+            l3g42xxd_set_state(chip,L3GD42XXD_STANDBY);
+            l3g42xxd_set_fs_range(chip,tmp);
+            l3g42xxd_set_state(chip,current_state);
+            mutex_unlock(&chip->data->lock);
+
+            break;
+        }
         case L3G42XXD_IOCTL_GET_FS_MODE:
+            tmp = (int)   chip->data->params.fs_sel;
+            if (copy_to_user(argp, &tmp, sizeof(tmp)))
+                return -EFAULT;
+
         break;
         case L3G42XXD_IOCTL_SET_STATE:
+            if (copy_from_user(argp, &tmp, sizeof(tmp)))
+                    return -EFAULT;
+            mutex_lock(&chip->data->lock);
+            l3g42xxd_set_state(chip,L3GD42XXD_STANDBY);
+            mutex_unlock(&chip->data->lock);
         break;
+
         case L3G42XXD_IOCTL_GET_STATE:
+            tmp = (int)   chip->data->params.state;
+            if (copy_to_user(argp, &tmp, sizeof(tmp)))
+                return -EFAULT;
+        
         break;
+
         case L3G42XXD_IOCTL_SET_ODR:
-        break;
+        {
+            u8 current_state =  chip->data->params.state;
+            if (copy_from_user(argp, &tmp, sizeof(tmp)))
+                return -EFAULT;
+
+            mutex_lock(&chip->data->lock);
+            l3g42xxd_set_state(chip,L3GD42XXD_STANDBY);
+            l3g42xxd_set_sample_rate(chip,tmp);
+            l3g42xxd_set_state(chip,current_state);
+            mutex_unlock(&chip->data->lock);
+
+            break;
+        }
         case L3G42XXD_IOCTL_GET_ODR:
+        tmp = (int)   chip->data->params.odr_sel;
+        if (copy_to_user(argp, &tmp, sizeof(tmp)))
+                    return -EFAULT;
         break;
         default:
         break;
@@ -508,12 +557,10 @@ int l3g42xxd_probe(struct device *dev,
     chip->read_block = read_block;
     chip->irq = irq;
     chip->dev = dev;
-    pr_err("%s : pointer = %p\n",__func__,&l3g42xxd_misc_device);
+    
     l3g42xxd_misc_device.parent = chip->dev;
-
     chip->misc_dev = &l3g42xxd_misc_device;
-    pr_err("%s : pointer = %p\n",__func__,chip->misc_dev);
-  
+    
     ret = misc_register(chip->misc_dev);
     if (ret){
         pr_err("%s: misc register failed\n",__func__);
@@ -524,7 +571,6 @@ int l3g42xxd_probe(struct device *dev,
         pr_err("%s: sys create group failed\n",__func__);
         goto sysfs_create_group_failed;
     }
-    //dev_set_drvdata(chip->misc_dev->this_device, chip);
     
     INIT_WORK(&chip->irq_work, l3g42xxd_irq_worker);
   
@@ -563,7 +609,6 @@ void l3g42xxd_remove(struct l3g42xxd_chip *chip)
 {
     l3g42xxd_input_dev_shutdown(chip);
     l3g42xxd_set_state(chip,L3GD42XXD_STANDBY);
-    pr_err("%s : pointer = %p\n",__func__,chip->misc_dev);
     flush_work_sync(&chip->irq_work);
     sysfs_remove_group(&chip->misc_dev->this_device->kobj, &l3g42xxd_attr_group);
     misc_deregister(chip->misc_dev);
