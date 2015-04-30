@@ -85,31 +85,31 @@
 
 #define MMA845X_MODE_BITS 	~(_BIT(1)|_BIT(0))
 enum {
-	MODE_2G				=	0,
-	MODE_4G,
-	MODE_8G,
+	MMA845X_FS_2G				=	0,
+	MMA845X_FS_4G,
+	MMA845X_FS_8G,
 };
 
 #define MMA845X_PM_BIT		~(_BIT(1))
 
 enum {
-	MMA_STANDBY 		=	0,
-	MMA_ACTIVED,
+	MMA845X_STANDBY 		=	0,
+	MMA845X_ACTIVE,
 };
 #define MMA845X_ODR_BITS ~(_BIT(3)|BIT(4)|_BIT(5))
 enum {
-	SAMPLE_RATE_800		=	0,	
-	SAMPLE_RATE_400,
-	SAMPLE_RATE_200,
-	SAMPLE_RATE_100,
-	SAMPLE_RATE_50,
-	SAMPLE_RATE_12_5,
-	SAMPLE_RATE_6_25,
-	SAMPLE_RATE_1_56,
+	MMA845X_ODR_800		=	0,	
+	MMA845X_ODR_400,
+	MMA845X_ODR_200,
+	MMA845X_ODR_100,
+	MMA845X_ODR_50,
+	MMA845X_ODR_12_5,
+	MMA845X_ODR_6_25,
+	MMA845X_ODR_1_56,
 };
 struct mma845x_chip_params {
-	u8 mode;
-	u8 sample_rate_hz;
+	u8 fs_sel;
+	u8 odr_sel;
 	u8 state;
 };
 struct mm845x_driver_data {
@@ -165,7 +165,7 @@ static int mma845x_set_state(struct mm845x_driver_data *pdata, u8 state){
 	s32 value = 0;
 	flush_work_sync(&pdata->work);
 	switch (state){
-	case MMA_STANDBY:
+	case MMA845X_STANDBY:
 		// mma845x_write_data(pdata->client, MMA845X_CTRL_REG4, 0x00 );
 		value = mma845x_read_data(pdata->client, MMA845X_CTRL_REG1);
 		value = ((value& 0xFE)|state);
@@ -174,7 +174,7 @@ static int mma845x_set_state(struct mm845x_driver_data *pdata, u8 state){
 			pdata->params.state = state;
 		
 		break;
-	case MMA_ACTIVED:
+	case MMA845X_ACTIVE:
 		//mma845x_write_data(pdata->client, MMA845X_CTRL_REG4, 0x01 );
 		value = mma845x_read_data(pdata->client, MMA845X_CTRL_REG1);
 		value = ((value& 0xFE)|state);
@@ -193,14 +193,14 @@ static int mma845x_set_sample_rate(struct mm845x_driver_data *pdata,u8 rate){
 	int res = -EINVAL;
 	u8 value = 0 ;
 	switch(rate){
-		case SAMPLE_RATE_1_56:
-		case SAMPLE_RATE_6_25:
-		case SAMPLE_RATE_12_5:
-		case SAMPLE_RATE_50:
-		case SAMPLE_RATE_100:
-		case SAMPLE_RATE_200:
-		case SAMPLE_RATE_400:
-		case SAMPLE_RATE_800:
+		case MMA845X_ODR_1_56:
+		case MMA845X_ODR_6_25:
+		case MMA845X_ODR_12_5:
+		case MMA845X_ODR_50:
+		case MMA845X_ODR_100:
+		case MMA845X_ODR_200:
+		case MMA845X_ODR_400:
+		case MMA845X_ODR_800:
 	
 			value = mma845x_read_data(pdata->client, MMA845X_CTRL_REG1);
 			
@@ -209,7 +209,7 @@ static int mma845x_set_sample_rate(struct mm845x_driver_data *pdata,u8 rate){
 			res = mma845x_write_data(pdata->client, MMA845X_CTRL_REG1,value);
 			
 			if(!res){
-				pdata->params.sample_rate_hz = rate;
+				pdata->params.odr_sel = rate;
 			}
 		break;
 		default:
@@ -221,14 +221,14 @@ static int mma845x_set_mode(struct mm845x_driver_data *pdata, u8 mode){
 	int res = -EINVAL;
 	u8 value = 0;
 	switch(mode){
-		case MODE_2G:
-		case MODE_4G:
-		case MODE_8G:
+		case MMA845X_FS_2G:
+		case MMA845X_FS_4G:
+		case MMA845X_FS_8G:
 			value = mma845x_read_data(pdata->client,MMA845X_XYZ_DATA_CFG);
 			value = ((value & MMA845X_MODE_BITS)| (mode));
 			res = mma845x_write_data(pdata->client, MMA845X_XYZ_DATA_CFG,value);
 			if(!res){
-				pdata->params.mode = mode;
+				pdata->params.fs_sel = mode;
 			}
 		break;
 		default:
@@ -242,9 +242,9 @@ static int mma845x_init_chip(struct mm845x_driver_data * pdata){
 	mma845x_write_data(pdata->client, MMA845X_CTRL_REG2, 0x40);
 	while((mma845x_read_data(pdata->client, MMA845X_CTRL_REG2)&0x40));
 	//set primary parameters
-	mma845x_set_state(pdata,MMA_STANDBY);
-	mma845x_set_sample_rate(pdata,SAMPLE_RATE_50);
-	mma845x_set_state(pdata,MODE_2G);
+	mma845x_set_state(pdata, MMA845X_STANDBY);
+	mma845x_set_sample_rate(pdata, MMA845X_ODR_50);
+	mma845x_set_state(pdata, MMA845X_FS_2G);
 	
 	mma845x_write_data(pdata->client, MMA845X_CTRL_REG3, 0x00);
 	//enable INTERRUPT ENABLE DATA READY
@@ -263,7 +263,7 @@ static char * mma845x_id2name(u8 id){
 	return mma845x_names[index];
 }
 
-static ssize_t mma845x_sample_rate_hz_store(struct device *dev,
+static ssize_t mma845x_odr_store(struct device *dev,
 				    						struct device_attribute *attr,
 				    						const char *buf, 
 				    						size_t count){
@@ -273,53 +273,53 @@ static ssize_t mma845x_sample_rate_hz_store(struct device *dev,
 	u8 current_state = pdata->params.state;
 	rate = simple_strtoul(buf, NULL, 10);
 	mutex_lock(&pdata->data_lock);
-	mma845x_set_state(pdata,MMA_STANDBY);
+	mma845x_set_state(pdata,MMA845X_STANDBY);
 	mma845x_set_sample_rate(pdata,rate);
 	mma845x_set_state(pdata,current_state);
 	mutex_unlock(&pdata->data_lock);
 	return count;
 }
-static ssize_t mma845x_sample_rate_hz_show(	struct device *dev,
+static ssize_t mma845x_odr_show(	struct device *dev,
 				   							struct device_attribute *attr, 
 				   							char *buf	){
 	//struct input_dev *input_dev = to_input_dev(dev);
 	struct mm845x_driver_data *pdata = dev_get_drvdata(dev);
-	int sample_rate_hz = 0;
+	int odr_sel = 0;
 	mutex_lock(&pdata->data_lock);
-	sample_rate_hz = (int) pdata->params.sample_rate_hz;
+	odr_sel = (int) pdata->params.odr_sel;
 	mutex_unlock(&pdata->data_lock);
 
-	return sprintf(buf,"%s\n",mma845x_rate_names[sample_rate_hz]);
+	return sprintf(buf,"%s\n",mma845x_rate_names[odr_sel]);
 }
-static ssize_t mma845x_mode_g_store(struct device *dev,
+static ssize_t mma845x_fs_mode_g_store(struct device *dev,
 				    				struct device_attribute *attr,
 				    				const char *buf, 
 				    				size_t count	){
 	//struct input_dev *input_dev = to_input_dev(dev);
 	struct mm845x_driver_data *pdata = dev_get_drvdata(dev);
-	unsigned long mode;
+	unsigned long fs_sel;
 	u8 current_state = pdata->params.state;
-	mode = simple_strtoul(buf, NULL, 10);
+	fs_sel = simple_strtoul(buf, NULL, 10);
 	mutex_lock(&pdata->data_lock);
-	mma845x_set_state(pdata,MMA_STANDBY);
-	mma845x_set_mode(pdata,mode);
+	mma845x_set_state(pdata,MMA845X_STANDBY);
+	mma845x_set_mode(pdata,fs_sel);
 	mma845x_set_state(pdata,current_state);
 	mutex_unlock(&pdata->data_lock);
 
 	return count;
 }
-static ssize_t mma845x_mode_g_show(	struct device *dev,
+static ssize_t mma845x_fs_mode_g_show(	struct device *dev,
 									struct device_attribute *attr, 
 									char *buf	){
 	//struct input_dev *input_dev = to_input_dev(dev);
 	struct mm845x_driver_data *pdata = dev_get_drvdata(dev);
-	int mode;
+	int fs_sel;
 	mutex_lock(&pdata->data_lock);
-	mode = (int) pdata->params.mode;
+	fs_sel = (int) pdata->params.fs_sel;
 	mutex_unlock(&pdata->data_lock);
-	return sprintf(buf,"%s\n",mma845x_modes_names[mode]);
+	return sprintf(buf,"%s\n",mma845x_modes_names[fs_sel]);
 }
-static ssize_t mma845x_enable_store(struct device *dev,
+static ssize_t mma845x_state_store(struct device *dev,
 				    				struct device_attribute *attr,
 				    				const char *buf, 
 				    				size_t count	){
@@ -327,14 +327,14 @@ static ssize_t mma845x_enable_store(struct device *dev,
 	struct mm845x_driver_data *pdata = dev_get_drvdata(dev);
 	unsigned long enable;
 	enable = simple_strtoul(buf, NULL, 10);
-	enable = (enable > 0) ? MMA_ACTIVED : MMA_STANDBY;
+	enable = (enable > 0) ? MMA845X_ACTIVE : MMA845X_STANDBY;
 	mutex_lock(&pdata->data_lock);
 	mma845x_set_state(pdata,enable);
 	mutex_unlock(&pdata->data_lock);
 	return count;
 
 }
-static ssize_t mma845x_enable_show(struct device *dev,
+static ssize_t mma845x_state_show(struct device *dev,
 									struct device_attribute *attr, 
 									char *buf	){
 	//struct input_dev *input_dev = to_input_dev(dev);
@@ -347,14 +347,14 @@ static ssize_t mma845x_enable_show(struct device *dev,
 
 }
 
-static DEVICE_ATTR(sample_rate_hz, S_IRUGO|S_IWUSR|S_IWGRP,mma845x_sample_rate_hz_show,mma845x_sample_rate_hz_store);
-static DEVICE_ATTR(mode_g, S_IRUGO|S_IWUSR|S_IWGRP,mma845x_mode_g_show,mma845x_mode_g_store);
-static DEVICE_ATTR(enable_device, S_IRUGO|S_IWUSR|S_IWGRP,mma845x_enable_show,mma845x_enable_store);
+static DEVICE_ATTR(odr_selection, S_IRUGO|S_IWUSR|S_IWGRP,mma845x_odr_show,mma845x_odr_store);
+static DEVICE_ATTR(fs_selection, S_IRUGO|S_IWUSR|S_IWGRP,mma845x_fs_mode_g_show,mma845x_fs_mode_g_store);
+static DEVICE_ATTR(state, S_IRUGO|S_IWUSR|S_IWGRP,mma845x_state_show,mma845x_state_store);
 
 static struct attribute *mma845x_attributes[] = {
-	&dev_attr_sample_rate_hz.attr,
-	&dev_attr_mode_g.attr,
-	&dev_attr_enable_device.attr,
+	&dev_attr_odr_selection.attr,
+	&dev_attr_fs_selection.attr,
+	&dev_attr_state.attr,
 	NULL
 };
 
@@ -366,9 +366,9 @@ static int mma845x_input_open(struct input_dev *dev)
 {
 
 	struct mm845x_driver_data *pdata = input_get_drvdata(dev);
-	if(pdata->params.state == MMA_STANDBY){
+	if(pdata->params.state == MMA845X_STANDBY){
 		mutex_lock(&pdata->data_lock);
-		mma845x_set_state(pdata,MMA_ACTIVED);
+		mma845x_set_state(pdata,MMA845X_ACTIVE);
 		mutex_unlock(&pdata->data_lock);
 	}
 
@@ -379,10 +379,10 @@ static void mma845x_input_close(struct input_dev *dev)
 {
 
 	struct mm845x_driver_data *pdata = input_get_drvdata(dev);
-	if(pdata->params.state == MMA_ACTIVED)
+	if(pdata->params.state == MMA845X_ACTIVE)
 	{
 		mutex_lock(&pdata->data_lock);
-		mma845x_set_state(pdata,MMA_STANDBY);
+		mma845x_set_state(pdata,MMA845X_STANDBY);
 		mutex_unlock(&pdata->data_lock);
 	}
 }
@@ -455,42 +455,49 @@ static long mma845x_misc_ioctl(struct file *file, unsigned int cmd, unsigned lon
 
 		break;
 		case MMA845X_IOCTL_GET_STATE:
+			mutex_lock(&pdata->data_lock);
 			tmp = (int) pdata->params.state;
+			mutex_unlock(&pdata->data_lock);
+
 			if (copy_to_user(argp, &tmp, sizeof(tmp)))
 					return -EFAULT;
 		break;
-		case MMA845X_IOCTL_SET_MODEG:
+		case MMA845X_IOCTL_SET_FS_MODEG:
 		{
 			u8 current_state = pdata->params.state;
 			if (copy_from_user(argp, &tmp, sizeof(tmp)))
 						return -EFAULT;
 			mutex_lock(&pdata->data_lock);
-			mma845x_set_state(pdata,MMA_STANDBY);
+			mma845x_set_state(pdata,MMA845X_STANDBY);
 			mma845x_set_mode(pdata,tmp);
 			mma845x_set_state(pdata,current_state);
 			mutex_unlock(&pdata->data_lock);
 			break;
 		}
-		case MMA845X_IOCTL_GET_MODEG:
-			tmp = (int) pdata->params.mode;
+		case MMA845X_IOCTL_GET_FS_MODEG:
+			mutex_lock(&pdata->data_lock);
+			tmp = (int) pdata->params.fs_sel;
+			mutex_unlock(&pdata->data_lock);
 			if (copy_to_user(argp, &tmp, sizeof(tmp)))
 					return -EFAULT;
 
 		break;
-		case MMA845X_IOCTL_SET_SAMPLE_RATE:
+		case MMA845X_IOCTL_SET_ODR:
 		{
 			u8 current_state = pdata->params.state;
 			if (copy_from_user(argp, &tmp, sizeof(tmp)))
 						return -EFAULT;
 			mutex_lock(&pdata->data_lock);
-			mma845x_set_state(pdata,MMA_STANDBY);
+			mma845x_set_state(pdata,MMA845X_STANDBY);
 			mma845x_set_sample_rate(pdata,tmp);
 			mma845x_set_state(pdata,current_state);
 			mutex_unlock(&pdata->data_lock);
 		break;
 		}
-		case  MMA845X_IOCTL_GET_SAMPLE_RATE:
-			tmp = (int) pdata->params.sample_rate_hz;
+		case  MMA845X_IOCTL_GET_ODR:
+			mutex_lock(&pdata->data_lock);
+			tmp = (int) pdata->params.odr_sel;
+			mutex_unlock(&pdata->data_lock);
 			if (copy_to_user(argp, &tmp, sizeof(tmp)))
 					return -EFAULT;
 		break;
@@ -640,7 +647,7 @@ static int __devexit mma845x_remove(struct i2c_client *client)
 {
 	struct mm845x_driver_data *pdata = i2c_get_clientdata(client);
 	if(pdata){
-		mma845x_set_state(pdata,MMA_STANDBY);
+		mma845x_set_state(pdata,MMA845X_STANDBY);
 		input_unregister_device(pdata->input_dev);
 		free_irq(pdata->irq, pdata);
 		input_free_device(pdata->input_dev);
