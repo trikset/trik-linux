@@ -57,14 +57,17 @@ static void hcsr04_echo_worker(struct work_struct *work){
 			input_report_abs(drv_data->input_dev, ABS_DISTANCE, drv_data->irq_data.dist_mm);
 			input_report_abs(drv_data->input_dev, ABS_MISC, drv_data->irq_data.time_us);
 			input_sync(drv_data->input_dev);
+#if 0
 			retval = 60 - retval;
+#endif
 		} 
-	}else {
+	}
+#if 0
+	else {
 		retval = 10;
 	}
-
-	schedule_delayed_work (&drv_data->echo_work,msecs_to_jiffies(retval));	
-	//enable_irq(drv_data->irq);
+#endif 
+	schedule_delayed_work (&drv_data->echo_work,msecs_to_jiffies(10));	
 }
 static int hcsr04_open(struct input_dev *dev)
 {
@@ -180,7 +183,7 @@ static struct platform_device_id hcsr04_ids[] = {
 	{ }
 };
 #define DRV_NAME 		"hcsr04"
-#define DRV_VERSION 	"0.1"
+#define DRV_VERSION 	"0.2"
 
 static struct platform_driver hcsr04_driver = {
 	.probe		= hcsr04_probe,
