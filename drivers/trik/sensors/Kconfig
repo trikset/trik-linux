@@ -1,0 +1,3 @@
+config HCSR04
+	tristate "HCSR04 ultrasonic driver"
+	default n

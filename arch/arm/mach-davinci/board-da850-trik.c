@@ -42,8 +42,6 @@
 #include <linux/l3g42xxd.h>
 
 
-
-
 static const short da850_trik_uart0_pins[] __initconst = {
 	DA850_UART0_RXD, DA850_UART0_TXD,
 	DA850_NUART0_CTS, DA850_NUART0_RTS,
@@ -222,75 +220,7 @@ static __init int da850_trik_sd0_init(void)
 
 
 
-#warning Rework jd1_jd2 hack
-#if 1
-static int jd1_jd2 = 1; // '1' - gy-80; '0' - bwsensor
 
-EXPORT_SYMBOL (jd1_jd2);
-static int __init set_jd1_d2(char *str)
-{
-	if (!strcasecmp(str,"gy-80"))
-		jd1_jd2 = 1;
-	else if (!strcasecmp(str,"bwsensor"))
-		jd1_jd2 = 0;
-	else 
-		return 1;
-	return 0;
-}
-
-__setup("trik.jd1_jd2=", set_jd1_d2);
-
-/* JD1 & JD2 pins init */
-
-static const short jd1_jd2_pins[] = {
-	DA850_GPIO3_3,	/*D1A*/
-	DA850_GPIO3_2,	/*D1B*/
-	DA850_GPIO3_5,	/*D2B*/
-	DA850_GPIO3_1,	/*D2A*/
-	-1
-};
-
-#warning TODO rework required, generic solution for gpio pins mixup should be implemented
-static void trik_jd1_jd2_init(bool _pullUp)
-{
-	u32 cfg_pupdsel = 0;
-	u32 cfg_pupdena = 0;
-	int ret = 0;
-
-	cfg_pupdsel = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL_REG));
-	if (_pullUp)
-		cfg_pupdsel |= 0x020000;
-	else
-		cfg_pupdsel &= ~0x020000;
-	__raw_writel(cfg_pupdsel, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_SEL_REG));
-
-	cfg_pupdena = __raw_readl(DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA_REG));
-	cfg_pupdena |= 0x020000;
-	__raw_writel(cfg_pupdena, DA8XX_SYSCFG1_VIRT(DA8XX_PUPD_ENA_REG));
-
-	ret = davinci_cfg_reg_list(jd1_jd2_pins);
-	if (ret) {
-		pr_err("%s: trik_sensor pinmux setup failed: %d\n",
-			__func__, ret);
-		return;
-	}
-
-	ret = gpio_request_one(GPIO_TO_PIN(3, 3), GPIOF_OUT_INIT_LOW, "D1A");
-	ret = gpio_request_one(GPIO_TO_PIN(3, 1), GPIOF_OUT_INIT_LOW, "D2A");
-
-	ret = gpio_request_one(GPIO_TO_PIN(3, 2), GPIOF_IN, "D1B");
-	ret = gpio_request_one(GPIO_TO_PIN(3, 5), GPIOF_IN, "D2B");
-
-	gpio_export(GPIO_TO_PIN(3, 1),1);
-	gpio_export(GPIO_TO_PIN(3, 2),1);
-
-	gpio_export(GPIO_TO_PIN(3, 3),1);
-	gpio_export(GPIO_TO_PIN(3, 5),1);
-}
-
-static struct i2c_board_info __initdata da850_trik_i2c0_jd1_jd2_devices[] = {
-};
-#endif
 
 static struct i2c_board_info __initdata da850_trik_i2c0_devices[] = {
 };
@@ -308,25 +238,11 @@ static __init int da850_trik_i2c0_init(void)
 	if (ret) {
 		pr_err("%s: I2C0 pinmux setup failed: %d\n", __func__, ret);
 	}
-
-#warning Rework jd1_jd2 hack
-#if 1
-	if (jd1_jd2) {
-		trik_jd1_jd2_init(true);
-		ret = i2c_register_board_info(1,da850_trik_i2c0_jd1_jd2_devices,ARRAY_SIZE(da850_trik_i2c0_jd1_jd2_devices));
-		if (ret){
-			pr_err("%s: I2C0(jd1_jd2) register board info failed: %d\n", __func__, ret);
-			return ret;
-		}
-	} else {
-		ret = i2c_register_board_info(1, da850_trik_i2c0_devices, ARRAY_SIZE(da850_trik_i2c0_devices));
-		if (ret) {
-			pr_err("%s: I2C0 register board info failed: %d\n", __func__, ret);
-			return ret;
-		}
+	ret = i2c_register_board_info(1, da850_trik_i2c0_devices, ARRAY_SIZE(da850_trik_i2c0_devices));
+	if (ret) {
+		pr_err("%s: I2C0 register board info failed: %d\n", __func__, ret);
+		return ret;
 	}
-#endif
-
 	ret = da8xx_register_i2c(0, &da850_trik_i2c0_pdata);
 	if (ret) {
 		pr_err("%s: I2C0 register failed: %d\n", __func__, ret);
@@ -1360,140 +1276,7 @@ static __init int da850_trik_buffer_clk_init(void)
 	return 0;
 }
 
-static const short da850_trik_ehrpwm0_pins[] __initconst = {
-	/* DA850_EHRPWM0_A conflicts with SPI0 */
-	DA850_EHRPWM0_B,
-	DA850_GPIO2_5,	/*PE0_EN*/
-	-1
-};
 
-static const short da850_trik_ehrpwm1_pins[] __initconst = {
-	DA850_EHRPWM1_A,
-	DA850_EHRPWM1_B,
-	DA850_GPIO2_3,	/*PE1_EN*/
-	-1
-};
-
-static __init int da850_trik_ehrpwm_init(void)
-{
-	int ret;
-	char mask = 0;
-
-	ret = davinci_cfg_reg_list(da850_trik_ehrpwm0_pins);
-	if (ret) {
-		pr_err("%s: ehrpwm0 pinmux setup failed: %d\n", __func__, ret);
-		return ret;
-	}
-	mask |=  BIT(1);
-	ret = gpio_request_one(GPIO_TO_PIN(2,5),
-	                       GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED,
-	                       "PE0_EN");
-	if (ret) {
-		pr_err("%s: PE0_EN gpio request failed: %d\n",__func__, ret);
-		goto request_pe0_en_failed;
-	}
-
-	ret = davinci_cfg_reg_list(da850_trik_ehrpwm1_pins);
-	if (ret) {
-		pr_err("%s: ehrpwm1 pinmux setup failed: %d\n", __func__, ret);
-		goto cfg_reg_ehrpwm1_failed;
-	}
-	mask |= BIT(2) | BIT(3);
-	ret = gpio_request_one(GPIO_TO_PIN(2,3),
-	                       GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED,
-	                       "PE1_EN");
-	if (ret) {
-		pr_err("%s: PE1_EN gpio request failed: %d\n",__func__, ret);
-		goto request_pe1_en_failed;
-	}
-
-	da850_register_ehrpwm(mask);
-	return 0;
-
-	// gpio_free(GPIO_TO_PIN(2,3));
-request_pe1_en_failed:
-cfg_reg_ehrpwm1_failed:
-	gpio_free(GPIO_TO_PIN(2,5));
-request_pe0_en_failed:
-	return ret;
-}
-
-static int ecap = 1; // '1' - PWM; '0' - ECAp
-
-EXPORT_SYMBOL (ecap);
-static int __init set_ecap(char *str)
-{
-	if (!strcasecmp(str,"pwm"))
-		ecap = 1;
-	else if (!strcasecmp(str,"ecap"))
-		ecap = 0;
-	else 
-		return 1;
-	return 0;
-}
-
-__setup("trik.jcx=", set_ecap);
-
-static const short da850_trik_cap_pins[] __initconst = {
-	DA850_ECAP0_APWM0,
-	DA850_ECAP1_APWM1,
-	DA850_ECAP2_APWM2,
-	DA850_GPIO2_4/*PC_EN*/,
-	-1
-};
-static __init int da850_trik_cap_apwm_init(void){
-	int ret;
-	ret = davinci_cfg_reg_list(da850_trik_cap_pins);
-	if (ret){
-		pr_err("%s: cap pinmux setup failed: %d\n", __func__, ret);
-		goto cfg_reg_cap_failed;
-	}
-	ret =  gpio_request_one(GPIO_TO_PIN(2,4),GPIOF_OUT_INIT_HIGH,"PC_EN");
-	if (ret){
-		pr_err("%s: PC_EN gpio request failed: %d\n",__func__, ret);
-		goto request_pc_en_failed;
-	}
-	ret = gpio_export(GPIO_TO_PIN(2,4),1);
-	if (ret){
-		pr_err("%s: PC_EN gpio export failed: %d\n",__func__, ret);
-		goto export_pc_en_failed;
-	}
-	if (ecap){
-		ret = da850_register_ecap(0);
-		if (ret){
-			pr_warning("%s: register ecap.pwm 0 failed: %d\n",__func__, ret);
-		}
-		ret = da850_register_ecap(1);
-		if (ret){
-			pr_warning("%s: register ecap.pwm 1 failed: %d\n",__func__, ret);
-		}
-		ret = da850_register_ecap(2);
-		if (ret){
-			pr_warning("%s: register ecap.pwm 2 failed: %d\n",__func__, ret);
-		}
-	}
-	else
-	{
-		ret = da850_register_ecap_cap(0);
-		if (ret){
-			pr_warning("%s: register ecap.cpwm 0 failed: %d\n",__func__, ret);
-		}
-		ret = da850_register_ecap_cap(1);
-		if (ret){
-			pr_warning("%s: register ecap.cpwm 1 failed: %d\n",__func__, ret);
-		}
-		ret = da850_register_ecap_cap(2);
-		if (ret){
-			pr_warning("%s: register ecap.cpwm 2 failed: %d\n",__func__, ret);
-		}
-	}
-	return 0;
-export_pc_en_failed:
-	gpio_free(GPIO_TO_PIN(2,4));
-request_pc_en_failed:
-cfg_reg_cap_failed:
-	return ret;
-}
 static const short da850_trik_pwr_con_pins[] __initconst = {
 	DA850_GPIO5_9,
 	DA850_GPIO5_14,
@@ -1529,105 +1312,12 @@ request_pwr_con_failed:
 cfg_reg_pwr_con_failed:
 	return ret;
 }	
-
-
-
-
-#warning TODO temporary proximity sensor driver code
-static ssize_t trik_sensor_d1_read(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	//DA850_GPIO3_3,	/*D1A*/
-	//DA850_GPIO3_2,	/*D1B*/
-	struct timespec start, end, diff;
-	gpio_direction_output(GPIO_TO_PIN(3, 3), 1);
-	udelay(1000);
-	gpio_direction_output(GPIO_TO_PIN(3, 3), 0);
-
-	getnstimeofday(&start);
-	do {
-		getnstimeofday(&end);
-		diff = timespec_sub(end, start);
-	} while (gpio_get_value(GPIO_TO_PIN(3, 2)) && diff.tv_sec == 0);
-
-	return sprintf(buf,"%lu\n", diff.tv_sec==0 ? diff.tv_nsec : 0);
-}
-static ssize_t trik_sensor_d2_read(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	//DA850_GPIO3_1,	/*D2A*/
-	//DA850_GPIO3_5,	/*D2B*/
-	struct timespec start, end, diff;
-	gpio_direction_output(GPIO_TO_PIN(3, 1), 1);
-	udelay(1000);
-	gpio_direction_output(GPIO_TO_PIN(3, 1), 0);
-
-	getnstimeofday(&start);
-	do {
-		getnstimeofday(&end);
-		diff = timespec_sub(end, start);
-	} while (gpio_get_value(GPIO_TO_PIN(3, 5)) && diff.tv_sec == 0);
-
-	return sprintf(buf,"%lu\n", diff.tv_sec==0 ? diff.tv_nsec : 0);
-}
-
-static const DEVICE_ATTR(sensor_d1,	(S_IRUSR|S_IRGRP|S_IROTH), trik_sensor_d1_read, NULL);
-static const DEVICE_ATTR(sensor_d2,	(S_IRUSR|S_IRGRP|S_IROTH), trik_sensor_d2_read,   NULL);
-
-static const struct attribute *da850_trik_bwsensor_attrs[] = {
-	&dev_attr_sensor_d1.attr,
-	&dev_attr_sensor_d2.attr,
-	NULL,
-};
-
-static const struct attribute_group da850_trik_bwsensor_attrs_group = {
-	.attrs = (struct attribute **) da850_trik_bwsensor_attrs,
-};
-static int __devinit da850_trik_bwsensor_probe(struct platform_device *pdev)
-{
-	int ret;
-	ret = sysfs_create_group(&pdev->dev.kobj, &da850_trik_bwsensor_attrs_group);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Unable to export da850_trik bwsensor attrs, "
-			            "error: %d\n", ret);
-		platform_set_drvdata(pdev, NULL);
-		return ret;
-	}
-	trik_jd1_jd2_init(false);
+#warning Temporary ehrpwm module sync clocks 
+static __init int da850_trik_port_configuration(void){
+	__raw_writew(__raw_readw(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG)) | BIT(12),
+							 DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP1_REG));
 	return 0;
 }
-
-static int __devexit da850_trik_bwsensor_remove(struct platform_device *pdev)
-{
-	sysfs_remove_group(&pdev->dev.kobj, &da850_trik_bwsensor_attrs_group);
-	platform_set_drvdata(pdev, NULL);
-	return 0;
-}
-
-static struct platform_driver da850_trik_bwsensor_driver = {
-	.probe		= da850_trik_bwsensor_probe,
-	.remove		= __devexit_p(da850_trik_bwsensor_remove),
-	.driver		= {
-		.name	= "da850_trik",
-		.owner	= THIS_MODULE,
-	},
-};
-
-static struct platform_device da850_trik_bwsensor_device = {
-	.name		= "da850_trik",
-	.id		= -1,
-	.num_resources	= 0,
-};
-
-module_platform_driver(da850_trik_bwsensor_driver);
-
-static __init int da850_trik_bwsensor_init(void)
-{
-	return platform_device_register(&da850_trik_bwsensor_device);
-};
-
-
-
-
-
 static __init void da850_trik_init(void)
 {
 	int ret;
@@ -1719,27 +1409,15 @@ static __init void da850_trik_init(void)
 	ret = da850_trik_gpio_extra_init();
 	if (ret)
 		pr_warning("%s: gpio_extra init failed: %d\n", __func__, ret);
-
-	ret = da850_trik_cap_apwm_init();
+	
+	ret = da850_trik_port_configuration();
 	if (ret)
-		pr_warning("%s: cap apwm init failed: %d\n", __func__, ret);
-
-	ret = da850_trik_ehrpwm_init();
-	if (ret)
-		pr_warning("%s: ehrpwm init failed: %d\n", __func__, ret);
-
+		pr_warning("%s: trik_port_configuration init failed: %d\n", __func__, ret);
+	
 	ret = da850_trik_pwr_con_init();
 	if (ret)
 		pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
-
-#warning TODO vpif
-
-	if (!jd1_jd2){
-		ret = da850_trik_bwsensor_init();
-		if (ret){
-			pr_warning("%s: bwsensor init failed: %d\n", __func__, ret);
-		}
-	}
+	
 }
 
 #warning Somehow, ttyS1 console seems to be initialized from somewhere else. To be investigated.

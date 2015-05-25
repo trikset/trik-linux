@@ -1,0 +1,4 @@
+
+config TRIK_JD1_HCSR04
+	tristate "Trik JD1 port platform driver for hcsr04 driver"
+	default n
