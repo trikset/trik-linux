@@ -62,6 +62,11 @@ static void hcsr04_echo_worker(struct work_struct *work){
 #endif
 		} 
 	}
+	else {
+		input_report_abs(drv_data->input_dev, ABS_DISTANCE, -1);
+		input_report_abs(drv_data->input_dev, ABS_MISC, -1);
+		input_sync(drv_data->input_dev);
+	}
 #if 0
 	else {
 		retval = 10;
@@ -72,7 +77,7 @@ static void hcsr04_echo_worker(struct work_struct *work){
 static int hcsr04_open(struct input_dev *dev)
 {
 	struct hcsr04_drvdata *drv_data = input_get_drvdata(dev);
-	enable_irq(drv_data->irq);
+	//enable_irq(drv_data->irq);
 	schedule_delayed_work(&drv_data->echo_work,msecs_to_jiffies(0));
     return 0;
 }
@@ -80,7 +85,7 @@ static int hcsr04_open(struct input_dev *dev)
 static void hcsr04_close(struct input_dev *dev)
 {
 	struct hcsr04_drvdata *drv_data = input_get_drvdata(dev);
-	disable_irq(drv_data->irq);
+	//disable_irq(drv_data->irq);
 	cancel_delayed_work_sync(&drv_data->echo_work);
 }
 static int hcsr04_probe(struct platform_device *pdev)
@@ -137,7 +142,7 @@ static int hcsr04_probe(struct platform_device *pdev)
   
 	ret = request_irq(drv_data->irq, 
 						hcsr04_irq_callback,
-						(IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING|IRQF_DISABLED),
+						(IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING),
 						drv_data->platform_device->name,
 						drv_data);
 	if (ret){
