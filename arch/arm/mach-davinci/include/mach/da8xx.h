@@ -104,9 +104,15 @@ int da8xx_register_cpuidle(void);
 void __iomem * __init da8xx_get_mem_ctlr(void);
 int __init da850_register_pm(struct platform_device *pdev);
 int __init da850_register_sata(unsigned long refclkpn);
+#if 0
 void __init da850_register_ehrpwm(unsigned int mask);
 int __init da850_register_ecap(int instance);
 int __init da850_register_ecap_cap(int instance);
+
+int __init da850_register_ecap(int instance);
+int __init da850_register_ecap_cap(int instance);
+#endif
+
 int __init da850_register_vpif(void);
 int __init da850_register_vpif_capture(struct vpif_capture_config *capture_config);
 void da8xx_restart(char mode, const char *cmd);

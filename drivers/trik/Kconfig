@@ -1,0 +1,22 @@
+#
+# Platform device specific infrastructure for Trik jacks 
+#
+menuconfig TRIK_PLATFORM_DEVICES
+	tristate "Trik platfrom drivers for specific ports"if EXPERT
+	default n
+
+if TRIK_PLATFORM_DEVICES
+
+comment "Ports"
+
+source "drivers/trik/jd1/Kconfig"
+source "drivers/trik/jd2/Kconfig"
+source "drivers/trik/jf1/Kconfig"
+source "drivers/trik/jcx/Kconfig"
+source "drivers/trik/jex/Kconfig"
+comment "Sensors"
+
+source "drivers/trik/sensors/Kconfig"
+
+endif
+	

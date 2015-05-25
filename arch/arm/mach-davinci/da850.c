@@ -603,6 +603,7 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, NEMA_CS_2,	7,	0,	15,	1,	false)
 	/* GPIO function */
 	MUX_CFG(DA850, GPIO0_0,		1,	28,	15,	8,	false)
+	MUX_CFG(DA850, GPIO0_11,	0,	16,	15,	8,	false)
 	MUX_CFG(DA850, GPIO0_13,	0,	8,	15,	8,	false)
 	MUX_CFG(DA850, GPIO1_1,		4,	24,	15,	8,	false)
 	MUX_CFG(DA850, GPIO1_7,		4,	0,	15,	4,	false)
@@ -1207,7 +1208,8 @@ no_ddrpll_mem:
 	iounmap(pdata->cpupll_reg_base);
 	return ret;
 }
-
+#warning Ecap and Ehrpwm platform device register moved into port configuration
+#if 0
 #define DA8XX_EHRPWM0_BASE	0x01F00000
 static struct resource da850_ehrpwm0_resource[] = {
 	{
@@ -1295,7 +1297,9 @@ void __init da850_register_ehrpwm(unsigned int mask)
 			pr_warning("da850_evm_init: eHRPWM module1 registration failed\n");
 	}
 }
+#endif
 
+#if 0
 #define DA8XX_ECAP0_BASE	0x01F06000
 static struct resource da850_ecap0_resource[] = {
 	{
@@ -1399,6 +1403,7 @@ int __init da850_register_ecap_cap(int instance)
 		default:	return -EINVAL;
 	}
 }
+#endif
 
 /* VPIF resource, platform data */
 static u64 da850_vpif_dma_mask = DMA_BIT_MASK(32);
