@@ -1171,7 +1171,7 @@ static int s_da850_trik_power_level = 1;
 static int __init da850_trik_power_level_cmdline(char *str)
 {
 	if (!strcasecmp(str,"6V"))
-		s_da850_trik_wifi_enable = 0;
+		s_da850_trik_power_level = 0;
 	else if (!strcasecmp(str,"12V"))
 		s_da850_trik_power_level = 1;
 	else
