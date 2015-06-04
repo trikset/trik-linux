@@ -87,9 +87,9 @@ void davinci_restart(char mode, const char *cmd);
 void davinci_init_late(void);
 
 #ifdef CONFIG_DAVINCI_RESET_CLOCKS
-int davinci_clk_disable_unused(void);
+int __init davinci_clk_disable_unused(void);
 #else
-static inline int davinci_clk_disable_unused(void) { return 0; }
+static inline int __init davinci_clk_disable_unused(void) { return 0; }
 #endif
 
 #ifdef CONFIG_CPU_FREQ

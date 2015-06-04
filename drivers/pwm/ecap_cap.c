@@ -64,14 +64,15 @@ struct ecap_dev {
 	void __iomem	*mmio_base;
 };
 
-static int get_cap_value(struct ecap_dev *);
+static int get_cap_value(struct ecap_dev *ecap, short polarity);
+
 static void ecap_cap_polarity(void __iomem *base, short polarity);
 static void ecap_cap_mode(void __iomem *base, short mode);
 static int ecap_config(struct ecap_dev *ecap);
 static unsigned int get_freq(unsigned int diff, int prescale);
 static DEFINE_MUTEX(ecap_mutex);
 
-static int ecap_val[4];
+static unsigned int ecap_val[4];
 static int sys_freq;
 
 static inline unsigned int ecap_read_long(void __iomem *base, int offset)
@@ -243,10 +244,10 @@ static irqreturn_t ecap_davinci_isr(int this_irq, void *dev_id)
 {
 	struct ecap_dev *ecap = dev_id;
 
-	*ecap->ecap_ptr++ = ecap_read_long(ecap->mmio_base, CAP1);
-	*ecap->ecap_ptr++ = ecap_read_long(ecap->mmio_base, CAP2);
-	*ecap->ecap_ptr++ = ecap_read_long(ecap->mmio_base, CAP3);
-	*ecap->ecap_ptr++ = ecap_read_long(ecap->mmio_base, CAP4);
+	ecap_val[0] = ecap_read_long(ecap->mmio_base, CAP1);
+	ecap_val[1] = ecap_read_long(ecap->mmio_base, CAP2);
+	ecap_val[2] = ecap_read_long(ecap->mmio_base, CAP3);
+	ecap_val[3] = ecap_read_long(ecap->mmio_base, CAP4);
 
 	complete(&ecap->comp);
 	ecap_write_short(ecap->mmio_base, ECCLR, INT_FLAG_CLR);
@@ -284,7 +285,7 @@ static ssize_t prescale_store(struct device *dev,
 	return len;
 }
 
-static ssize_t freq_show(struct device *dev,
+static ssize_t period_freq_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct ecap_dev *ecap = dev_get_drvdata(dev);
@@ -304,7 +305,7 @@ static ssize_t freq_show(struct device *dev,
 		prescale_val *= 2;
 
 	ecap->ecap_ptr = ecap_val;
-	ret = get_cap_value(ecap);
+	ret = get_cap_value(ecap,EC_RISING);
 	mutex_unlock(&ecap_mutex);
 	if (!ret)
 		return sprintf(buf, "-1\n");
@@ -315,23 +316,58 @@ static ssize_t freq_show(struct device *dev,
 
 	return sprintf(buf, "%d,%d,%d\n", freq1, freq2, freq3);
 }
+unsigned long ticks_to_ns(unsigned long ticks)
+{
+	unsigned long long ns;
 
-static ssize_t duty_percentage_show(struct device *dev,
+	ns = ticks;
+	ns *= 1000000000UL;
+	do_div(ns, sys_freq);
+	return ns;
+}
+static ssize_t period_ns_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	int ret;
-	unsigned int diff1, diff2, duty;
+	struct ecap_dev *ecap = dev_get_drvdata(dev);
+	int prescale_val, ret;
+
+	mutex_lock(&ecap_mutex);
+	prescale_val = ecap->ecap_cap.prescale;
+
+	if (!prescale_val)
+		prescale_val = 1;
+	else
+		/*
+		 * Divides the input pwm with the prescaler
+		 * value multiplied by 2
+		 */
+		prescale_val *= 2;
+
+	ecap->ecap_ptr = ecap_val;
+	ret = get_cap_value(ecap,EC_RISING);
+	mutex_unlock(&ecap_mutex);
+	if (!ret)
+		return sprintf(buf, "-1\n");
+
+	return sprintf(buf, "%lu,%lu,%lu\n", 
+							ticks_to_ns((ecap_val[1] - ecap_val[0])/prescale_val), 
+							ticks_to_ns((ecap_val[2] - ecap_val[1])/prescale_val), 
+							ticks_to_ns((ecap_val[3] - ecap_val[2])/prescale_val));
+
+}
+static ssize_t duty_ns_show(struct device *dev,
+	struct device_attribute *attr, char *buf){
+		int ret;
+	unsigned long diff1, diff2;
 	struct ecap_dev *ecap = dev_get_drvdata(dev);
 
 	mutex_lock(&ecap_mutex);
 	/* Setting ecap register to calculate duty cycle */
-	ecap_cap_polarity(ecap->mmio_base,
-					EC_RISING_FALLING);
 	if (ecap->ecap_cap.prescale > 0)
 		ecap_prescale(ecap->mmio_base, 0);
 
 	ecap->ecap_ptr = ecap_val;
-	ret = get_cap_value(ecap);
+	ret = get_cap_value(ecap,EC_RISING_FALLING);
 
 	/* Resetting it back*/
 	ecap_cap_polarity(ecap->mmio_base, EC_RISING);
@@ -343,27 +379,60 @@ static ssize_t duty_percentage_show(struct device *dev,
 		return sprintf(buf, "-1\n");
 	diff1 = ecap_val[1] - ecap_val[0];
 	diff2 = ecap_val[2] - ecap_val[0];
-	duty = (diff1 * 100)/diff2;
+	
 
-	return sprintf(buf, "%d%%\n", duty);
+	return sprintf(buf, "%lu\n", ticks_to_ns(diff1));
+}
+static ssize_t duty_percent_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int ret;
+	unsigned int diff1, diff2;
+	
+	struct ecap_dev *ecap = dev_get_drvdata(dev);
+
+	mutex_lock(&ecap_mutex);
+	/* Setting ecap register to calculate duty cycle */
+	if (ecap->ecap_cap.prescale > 0)
+		ecap_prescale(ecap->mmio_base, 0);
+
+	ecap->ecap_ptr = ecap_val;
+	ret = get_cap_value(ecap,EC_RISING_FALLING);
+
+	/* Resetting it back*/
+	ecap_cap_polarity(ecap->mmio_base, EC_RISING);
+	if (ecap->ecap_cap.prescale)
+		ecap_prescale(ecap->mmio_base,
+				 ecap->ecap_cap.prescale);
+	mutex_unlock(&ecap_mutex);
+	if (!ret)
+		return sprintf(buf, "-1\n");
+	diff1 = ecap_val[1] - ecap_val[0];
+	diff2 = ecap_val[2] - ecap_val[0];
+	return sprintf(buf, "%d\n", (diff1 * 100)/diff2);
 }
 
-static int get_cap_value(struct ecap_dev *ecap)
+static int get_cap_value(struct ecap_dev *ecap, short polarity)
 {
 	int r = 0;
+	
 	clk_enable(ecap->clk);
+	ecap_cap_polarity(ecap->mmio_base,
+					polarity);
 	ecap_free_run(ecap->mmio_base);
 	init_completion(&ecap->comp);
 	ecap_rearm(ecap->mmio_base);
 	ecap_int_enable(ecap->mmio_base, CAP4_INT);
-
+	pr_err("ECTRL1 = 0x%x, ECTRL2 = 0x%x\n", 
+		ecap_read_short(ecap->mmio_base, ECCTL1),
+		ecap_read_short(ecap->mmio_base, ECCTL2));
 	/* Waits for interrupt to occur */
 	r = wait_for_completion_interruptible_timeout(&ecap->comp,
 							TIMEOUT*HZ);
 
 	ecap_freeze_counter(ecap->mmio_base);
 	clk_disable(ecap->clk);
-
+ 
 	return r;
 }
 
@@ -376,57 +445,24 @@ static unsigned int get_freq(unsigned int diff, int prescale)
 	return freq = sys_freq / (diff / prescale);
 }
 
-int ecap_cap_config(int instance, struct ecap_cap *ecap_cap)
-{
-	struct device *device = NULL;
-	struct ecap_dev *ecap;
-	char name[20];
-
-	scnprintf(name, sizeof name, "%s.%d", "ecap_cap", instance);
-	device = capture_request_device(name);
-	if (!device)
-		return -EINVAL;
-	ecap = dev_get_drvdata(device);
-	memcpy(&ecap->ecap_cap, ecap_cap, sizeof(*ecap_cap));
-	return ecap_config(ecap);
-}
-EXPORT_SYMBOL(ecap_cap_config);
-
-int ecap_get_cap_value(int *cap_value, int instance)
-{
-	struct device *device = NULL;
-	struct ecap_dev *ecap;
-	char name[20];
-	int ret;
-
-	scnprintf(name, sizeof name, "%s.%d", "ecap_cap", instance);
-	device = capture_request_device(name);
-	if (!device)
-		return -EINVAL;
-	ecap = dev_get_drvdata(device);
-	ecap->ecap_ptr = cap_value;
-
-	mutex_lock(&ecap_mutex);
-	ret = get_cap_value(ecap);
-	mutex_unlock(&ecap_mutex);
-	if (ret != 0)
-		ret = -EINVAL;
-
-	return ret;
-}
-EXPORT_SYMBOL(ecap_get_cap_value);
-
 static DEVICE_ATTR(config, S_IRUGO | S_IWUSR, config_show, NULL);
 static DEVICE_ATTR(prescale, S_IRUGO | S_IWUSR, prescale_show, prescale_store);
-static DEVICE_ATTR(freq, S_IRUGO | S_IWUSR, freq_show, NULL);
-static DEVICE_ATTR(duty_percentage, S_IRUGO | S_IWUSR,
-		duty_percentage_show, NULL);
+
+static DEVICE_ATTR(period_freq, S_IRUGO | S_IWUSR, period_freq_show, NULL);
+static DEVICE_ATTR(period_ns, S_IRUGO | S_IWUSR, period_ns_show, NULL);
+
+static DEVICE_ATTR(duty_percent, S_IRUGO | S_IWUSR,
+		duty_percent_show, NULL);
+static DEVICE_ATTR(duty_ns, S_IRUGO | S_IWUSR,
+		duty_ns_show, NULL);
 
 static const struct attribute *ecap_attrs[] = {
 	&dev_attr_config.attr,
 	&dev_attr_prescale.attr,
-	&dev_attr_duty_percentage.attr,
-	&dev_attr_freq.attr,
+	&dev_attr_duty_percent.attr,
+	&dev_attr_duty_ns.attr,
+	&dev_attr_period_freq.attr,
+	&dev_attr_period_ns.attr,
 	NULL,
 };
 
