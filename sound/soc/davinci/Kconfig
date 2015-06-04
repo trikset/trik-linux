@@ -81,5 +81,5 @@ config  SND_DA850_SOC_EVM
 	select SND_SOC_TLV320AIC3X
 	help
 	  Say Y if you want to add support for SoC audio on TI
-	  DA850/OMAP-L138 EVM
+	  DA850/OMAP-L138 EVM or DA850/OMAP-L138 TRIK
 

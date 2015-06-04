@@ -2258,6 +2258,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 #warning Make adapter index configurable per subdev
 	i2c_adap = i2c_get_adapter(2);
 
+	config = pdev->dev.platform_data;
+
 #warning Disabled due to missing v4l subdev support
 #if 0
 	subdev_count = config->subdev_count;

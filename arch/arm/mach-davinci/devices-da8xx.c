@@ -69,7 +69,8 @@ static struct plat_serial8250_port da8xx_serial_pdata[] = {
 		.mapbase	= DA8XX_UART0_BASE,
 		.irq		= IRQ_DA8XX_UARTINT0,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
-					UPF_IOREMAP,
+					UPF_IOREMAP | UPF_FIXED_TYPE,
+		.type		= PORT_AR7,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 	},
@@ -77,7 +78,8 @@ static struct plat_serial8250_port da8xx_serial_pdata[] = {
 		.mapbase	= DA8XX_UART1_BASE,
 		.irq		= IRQ_DA8XX_UARTINT1,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
-					UPF_IOREMAP,
+					UPF_IOREMAP | UPF_FIXED_TYPE,
+		.type		= PORT_AR7,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 	},
@@ -85,7 +87,8 @@ static struct plat_serial8250_port da8xx_serial_pdata[] = {
 		.mapbase	= DA8XX_UART2_BASE,
 		.irq		= IRQ_DA8XX_UARTINT2,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
-					UPF_IOREMAP,
+					UPF_IOREMAP | UPF_FIXED_TYPE,
+		.type		= PORT_AR7,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 	},
@@ -513,7 +516,7 @@ static struct platform_device davinci_pcm_device = {
 void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata)
 {
 	platform_device_register(&davinci_pcm_device);
-	
+
 	/* DA830/OMAP-L137 has 3 instances of McASP */
 	if (cpu_is_davinci_da830() && id == 1) {
 		da830_mcasp1_device.dev.platform_data = pdata;
@@ -684,6 +687,9 @@ static struct platform_device da8xx_rtc_device = {
 	.id             = -1,
 	.num_resources	= ARRAY_SIZE(da8xx_rtc_resources),
 	.resource	= da8xx_rtc_resources,
+	.dev = {
+		.platform_data = (void *)true,
+	},
 };
 
 int da8xx_register_rtc(void)
@@ -702,10 +708,6 @@ int da8xx_register_rtc(void)
 	iounmap(base);
 
 	ret = platform_device_register(&da8xx_rtc_device);
-	if (!ret)
-		/* Atleast on DA850, RTC is a wakeup source */
-		device_init_wakeup(&da8xx_rtc_device.dev, true);
-
 	return ret;
 }
 

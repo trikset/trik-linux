@@ -769,15 +769,18 @@ enum davinci_da850_index {
 	DA850_NUART2_RTS,
 	DA850_UART2_RXD,
 	DA850_UART2_TXD,
+
 	/* SPI0 function */
 	DA850_SPI0_SIMO,
 	DA850_SPI0_SOMI,
 	DA850_SPI0_CS_0,
 	DA850_SPI0_CLK,
+
 	/* SPI1 function */
 	DA850_SPI1_SIMO,
 	DA850_SPI1_SOMI,
 	DA850_SPI1_CLK,
+
 	/* I2C1 function */
 	DA850_I2C1_SCL,
 	DA850_I2C1_SDA,
@@ -929,6 +932,8 @@ enum davinci_da850_index {
 
 	/* GPIO function */
 	DA850_GPIO0_0,
+	DA850_GPIO0_8,
+	DA850_GPIO0_11,
 	DA850_GPIO0_13,
 	DA850_GPIO1_14,
 	DA850_GPIO1_1,
@@ -959,6 +964,7 @@ enum davinci_da850_index {
 	DA850_GPIO4_1,
 	DA850_GPIO4_9,
 	DA850_GPIO4_12,
+	DA850_GPIO5_0,
 	DA850_GPIO5_3,
 	DA850_GPIO5_4,
 	DA850_GPIO5_5,
@@ -989,19 +995,23 @@ enum davinci_da850_index {
 	DA850_GPIO8_14,
 	DA850_GPIO8_15,
 	DA850_RTC_ALARM,
+
 	/* eHRPWM0 function */
 	DA850_EHRPWM0_A,
 	DA850_EHRPWM0_B,
 	DA850_EHRPWM0_TZ,
+
 	/* eHRPWM1 function */
 	DA850_EHRPWM1_A,
 	DA850_EHRPWM1_B,
 	DA850_EHRPWM1_TZ,
+
 	/* eCAP functions */
 	DA850_ECAP0_APWM0,
 	DA850_ECAP1_APWM1,
 	DA850_ECAP2_APWM2,
- /* VPIF Capture */
+
+	/* VPIF Capture */
 	DA850_VPIF_DIN0,
 	DA850_VPIF_DIN1,
 	DA850_VPIF_DIN2,
@@ -1020,7 +1030,6 @@ enum davinci_da850_index {
 	DA850_VPIF_DIN15,
 	DA850_VPIF_CLKIN0,
 	DA850_VPIF_CLKIN1,
-
 };
 
 enum davinci_tnetv107x_index {
