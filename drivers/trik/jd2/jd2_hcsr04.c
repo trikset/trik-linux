@@ -40,19 +40,19 @@ int init_module(void)
 	int ret;
 	ret = davinci_cfg_reg_list(trik_jd2_pins);
 	if(ret){
-		pr_err("%s: trik jd1 pins failed: %d\n",__func__,ret);
+		pr_err("%s: trik jd2 pins failed: %d\n",__func__,ret);
 		goto exit_mux_failed;
 	}
 	ret = gpio_request_array(trik_jd2_gpio_array,ARRAY_SIZE(trik_jd2_gpio_array));
 	if(ret){
-		pr_err("%s: trik_jd1_gpio_array request failed\n",__func__);
+		pr_err("%s: trik_jd2_gpio_array request failed\n",__func__);
 		goto exit_gpio_request;
 	}
 
 	platform_set_drvdata(&trik_jd2_device,&trik_jd2_pdata);
 	ret = platform_device_register(&trik_jd2_device);
 	if (ret){
-		pr_err("%s: trik jd1 device register failed: %d\n",__func__,ret);
+		pr_err("%s: trik jd2 device register failed: %d\n",__func__,ret);
 		goto exit_register_failed;
 	}
 	return 0;
