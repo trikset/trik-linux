@@ -31,12 +31,12 @@ int init_module(void)
 	int ret;
 	ret = davinci_cfg_reg_list(trik_jf1_pins);
 	if(ret){
-		pr_err("%s: trik jd1 pins failed: %d\n",__func__,ret);
+		pr_err("%s: trik jf1 pins failed: %d\n",__func__,ret);
 		goto exit_mux_failed;
 	}
 	ret = gpio_request_array(trik_jf1_gpio_array,ARRAY_SIZE(trik_jf1_gpio_array));
 	if(ret){
-		pr_err("%s: trik_jd1_gpio_array request failed\n",__func__);
+		pr_err("%s: trik_jf1_gpio_array request failed\n",__func__);
 		goto exit_gpio_request;
 	}
 
