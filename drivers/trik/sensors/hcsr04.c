@@ -13,8 +13,9 @@
 #include <linux/trik-jdx.h>
 
 struct hcsr04_irq_data{
-	__kernel_time_t time_us;
-	long dist_mm;
+	ktime_t time_stamp[2];
+	int count;
+	int start;
 };
 
 struct hcsr04_drvdata {
@@ -23,62 +24,117 @@ struct hcsr04_drvdata {
 	struct platform_device* platform_device;
 	struct hcsr04_irq_data irq_data;
 	struct input_dev *input_dev;
-	
+	int cycle_period; // min 50 mS - 1000 mS
 	wait_queue_head_t wait;
-	spinlock_t lock; 
+	struct mutex mutex;
 	int irq;
 	int enable;
 };
 static irqreturn_t hcsr04_irq_callback(int irq, void *dev_id){
 	struct hcsr04_drvdata *drv_data = dev_id;
-	wake_up_interruptible(&drv_data->wait);
+	ktime_t timeStamp = ktime_get();
+	if (drv_data->irq_data.start){
+		if ( drv_data->irq_data.count < 2 )
+			drv_data->irq_data.time_stamp[drv_data->irq_data.count] = timeStamp;
+	
+		++drv_data->irq_data.count;
+		if ( drv_data->irq_data.count > 1 )
+			wake_up_interruptible(&drv_data->wait);
+	}
 	return IRQ_HANDLED;
 }
 static void hcsr04_echo_worker(struct work_struct *work){
 	struct hcsr04_drvdata *drv_data = container_of(work, struct hcsr04_drvdata, echo_work.work);
-	struct timespec start;
-	struct timespec stop;
-	struct timespec diff;
+// 	struct timespec start;
+// 	struct timespec stop;
+// 	struct timespec diff;
+	int rangeComplete = 0;      /* indicates successful range finding */
+	ktime_t elapsed_kt;			/* used to store elapsed time */
+	struct timeval elapsed_tv;  /* elapsed time as timeval */
 	int retval;
+	mutex_lock( &drv_data->mutex );
+	drv_data->irq_data.count =0;
+	drv_data->irq_data.start =0;
+	memset( &drv_data->irq_data.time_stamp, 0, sizeof(drv_data->irq_data.time_stamp) );
+	
+
 	gpio_set_value(drv_data->data->gpio_d1e,1);
+	gpio_set_value(drv_data->data->gpio_d1a,0);
+	udelay(2);
 	gpio_set_value(drv_data->data->gpio_d1a,1);
 	udelay(10);
 	gpio_set_value(drv_data->data->gpio_d1a,0);
+	
+	drv_data->irq_data.start =1;
 
-	retval =  wait_event_interruptible_timeout(drv_data->wait,gpio_get_value(drv_data->data->gpio_d1b),msecs_to_jiffies(50));
-	if (retval>1){
-		getnstimeofday(&start);
-		retval =  wait_event_interruptible_timeout(drv_data->wait,!gpio_get_value(drv_data->data->gpio_d1b),msecs_to_jiffies(50));
-		if(retval>1){
-			getnstimeofday(&stop);
-			diff = timespec_sub(stop, start);
-		 	drv_data->irq_data.time_us = diff.tv_nsec /NSEC_PER_USEC;
-		 	drv_data->irq_data.dist_mm = drv_data->irq_data.time_us/58;
-			input_report_abs(drv_data->input_dev, ABS_DISTANCE, drv_data->irq_data.dist_mm);
-			input_report_abs(drv_data->input_dev, ABS_MISC, drv_data->irq_data.time_us);
-			input_sync(drv_data->input_dev);
-#if 0
-			retval = 60 - retval;
-#endif
-		} 
+	wait_event_interruptible_timeout(
+			drv_data->wait,
+			drv_data->irq_data.count == 2,
+			msecs_to_jiffies(50));
+
+ 	rangeComplete = (drv_data->irq_data.count == 2);
+	if ( rangeComplete ) {
+		/* Calculate pulse length */
+		elapsed_kt = ktime_sub( drv_data->irq_data.time_stamp[1], drv_data->irq_data.time_stamp[0] );
+		elapsed_tv = ktime_to_timeval( elapsed_kt );
+	}
+	mutex_unlock( &drv_data->mutex );
+	
+	if ( rangeComplete ) {
+		input_report_abs(drv_data->input_dev, ABS_DISTANCE, elapsed_tv.tv_usec/58);
+		input_report_abs(drv_data->input_dev, ABS_MISC, elapsed_tv.tv_usec);
+		input_sync(drv_data->input_dev);
 	}
 	else {
 		input_report_abs(drv_data->input_dev, ABS_DISTANCE, -1);
 		input_report_abs(drv_data->input_dev, ABS_MISC, -1);
 		input_sync(drv_data->input_dev);
 	}
-#if 0
-	else {
-		retval = 10;
-	}
-#endif 
-	schedule_delayed_work (&drv_data->echo_work,msecs_to_jiffies(10));	
+
+	schedule_delayed_work (&drv_data->echo_work,msecs_to_jiffies(drv_data->cycle_period));	
 }
+
+static ssize_t hcsr04_odr_show(	struct device *dev,
+									struct device_attribute *attr, 
+									char *buf	){
+	
+	struct hcsr04_drvdata *drv_data = dev_get_drvdata(dev);
+
+	return sprintf(buf,"%d\n",drv_data->cycle_period);
+}
+static ssize_t hcsr04_odr_store(struct device *dev,
+				    				struct device_attribute *attr,
+				    				const char *buf, 
+				    				size_t count	){
+	struct hcsr04_drvdata *drv_data = dev_get_drvdata(dev);
+	unsigned long rate;
+	rate = simple_strtoul(buf, NULL, 10);
+	
+	if (rate >= 50 && rate <= 1000){
+		mutex_lock( &drv_data->mutex );
+		drv_data->cycle_period = rate;		
+		mutex_unlock( &drv_data->mutex );
+	}
+	return count;
+}
+static DEVICE_ATTR(odr_selection, S_IRUGO|S_IWUSR|S_IWGRP, hcsr04_odr_show, hcsr04_odr_store);
+//static DEVICE_ATTR(state, S_IRUGO|S_IWUSR|S_IWGRP, hcsr04_state_show,hcsr04_state_store);
+
+static struct attribute *hcsr04_attributes[] = {
+	&dev_attr_odr_selection.attr,
+//	&dev_attr_state.attr,
+	NULL
+};
+
+static const struct attribute_group hcsr04_attr_group = {
+	.attrs = hcsr04_attributes,
+};
+
 static int hcsr04_open(struct input_dev *dev)
 {
 	struct hcsr04_drvdata *drv_data = input_get_drvdata(dev);
 	//enable_irq(drv_data->irq);
-	schedule_delayed_work(&drv_data->echo_work,msecs_to_jiffies(0));
+	schedule_delayed_work(&drv_data->echo_work, 0);
     return 0;
 }
 
@@ -110,7 +166,8 @@ static int hcsr04_probe(struct platform_device *pdev)
 	
 	INIT_DELAYED_WORK(&drv_data->echo_work, hcsr04_echo_worker);
 	init_waitqueue_head(&drv_data->wait);
-	
+	mutex_init(&drv_data->mutex);
+
 	drv_data->data = data;
 	drv_data->platform_device = pdev;
 	drv_data->input_dev = input_allocate_device();
@@ -123,10 +180,11 @@ static int hcsr04_probe(struct platform_device *pdev)
 	drv_data->input_dev->dev.parent	= &drv_data->platform_device->dev;
 	drv_data->input_dev->open		= hcsr04_open;
 	drv_data->input_dev->close	 	= hcsr04_close;
+	drv_data->cycle_period = 100;
 
 	set_bit(EV_ABS, drv_data->input_dev->evbit);
 	input_set_abs_params(drv_data->input_dev, ABS_DISTANCE,
-                             -1, 10000, 0, 0);
+                             -1, 400, 0, 0);
 	input_set_abs_params(drv_data->input_dev, ABS_MISC,
                              0, INT_MAX, 0, 0);
 	input_set_drvdata(drv_data->input_dev,drv_data);
@@ -140,6 +198,14 @@ static int hcsr04_probe(struct platform_device *pdev)
     }
     drv_data->irq = gpio_to_irq(drv_data->data->gpio_d1b);
   
+    platform_set_drvdata(pdev, drv_data);
+	ret = sysfs_create_group(&pdev->dev.kobj, &hcsr04_attr_group);
+	if (ret) {
+		pr_err("%s: sys create group failed\n",__func__);
+		goto sysfs_create_group_failed;
+	}
+
+
 	ret = request_irq(drv_data->irq, 
 						hcsr04_irq_callback,
 						(IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING),
@@ -153,6 +219,8 @@ static int hcsr04_probe(struct platform_device *pdev)
 
 	return 0;
 exit_register_irq:
+	sysfs_remove_group(&pdev->dev.kobj, &hcsr04_attr_group);
+sysfs_create_group_failed:
 	input_unregister_device(drv_data->input_dev);
 exit_register_device:
 	input_free_device(drv_data->input_dev);
@@ -164,6 +232,7 @@ exit_plt_data_failed:
 }
 static int hcsr04_remove(struct platform_device *pdev)
 {
+
 	struct hcsr04_drvdata *drv_data = platform_get_drvdata(pdev);
 	cancel_delayed_work_sync(&drv_data->echo_work);
 	if(flush_delayed_work(&drv_data->echo_work)){
@@ -174,6 +243,7 @@ static int hcsr04_remove(struct platform_device *pdev)
 
 	disable_irq(drv_data->irq);
 	free_irq(drv_data->irq, drv_data);
+	sysfs_remove_group(&pdev->dev.kobj, &hcsr04_attr_group);
 	input_unregister_device(drv_data->input_dev);
 	input_free_device(drv_data->input_dev);
 	kfree(drv_data);
