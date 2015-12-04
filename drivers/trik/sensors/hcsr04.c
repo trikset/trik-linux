@@ -45,16 +45,14 @@ static irqreturn_t hcsr04_irq_callback(int irq, void *dev_id){
 }
 static void hcsr04_echo_worker(struct work_struct *work){
 	struct hcsr04_drvdata *drv_data = container_of(work, struct hcsr04_drvdata, echo_work.work);
-// 	struct timespec start;
-// 	struct timespec stop;
-// 	struct timespec diff;
-	int rangeComplete = 0;      /* indicates successful range finding */
-	ktime_t elapsed_kt;			/* used to store elapsed time */
 	struct timeval elapsed_tv;  /* elapsed time as timeval */
+	ktime_t elapsed_kt;			/* used to store elapsed time */
+	int rangeComplete = 0;      /* indicates successful range finding */
 	int retval;
-	mutex_lock( &drv_data->mutex );
-	drv_data->irq_data.count =0;
-	drv_data->irq_data.start =0;
+
+	
+	drv_data->irq_data.count = 0;
+	drv_data->irq_data.start = 0;
 	memset( &drv_data->irq_data.time_stamp, 0, sizeof(drv_data->irq_data.time_stamp) );
 	
 
@@ -78,7 +76,6 @@ static void hcsr04_echo_worker(struct work_struct *work){
 		elapsed_kt = ktime_sub( drv_data->irq_data.time_stamp[1], drv_data->irq_data.time_stamp[0] );
 		elapsed_tv = ktime_to_timeval( elapsed_kt );
 	}
-	mutex_unlock( &drv_data->mutex );
 	
 	if ( rangeComplete ) {
 		input_report_abs(drv_data->input_dev, ABS_DISTANCE, elapsed_tv.tv_usec/58);
@@ -110,10 +107,8 @@ static ssize_t hcsr04_odr_store(struct device *dev,
 	unsigned long rate;
 	rate = simple_strtoul(buf, NULL, 10);
 	
-	if (rate >= 50 && rate <= 1000){
-		mutex_lock( &drv_data->mutex );
+	if (rate >= 50 && rate <= 1000) {
 		drv_data->cycle_period = rate;		
-		mutex_unlock( &drv_data->mutex );
 	}
 	return count;
 }
