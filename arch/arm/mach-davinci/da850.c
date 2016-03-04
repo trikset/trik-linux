@@ -441,10 +441,10 @@ static const struct mux_config da850_pins[] = {
 	/* CLKOUT function */
 	MUX_CFG(DA850, CLKOUT0,		13,	4,	15,	1,	false)
 	/* UART0 function */
-	MUX_CFG(DA850, NUART0_CTS,	3,	24,	15,	2,	false)
-	MUX_CFG(DA850, NUART0_RTS,	3,	28,	15,	2,	false)
-	MUX_CFG(DA850, UART0_RXD,	3,	16,	15,	2,	false)
-	MUX_CFG(DA850, UART0_TXD,	3,	20,	15,	2,	false)
+	MUX_CFG(DA850, NUART0_CTS,	3,	24,	15,	2,	true)
+	MUX_CFG(DA850, NUART0_RTS,	3,	28,	15,	2,	true)
+	MUX_CFG(DA850, UART0_RXD,	3,	16,	15,	2,	true)
+	MUX_CFG(DA850, UART0_TXD,	3,	20,	15,	2,	true)
 	/* UART1 function */
 	MUX_CFG(DA850, UART1_RXD,	4,	24,	15,	2,	false)
 	MUX_CFG(DA850, UART1_TXD,	4,	28,	15,	2,	false)
@@ -662,6 +662,10 @@ static const struct mux_config da850_pins[] = {
 	MUX_CFG(DA850, GPIO6_12,	13,	12,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_13,	13,	8,	15,	8,	false)
 	MUX_CFG(DA850, GPIO6_15,	13,	0,	15,	8,	false)
+	MUX_CFG(DA850, GPIO8_1,		3,	28,	15,	4,	true)
+	MUX_CFG(DA850, GPIO8_2,         3,      24,     15,     4,      true)
+	MUX_CFG(DA850, GPIO8_3,         3,      20,     15,     4,      true)
+	MUX_CFG(DA850, GPIO8_4,         3,      16,     15,     4,      true)
 
 	MUX_CFG(DA850, GPIO8_7,		2,	28,	15,	4,	false)
 	MUX_CFG(DA850, GPIO8_10,	18,	28,	15,	8,	false)
