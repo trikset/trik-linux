@@ -57,7 +57,6 @@ static __init int da850_trik_uart0_init(void)
 		pr_err("%s: UART0 pinmux setup failed: %d\n",__func__,ret);
 		return ret;
 	}
-
 	return 0;
 }
 
@@ -81,7 +80,6 @@ static __init int da850_trik_uart1_init(void)
 		pr_err("%s: UART1 pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
-
 	ret = gpio_request_array(da850_trik_uart1_gpio, ARRAY_SIZE(da850_trik_uart1_gpio));
 	if (ret)
 		pr_warning("%s: UART1 gpio request failed: %d\n", __func__, ret);
@@ -96,13 +94,7 @@ static struct davinci_uart_config da850_trik_uart_config __initdata = {
 static __init int da850_trik_uart_init(void)
 {
 	int ret;
-
-	ret = davinci_serial_init(&da850_trik_uart_config);
-	if (ret){
-		pr_err("%s: serial init failed: %d\n", __func__, ret);
-		return ret;
-        }
-
+	u32 val;
 	ret = da850_trik_uart0_init();
 	if (ret)
 		pr_warning("%s: uart0 init failed: %d\n", __func__, ret);
@@ -110,6 +102,17 @@ static __init int da850_trik_uart_init(void)
 	ret = da850_trik_uart1_init();
 	if (ret)
 		pr_warning("%s: uart1 init failed: %d\n", __func__, ret);
+
+	ret = davinci_serial_init(&da850_trik_uart_config);
+	if (ret){
+		pr_err("%s: serial init failed: %d\n", __func__, ret);
+		return ret;
+        }
+#warning TODO Temporary enable uart0
+	val = __raw_readl(IO_ADDRESS(DA8XX_UART0_BASE) + 0x30);
+	val = __raw_readl(IO_ADDRESS(DA8XX_UART1_BASE) + 0x30);
+	__raw_writel(1 | ( 1<<13) | (1<<14) ,IO_ADDRESS(DA8XX_UART0_BASE) + 0x30 );
+	val = __raw_readl(IO_ADDRESS(DA8XX_UART0_BASE) + 0x30);
 
 	return 0;
 }
@@ -1006,7 +1009,7 @@ static __init int da850_trik_bluetooth_init(void){
 		pr_err("%s: Bluetooth pinmux setup failed: %d\n", __func__, ret);
 		return ret;
 	}
-	ret = gpio_request_one(GPIO_TO_PIN(6, 11), GPIOF_OUT_INIT_HIGH, "BT_EN_33");
+	ret = gpio_request_one(GPIO_TO_PIN(6, 11), GPIOF_OUT_INIT_LOW, "BT_EN_33");
 	if (ret){
 		pr_warning("%s: could not request BT_EN_33 gpio: %d\n", __func__, ret);
 		return ret;
