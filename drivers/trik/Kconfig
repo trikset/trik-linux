@@ -14,6 +14,7 @@ source "drivers/trik/jd2/Kconfig"
 source "drivers/trik/jf1/Kconfig"
 source "drivers/trik/jcx/Kconfig"
 source "drivers/trik/jex/Kconfig"
+source "drivers/trik/jx2/Kconfig"
 comment "Sensors"
 
 source "drivers/trik/sensors/Kconfig"
