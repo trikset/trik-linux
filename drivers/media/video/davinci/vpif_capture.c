@@ -311,8 +311,8 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	/* configure 1 or 2 channel mode */
-	ret = vpif_config_data->setup_input_channel_mode
-					(vpif->std_info.ycmux_mode);
+	ret = /*vpif_config_data->setup_input_channel_mode
+					(vpif->std_info.ycmux_mode)*/ 0;
 
 	if (ret < 0) {
 		vpif_dbg(1, debug, "can't set vpif channel mode\n");
@@ -351,6 +351,23 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 		enable_channel1(1);
 	}
 	channel_first_int[VPIF_VIDEO_INDEX][ch->channel_id] = 1;
+
+#if 0
+	if (1)
+	{
+		unsigned vpif_reg;
+		pr_notice("%s: VPIF registers:\n", __func__);
+		for (vpif_reg = 0x0; vpif_reg < 0xc0; vpif_reg += 0x10)
+			pr_notice("%s: %02x: %08x %08x %08x %08x\n", __func__, vpif_reg,
+			          regr(vpif_reg+0x00), regr(vpif_reg+0x04),
+			          regr(vpif_reg+0x08), regr(vpif_reg+0x0c));
+		pr_notice("%s: image %u x %u, line %u, size %u\n", __func__,
+		          (unsigned)common->fmt.fmt.pix.width,
+		          (unsigned)common->fmt.fmt.pix.height,
+		          (unsigned)common->fmt.fmt.pix.bytesperline,
+		          (unsigned)common->fmt.fmt.pix.sizeimage);
+	}
+#endif
 
 	return 0;
 }
@@ -449,6 +466,19 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 	enum v4l2_field field;
 	int channel_id = 0;
 	int fid = -1, i;
+	u32 vpif_status;
+
+	vpif_status = regr(VPIF_STATUS);
+	if (vpif_status & ~0xfu)
+	{
+#if 0
+		pr_err("###### %s ######, status %08x, ch0 %08x, ch1 %08x, ec %08x\n",
+		       __func__, (unsigned)vpif_status,
+		       (unsigned)regr(VPIF_CH0_CTRL), (unsigned)regr(VPIF_CH1_CTRL),
+		       (unsigned)regr(0x14));
+#endif
+		regw(~0xfu, VPIF_STATUS_CLR);
+	}
 
 	channel_id = *(int *)(dev_id);
 	if (!vpif_intr_status(channel_id))
@@ -772,15 +802,12 @@ static int vpif_check_format(struct channel_obj *ch,
 		/* adjust to next 8 byte boundary */
 		hpitch = (((hpitch + 7) / 8) * 8);
 	}
-	/* if update is set, modify the bytesperline and sizeimage */
-	if (update) {
-		pixfmt->bytesperline = hpitch;
-		pixfmt->sizeimage = hpitch * vpitch * 2;
-	}
 	/**
 	 * Image width and height is always based on current standard width and
 	 * height
 	 */
+	pixfmt->bytesperline = hpitch;
+	pixfmt->sizeimage = hpitch * vpitch * 2;
 	pixfmt->width = common->fmt.fmt.pix.width;
 	pixfmt->height = common->fmt.fmt.pix.height;
 	return 0;
@@ -874,7 +901,7 @@ static int vpif_open(struct file *filep)
 		 * sub device and make it as current sub device
 		 */
 		for (i = 0; i < config->subdev_count; i++) {
-			if (vpif_obj.sd[i]) {
+			if (/*vpif_obj.sd[i]*/1) {
 				/* the sub device is registered */
 				ch->curr_subdev_info = &config->subdev_info[i];
 				/* make first input as the current input */
@@ -1158,8 +1185,8 @@ static int vpif_streamon(struct file *file, void *priv,
 		return ret;
 
 	/* Enable streamon on the sub device */
-	ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], video,
-				s_stream, 1);
+	ret = /*v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], video,
+				s_stream, 1)*/ 0;
 
 	if (ret && (ret != -ENOIOCTLCMD)) {
 		vpif_dbg(1, debug, "stream on failed in subdev\n");
@@ -1221,8 +1248,8 @@ static int vpif_streamoff(struct file *file, void *priv,
 
 	common->started = 0;
 
-	ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], video,
-				s_stream, 0);
+	ret = /*v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], video,
+				s_stream, 0)*/ 0;
 
 	if (ret && (ret != -ENOIOCTLCMD))
 		vpif_dbg(1, debug, "stream off failed in subdev\n");
@@ -1283,8 +1310,8 @@ static struct vpif_subdev_info *vpif_map_sub_device_to_input(
 		return subdev_info;
 
 	/* check if the sub device is registered */
-	if (NULL == vpif_obj.sd[i])
-		return NULL;
+	/*if (NULL == vpif_obj.sd[i])
+		return NULL;*/
 
 	*sub_device_index = i;
 	return subdev_info;
@@ -1307,8 +1334,8 @@ static int vpif_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
 	vpif_dbg(2, debug, "vpif_querystd\n");
 
 	/* Call querystd function of decoder device */
-	ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], video,
-				querystd, std_id);
+	ret = /*v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], video,
+				querystd, std_id)*/0;
 	if (ret < 0)
 		vpif_dbg(1, debug, "Failed to set standard for sub devices\n");
 
@@ -1381,8 +1408,8 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	vpif_config_format(ch);
 
 	/* set standard in the sub device */
-	ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], core,
-				s_std, *std_id);
+	ret = /*v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], core,
+				s_std, *std_id);*/ 0;
 	if (ret < 0)
 		vpif_dbg(1, debug, "Failed to set standard for sub devices\n");
 	return ret;
@@ -1493,8 +1520,8 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 	if (subdev_info->can_route) {
 		input = subdev_info->input;
 		output = subdev_info->output;
-		ret = v4l2_subdev_call(vpif_obj.sd[sd_index], video, s_routing,
-					input, output, 0);
+		ret = /*v4l2_subdev_call(vpif_obj.sd[sd_index], video, s_routing,
+					input, output, 0)*/0;
 		if (ret < 0) {
 			vpif_dbg(1, debug, "Failed to set input\n");
 			return ret;
@@ -1714,8 +1741,8 @@ static int vpif_enum_dv_presets(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 
-	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
-			video, enum_dv_presets, preset);
+	return /*v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
+			video, enum_dv_presets, preset)*/0;
 }
 
 /**
@@ -1730,8 +1757,8 @@ static int vpif_query_dv_preset(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 
-	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
-		       video, query_dv_preset, preset);
+	return /*v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
+		       video, query_dv_preset, preset)*/0;
 }
 /**
  * vpif_s_dv_presets() - S_DV_PRESETS handler
@@ -1782,8 +1809,8 @@ static int vpif_s_dv_preset(struct file *file, void *priv,
 		/* Configure the default format information */
 		vpif_config_format(ch);
 
-		ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
-				video, s_dv_preset, preset);
+		ret = /*v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
+				video, s_dv_preset, preset)*/0;
 	}
 
 	mutex_unlock(&common->lock);
@@ -1830,8 +1857,8 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	}
 
 	/* Configure subdevice timings, if any */
-	ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
-			video, s_dv_timings, timings);
+	ret = /*v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
+			video, s_dv_timings, timings)*/0;
 	if (ret == -ENOIOCTLCMD) {
 		vpif_dbg(2, debug, "Custom DV timings not supported by "
 				"subdevice\n");
@@ -1964,8 +1991,8 @@ static int vpif_dbg_g_register(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 
-	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], core,
-			g_register, reg);
+	return /*v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], core,
+			g_register, reg)*/0;
 }
 
 /*
@@ -1982,8 +2009,8 @@ static int vpif_dbg_s_register(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 
-	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], core,
-			s_register, reg);
+	return /*v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], core,
+			s_register, reg)*/0;
 }
 #endif
 
@@ -2202,6 +2229,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 		}
 	}
 
+	config = pdev->dev.platform_data;
+
 	for (j = 0; j < VPIF_CAPTURE_MAX_DEVICES; j++) {
 		ch = vpif_obj.dev[j];
 		ch->channel_id = j;
@@ -2213,6 +2242,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 		   This driver needs auditing so that this flag can be removed. */
 		set_bit(V4L2_FL_LOCK_ALL_FOPS, &ch->video_dev->flags);
 		ch->video_dev->lock = &common->lock;
+		if (config->chan_config[0].input_count >= j)
+			ch->video_dev->tvnorms = config->chan_config[0].inputs[j].input.std;
 		/* Initialize prio member of channel object */
 		v4l2_prio_init(&ch->prio);
 		err = video_register_device(ch->video_dev,
@@ -2227,8 +2258,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 #warning Make adapter index configurable per subdev
 	i2c_adap = i2c_get_adapter(2);
 
-	config = pdev->dev.platform_data;
-
+#warning Disabled due to missing v4l subdev support
+#if 0
 	subdev_count = config->subdev_count;
 	vpif_obj.sd = kzalloc(sizeof(struct v4l2_subdev *) * subdev_count,
 				GFP_KERNEL);
@@ -2256,13 +2287,14 @@ static __init int vpif_probe(struct platform_device *pdev)
 		if (vpif_obj.sd[i])
 			vpif_obj.sd[i]->grp_id = 1 << i;
 	}
+#endif
 
 	v4l2_info(&vpif_obj.v4l2_dev, "VPIF capture driver initialized\n");
 	return 0;
 
 probe_subdev_out:
 	/* free sub devices memory */
-	kfree(vpif_obj.sd);
+	/*kfree(vpif_obj.sd);*/
 
 	j = VPIF_CAPTURE_MAX_DEVICES;
 probe_out:
@@ -2436,7 +2468,7 @@ static void vpif_cleanup(void)
 
 	platform_driver_unregister(&vpif_driver);
 
-	kfree(vpif_obj.sd);
+	/*kfree(vpif_obj.sd);*/
 	for (i = 0; i < VPIF_CAPTURE_MAX_DEVICES; i++)
 		kfree(vpif_obj.dev[i]);
 }
