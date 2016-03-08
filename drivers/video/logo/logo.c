@@ -68,7 +68,7 @@ const struct linux_logo * __init_refok fb_find_logo(int depth)
 		logo = &logo_linux_clut224;
 #endif
 #ifdef CONFIG_LOGO_TRIK_CLUT224
-		/* Trik logo */
+		/* TRIK logo */
 		logo = &logo_trik_clut224;
 #endif
 #ifdef CONFIG_LOGO_BLACKFIN_CLUT224

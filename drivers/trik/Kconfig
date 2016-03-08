@@ -1,8 +1,8 @@
 #
-# Platform device specific infrastructure for Trik jacks 
+# Platform device specific infrastructure for TRIK jacks 
 #
 menuconfig TRIK_PLATFORM_DEVICES
-	tristate "Trik platfrom drivers for specific ports"if EXPERT
+	tristate "TRIK platfrom drivers for specific ports"if EXPERT
 	default n
 
 if TRIK_PLATFORM_DEVICES
