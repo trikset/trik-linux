@@ -164,6 +164,7 @@ static inline void vpif_clr_bit(u32 reg, u32 bit)
 
 #define VPIF_DISPLAY_PIX_EN_BIT	(10)
 
+#define VPIF_CH_INPUT_PROGRESSIVE_BIT	(10)
 #define VPIF_CH_INPUT_FIELD_FRAME_BIT	(12)
 
 #define VPIF_CH_FID_POLARITY_BIT	(15)
