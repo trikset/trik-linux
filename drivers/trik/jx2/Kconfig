@@ -1,5 +1,5 @@
 
 config TRIK_JX2_GPIO
-	tristate "Trik JX2 port platform driver for GPIO pins"
+	tristate "TRIK JX2 port platform driver for GPIO pins"
 	default n
 

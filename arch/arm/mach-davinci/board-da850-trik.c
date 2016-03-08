@@ -1,5 +1,5 @@
 /*
- * Trik board based on TI's OMAP-L138 Platform
+ * TRIK board based on TI's OMAP-L138 Platform
  *
  * Initial code: Syed Mohammed Khasim
  *
@@ -1430,7 +1430,7 @@ static __init void da850_trik_map_io(void)
 	da850_init();
 }
 
-MACHINE_START(DAVINCI_DA850_TRIK, "DA850/AM18x/OMAP-L138 Trik board")
+MACHINE_START(DAVINCI_DA850_TRIK, "DA850/AM18x/OMAP-L138 TRIK board")
 	.atag_offset		= 0x100,
 	.map_io			= da850_trik_map_io,
 	.init_irq		= cp_intc_init,
