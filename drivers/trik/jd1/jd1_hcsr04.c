@@ -28,8 +28,8 @@ static struct trik_jdx_platform_data trik_jd1_pdata = {
 
 static const struct gpio trik_jd1_gpio_array[] = {
 	{GPIO_TO_PIN(3,3),	GPIOF_OUT_INIT_LOW|GPIOF_EXPORT_DIR_FIXED,	"trik_jd1->gpio_d1a"},
-	{GPIO_TO_PIN(3,2),	GPIOF_IN|GPIOF_EXPORT_DIR_FIXED,			"trik_jd2->gpio_d1b"},
-	{GPIO_TO_PIN(0,13),	GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED,	"trik_jd2->gpio_d1e"},
+	{GPIO_TO_PIN(3,2),	GPIOF_IN|GPIOF_EXPORT_DIR_FIXED,			"trik_jd1->gpio_d1b"},
+	{GPIO_TO_PIN(0,13),	GPIOF_OUT_INIT_HIGH|GPIOF_EXPORT_DIR_FIXED,	"trik_jd1->gpio_d1e"},
 };
 static const short trik_jd1_pins[] = {
 	DA850_GPIO3_3,
