@@ -50,20 +50,18 @@ static void hcsr04_echo_worker(struct work_struct *work){
 	int rangeComplete = 0;      /* indicates successful range finding */
 	int retval;
 
-	
+
 	drv_data->irq_data.count = 0;
 	drv_data->irq_data.start = 0;
 	memset( &drv_data->irq_data.time_stamp, 0, sizeof(drv_data->irq_data.time_stamp) );
-	
 
-	gpio_set_value(drv_data->data->gpio_d1e,1);
+
 	gpio_set_value(drv_data->data->gpio_d1a,0);
 	udelay(2);
-	gpio_set_value(drv_data->data->gpio_d1a,1);
+        gpio_set_value(drv_data->data->gpio_d1a,1);
 	udelay(10);
-	gpio_set_value(drv_data->data->gpio_d1a,0);
-	
 	drv_data->irq_data.start =1;
+        gpio_set_value(drv_data->data->gpio_d1a,0);
 
 	wait_event_interruptible_timeout(
 			drv_data->wait,
@@ -184,7 +182,7 @@ static int hcsr04_probe(struct platform_device *pdev)
                              0, INT_MAX, 0, 0);
 	input_set_drvdata(drv_data->input_dev,drv_data);
 	platform_set_drvdata(pdev,drv_data);
-	
+
 	ret = input_register_device(drv_data->input_dev);
     if (ret) {
         pr_err("%s: register input device failed %s\n",__func__, drv_data->input_dev->name);
@@ -192,7 +190,7 @@ static int hcsr04_probe(struct platform_device *pdev)
         goto exit_register_device;
     }
     drv_data->irq = gpio_to_irq(drv_data->data->gpio_d1b);
-  
+
     platform_set_drvdata(pdev, drv_data);
 	ret = sysfs_create_group(&pdev->dev.kobj, &hcsr04_attr_group);
 	if (ret) {
@@ -201,7 +199,7 @@ static int hcsr04_probe(struct platform_device *pdev)
 	}
 
 
-	ret = request_irq(drv_data->irq, 
+	ret = request_irq(drv_data->irq,
 						hcsr04_irq_callback,
 						(IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING),
 						drv_data->platform_device->name,
@@ -212,6 +210,8 @@ static int hcsr04_probe(struct platform_device *pdev)
         goto exit_register_irq;
 	}
 
+	gpio_set_value(drv_data->data->gpio_d1e,1); //???set omap buffer logic
+        udelay(10);
 	return 0;
 exit_register_irq:
 	sysfs_remove_group(&pdev->dev.kobj, &hcsr04_attr_group);
