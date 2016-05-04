@@ -74,9 +74,9 @@ static void hcsr04_echo_worker(struct work_struct *work){
 		elapsed_kt = ktime_sub( drv_data->irq_data.time_stamp[1], drv_data->irq_data.time_stamp[0] );
 		elapsed_tv = ktime_to_timeval( elapsed_kt );
 	}
-	
+
 	if ( rangeComplete ) {
-		input_report_abs(drv_data->input_dev, ABS_DISTANCE, elapsed_tv.tv_usec/58);
+		input_report_abs(drv_data->input_dev, ABS_DISTANCE, (((int)elapsed_tv.tv_usec)<<4)/931);
 		input_report_abs(drv_data->input_dev, ABS_MISC, elapsed_tv.tv_usec);
 		input_sync(drv_data->input_dev);
 	}
