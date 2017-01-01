@@ -1323,32 +1323,6 @@ static __init int da850_trik_port_configuration(void){
 	return 0;
 }
 
-static struct platform_driver da850_trik_bwsensor_driver = {
-	.probe		= da850_trik_bwsensor_probe,
-	.remove		= __devexit_p(da850_trik_bwsensor_remove),
-	.driver		= {
-		.name	= "da850_trik",
-		.owner	= THIS_MODULE,
-	},
-};
-
-static struct platform_device da850_trik_bwsensor_device = {
-	.name		= "da850_trik",
-	.id		= -1,
-	.num_resources	= 0,
-};
-
-module_platform_driver(da850_trik_bwsensor_driver);
-
-
-static __init int da850_trik_bwsensor_init(void)
-{
-	return platform_device_register(&da850_trik_bwsensor_device);
-};
-
-
-
-
 static const struct vpif_input da850_trik_vpif_capture_ch0_inputs[] = {
 	{
 		.input = {
@@ -1421,9 +1395,6 @@ static int __init da850_trik_vpif_init(void)
 
 	return 0;
 }
-
-
-
 
 static __init void da850_trik_init(void)
 {
@@ -1516,25 +1487,19 @@ static __init void da850_trik_init(void)
 	ret = da850_trik_gpio_extra_init();
 	if (ret)
 		pr_warning("%s: gpio_extra init failed: %d\n", __func__, ret);
-	
+
 	ret = da850_trik_port_configuration();
 	if (ret)
 		pr_warning("%s: trik_port_configuration init failed: %d\n", __func__, ret);
-	
+
 	ret = da850_trik_pwr_con_init();
 	if (ret)
-		pr_warning("%s: power connections init failed: %d\n", __func__, ret);	
+		pr_warning("%s: power connections init failed: %d\n", __func__, ret);
 
 	ret = da850_trik_vpif_init();
 	if (ret)
 		pr_warning("%s: VPIF init failed: %d\n", __func__, ret);
 
-	if (!jd1_jd2){
-		ret = da850_trik_bwsensor_init();
-		if (ret){
-			pr_warning("%s: bwsensor init failed: %d\n", __func__, ret);
-		}
-	}
 }
 
 #warning Somehow, ttyS1 console seems to be initialized from somewhere else. To be investigated.
