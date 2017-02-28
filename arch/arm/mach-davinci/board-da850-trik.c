@@ -547,7 +547,7 @@ exit_audio_init:
  */
 
 
-int display_orientation = 1; // '1' - landscape; '0' - portrait
+int display_orientation = 0; // '1' - landscape; '0' - portrait
 
 EXPORT_SYMBOL (display_orientation);
 static int __init set_orientation(char *str)
