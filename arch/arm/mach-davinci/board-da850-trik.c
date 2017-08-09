@@ -318,13 +318,13 @@ static struct mtd_partition da850_trik_spi0_parts[] = {
 		.name = "uboot",
 		.offset = 0,
 		.size = SZ_256K,
-		.mask_flags = MTD_WRITEABLE,
+		.mask_flags = 0,
 	},
 	[1] = {
 		.name = "uboot-env1",
 		.offset = MTDPART_OFS_APPEND,
 		.size = SZ_256K,
-		.mask_flags = MTD_WRITEABLE,
+		.mask_flags = 0,
 	},
 	[2] = {
 		.name = "uboot-env2",
