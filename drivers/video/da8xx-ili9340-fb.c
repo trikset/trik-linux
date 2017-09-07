@@ -1073,11 +1073,11 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 
 	switch (_pdata->visual_mode) {
 		case DA8XX_LCDC_VISUAL_565: // RGB565, 16bits
-			info->var.red.offset		= 0;
+			info->var.red.offset		= 11;
 			info->var.red.length		= 5;
 			info->var.green.offset		= 5;
 			info->var.green.length		= 6;
-			info->var.blue.offset		= 11;
+			info->var.blue.offset		= 0;
 			info->var.blue.length		= 5;
 			info->var.bits_per_pixel	= 16;
 			break;
