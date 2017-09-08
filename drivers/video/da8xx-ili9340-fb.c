@@ -1095,7 +1095,7 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 			ret = -EINVAL;
 			goto exit;
 	}
-	if (_pdata->visual_mode_red_blue_swap) {
+	if (_pdata->visual_mode_red_blue_swap && info->var.red.length == info->var.blue.length) {
 		struct fb_bitfield tmp;
 		tmp = info->var.red;
 		info->var.red = info->var.blue;
@@ -1660,26 +1660,103 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	/*ignore*/	display_read_data(dev, par);
 	disp_self_diag1	= display_read_data(dev, par);
 
-	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_OUT);
-	msleep(par->ili9340_t_sleep_in_out_ms); // Sleep-out to self diagnostics delay, ch11.2, pg210
+	display_write_cmd(dev, par, ILI9340_CMD_DISPLAY_OFF);
 
-	display_write_cmd(dev, par, ILI9340_CMD_READ_SELFDIAG);
-	/*ignore*/	display_read_data(dev, par);
-	disp_self_diag2	= display_read_data(dev, par);
+#if 1
+#define TFT_24S_Write_Command(cmd) display_write_cmd(dev,par,cmd)
+#define TFT_24S_Write_Data(d) display_write_data(dev,par, d)
+// ????
+//TFT_24S_Write_Command(0x00EF); 
+//TFT_24S_Write_Data(0x0003);  
+//TFT_24S_Write_Data(0x0080); 
+//TFT_24S_Write_Data(0x0002); 
 
-	if (REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__RLD, disp_self_diag1) ==
-		REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__RLD, disp_self_diag2)) {
-		dev_err(dev, "%s: ILI9340 reports register loading failure\n", __func__);
-		ret = -EBUSY;
-		goto exit_sleep_in;
-	}
-	if (REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__FD, disp_self_diag1) ==
-		REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__FD, disp_self_diag2)) {
-		dev_err(dev, "%s: ILI9340 reports functionality failure\n", __func__);
-		ret = -EBUSY;
-		goto exit_sleep_in;
-	}
+//TFT_24S_Write_Command(0x00CF); //Power Control B
+//TFT_24S_Write_Data(0x0000);  //always 0x00
+//TFT_24S_Write_Data(0x00C1); 
+//TFT_24S_Write_Data(0x0030);  //ESD protection
 
+//TFT_24S_Write_Command(0x00ED); //Power‐On sequence control
+//TFT_24S_Write_Data(0x0064);  //soft start
+//TFT_24S_Write_Data(0x0003);  //power on sequence
+//TFT_24S_Write_Data(0x0012);  //power on sequence
+//TFT_24S_Write_Data(0x0081);  //DDVDH enhance on
+
+
+TFT_24S_Write_Command(0x00E8); //Driver timing control A
+TFT_24S_Write_Data(0x0085);  //non‐overlap
+TFT_24S_Write_Data(0x0000);  //EQ timing
+TFT_24S_Write_Data(0x0078);  //Pre‐charge timing
+
+//TFT_24S_Write_Command(0x00CB); //Power Control A
+//TFT_24S_Write_Data(0x0039);  //always 0x39
+//TFT_24S_Write_Data(0x002C);  //always 0x2C
+//TFT_24S_Write_Data(0x0000);  //always 0x00
+//TFT_24S_Write_Data(0x0034);  //Vcore = 1.6V
+//TFT_24S_Write_Data(0x0002);  //DDVDH = 5.6V
+//TFT_24S_Write_Command(0x00F7); //Pump ratio control
+//TFT_24S_Write_Data(0x0020);  //DDVDH=2xVCI
+
+// ??????
+//TFT_24S_Write_Command(0x00EA); //Driver timing control B
+//TFT_24S_Write_Data(0x0000);  //Gate driver timing
+//TFT_24S_Write_Data(0x0000);  //always 0x00
+
+         
+TFT_24S_Write_Command(0x00C0); //power control 1
+TFT_24S_Write_Data(0x0009); //3.3V : Set the GVDD level, which is a reference level for the VCOM level and the grayscale voltage level. 
+TFT_24S_Write_Command(0x00C1); //power control 2
+TFT_24S_Write_Data(0x0003);
+//TFT_24S_Write_Command(0x00C5); //VCOM control 1
+//TFT_24S_Write_Data(0x0018); // 3V3
+//TFT_24S_Write_Data(0x0028);
+//TFT_24S_Write_Command(0x00C7); //VCOM control 2
+//TFT_24S_Write_Data(0x0086);
+TFT_24S_Write_Command(0x00B6); //display function control
+TFT_24S_Write_Data(0x0008);
+TFT_24S_Write_Data(0x0082);
+TFT_24S_Write_Data(0x27);
+
+TFT_24S_Write_Command(0x00F2); //3 gamma control
+//TFT_24S_Write_Data(0x0002);  //disable
+TFT_24S_Write_Data(0x0003);  //enable
+
+TFT_24S_Write_Command(0xE0);
+TFT_24S_Write_Data(0x0F);
+TFT_24S_Write_Data(0x31);
+TFT_24S_Write_Data(0x2B);
+TFT_24S_Write_Data(0x0C);
+TFT_24S_Write_Data(0x0E);
+TFT_24S_Write_Data(0x08);
+TFT_24S_Write_Data(0x4E);
+TFT_24S_Write_Data(0xF1);
+TFT_24S_Write_Data(0x37);
+TFT_24S_Write_Data(0x07);
+TFT_24S_Write_Data(0x10);
+TFT_24S_Write_Data(0x03);
+TFT_24S_Write_Data(0x0E);
+TFT_24S_Write_Data(0x09);
+TFT_24S_Write_Data(0x00);
+
+	/* Negative Gamma Correction */
+TFT_24S_Write_Command(0xE1);
+TFT_24S_Write_Data(0x00);
+TFT_24S_Write_Data(0x0E);
+TFT_24S_Write_Data(0x14);
+TFT_24S_Write_Data(0x03);
+TFT_24S_Write_Data(0x11);
+TFT_24S_Write_Data(0x07);
+TFT_24S_Write_Data(0x31);
+TFT_24S_Write_Data(0xC1);
+TFT_24S_Write_Data(0x48);
+TFT_24S_Write_Data(0x08);
+TFT_24S_Write_Data(0x0F);
+TFT_24S_Write_Data(0x0C);
+TFT_24S_Write_Data(0x31);
+TFT_24S_Write_Data(0x36);
+TFT_24S_Write_Data(0x0F);
+
+#endif
 	disp_columns	= info->var.xres;
 	disp_rows	= info->var.yres;
 
@@ -1704,17 +1781,41 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 			goto exit_sleep_in;
 	}
 	display_write_cmd(dev, par, ILI9340_CMD_PIXEL_FORMAT);
-	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_PIXEL_FORMAT__DBI, disp_dbi));
+//	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_PIXEL_FORMAT__DBI, disp_dbi));
+	display_write_data(dev, par, 0x55);
+
+	display_write_cmd(dev, par, ILI9340_CMD_MEMORY_ACCESS_CTRL);
+	display_write_data(dev, par, 0x48); //VERTICAL 
 	display_write_cmd(dev, par, ILI9340_CMD_IFACE_CTRL);
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__WEMODE, 0x0)); // ignore extra data
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__MDT, disp_mdt)
 					| REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__EPF, 0x0)); // in 565 mode, lowest bit is populated with topmost
 	display_write_data(dev, par, 0);
 
+	display_write_cmd(dev, par, ILI9340_CMD_SLEEP_OUT);
+	msleep(par->ili9340_t_sleep_in_out_ms); // Sleep-out to self diagnostics delay, ch11.2, pg210
+
+	display_write_cmd(dev, par, ILI9340_CMD_READ_SELFDIAG);
+	/*ignore*/	display_read_data(dev, par);
+	disp_self_diag2	= display_read_data(dev, par);
+
+	if (REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__RLD, disp_self_diag1) ==
+		REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__RLD, disp_self_diag2)) {
+		dev_err(dev, "%s: ILI9340 reports register loading failure\n", __func__);
+		ret = -EBUSY;
+		goto exit_sleep_in;
+	}
+	if (REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__FD, disp_self_diag1) ==
+		REGDEF_GET_VALUE(ILI9340_CMD_READ_SELFDIAG__FD, disp_self_diag2)) {
+		dev_err(dev, "%s: ILI9340 reports functionality failure\n", __func__);
+		ret = -EBUSY;
+		goto exit_sleep_in;
+	}
 	display_start_redraw_locked(dev, par);
 	// forget about lock from this point on
 
 	dev_dbg(dev, "%s: done\n", __func__);
+	
 
 	return 0;
 
