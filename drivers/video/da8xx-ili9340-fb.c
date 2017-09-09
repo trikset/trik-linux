@@ -178,8 +178,6 @@
 #define ILI9340_DISPLAY_CFG_FLIP_Y				1, (1)
 
 
-
-
 /* Notes on timings for ILI9340-based display
    Page 216:
    Hardware reset -> Level2 command: 120ms
@@ -1705,8 +1703,8 @@ TFT_24S_Write_Data(0x0078);  //Pre‐charge timing
          
 TFT_24S_Write_Command(0x00C0); //power control 1
 TFT_24S_Write_Data(0x0009); //3.3V : Set the GVDD level, which is a reference level for the VCOM level and the grayscale voltage level. 
-TFT_24S_Write_Command(0x00C1); //power control 2
-TFT_24S_Write_Data(0x0003);
+//TFT_24S_Write_Command(0x00C1); //power control 2
+//TFT_24S_Write_Data(0x0003);
 //TFT_24S_Write_Command(0x00C5); //VCOM control 1
 //TFT_24S_Write_Data(0x0018); // 3V3
 //TFT_24S_Write_Data(0x0028);
@@ -1718,8 +1716,8 @@ TFT_24S_Write_Data(0x0082);
 TFT_24S_Write_Data(0x27);
 
 TFT_24S_Write_Command(0x00F2); //3 gamma control
-//TFT_24S_Write_Data(0x0002);  //disable
-TFT_24S_Write_Data(0x0003);  //enable
+TFT_24S_Write_Data(0x0002);  //disable
+//TFT_24S_Write_Data(0x0003);  //enable
 
 TFT_24S_Write_Command(0xE0);
 TFT_24S_Write_Data(0x0F);
