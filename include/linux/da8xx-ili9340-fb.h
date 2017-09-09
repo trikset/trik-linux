@@ -42,7 +42,7 @@ struct da8xx_ili9340_pdata {
 	bool	yflip;
 	bool	xyswap;
 	enum da8xx_ili9340_pdata_lcdc_visual_mode	visual_mode;
-	bool    visual_mode_red_blue_swap;	// fix for a display with messed red and blue components
+//	bool    visual_mode_red_blue_swap;	// fix for a display with messed red and blue components
 
 	int	screen_height;
 	int	screen_width;

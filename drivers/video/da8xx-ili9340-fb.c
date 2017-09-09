@@ -159,6 +159,7 @@
 #define ILI9340_CMD_MEMORY_ACCESS_CTRL__MV	5, (1)
 #define ILI9340_CMD_MEMORY_ACCESS_CTRL__MX	6, (1)
 #define ILI9340_CMD_MEMORY_ACCESS_CTRL__MY	7, (1)
+#define ILI9340_CMD_MEMORY_ACCESS_CTRL__BGR     3, (1)
 #define ILI9340_CMD_DISPLAY_CTRL__BCTRL		5, (1)
 #define ILI9340_CMD_DISPLAY_CTRL__DD		3, (1)
 #define ILI9340_CMD_IFACE_CTRL__WEMODE		0, (1)
@@ -661,7 +662,9 @@ static void display_alignment_settings_update(struct device* _dev, struct da8xx_
 
 	display_write_cmd(_dev, _par, ILI9340_CMD_MEMORY_ACCESS_CTRL);
 	display_write_data(_dev, _par,
-			0
+//			  REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__BGR, _par->display_is_bgr) 
+			//TODO: make /sys config entry for bgr
+			  8 // BGR, 0 for RGB
 			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MX, flipx)
 			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MY, flipy)
 			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MV, _par->display_swapxy?1:0));
@@ -1093,12 +1096,12 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 			ret = -EINVAL;
 			goto exit;
 	}
-	if (_pdata->visual_mode_red_blue_swap && info->var.red.length == info->var.blue.length) {
-		struct fb_bitfield tmp;
-		tmp = info->var.red;
-		info->var.red = info->var.blue;
-		info->var.blue = tmp;
-	}
+//	if (_pdata->visual_mode_red_blue_swap && info->var.red.length == info->var.blue.length) {
+//		struct fb_bitfield tmp;
+//		tmp = info->var.red;
+//		info->var.red = info->var.blue;
+//		info->var.blue = tmp;
+//	}
 
 	par->fb_visual_mode = _pdata->visual_mode;
 
@@ -1782,8 +1785,6 @@ TFT_24S_Write_Data(0x0F);
 //	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_PIXEL_FORMAT__DBI, disp_dbi));
 	display_write_data(dev, par, 0x55);
 
-	display_write_cmd(dev, par, ILI9340_CMD_MEMORY_ACCESS_CTRL);
-	display_write_data(dev, par, 0x48); //VERTICAL 
 	display_write_cmd(dev, par, ILI9340_CMD_IFACE_CTRL);
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__WEMODE, 0x0)); // ignore extra data
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__MDT, disp_mdt)

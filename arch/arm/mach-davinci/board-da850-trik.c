@@ -602,7 +602,7 @@ static struct resource da850_trik_lcdc_resources[] = {
 
 static struct da8xx_ili9340_pdata da850_trik_lcdc_pdata = {
 	.visual_mode		= DA8XX_LCDC_VISUAL_565,
-	.visual_mode_red_blue_swap	= false,
+//	.visual_mode_red_blue_swap	= false,
 //	.visual_mode_red_blue_swap	= true, // fix for NewHeaven display with messed red and blue components
 	.fps			= 30, //30ms delay between memory write and redrawing
 
