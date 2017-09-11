@@ -1704,7 +1704,8 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 			goto exit_sleep_in;
 	}
 	display_write_cmd(dev, par, ILI9340_CMD_PIXEL_FORMAT);
-	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_PIXEL_FORMAT__DBI, disp_dbi));
+//	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_PIXEL_FORMAT__DBI, disp_dbi));
+	display_write_data(dev, par, 0x55);
 	display_write_cmd(dev, par, ILI9340_CMD_IFACE_CTRL);
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__WEMODE, 0x0)); // ignore extra data
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__MDT, disp_mdt)

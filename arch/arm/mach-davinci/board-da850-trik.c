@@ -674,7 +674,7 @@ static __init int da850_trik_lcd_init(void){
 	if (display_orientation){
 		da850_trik_lcdc_pdata.xres			= 320;
 		da850_trik_lcdc_pdata.yres			= 240;
-		da850_trik_lcdc_pdata.xflip			= false;
+		da850_trik_lcdc_pdata.xflip			= true;
 		da850_trik_lcdc_pdata.yflip			= false;
 		da850_trik_lcdc_pdata.xyswap			= true;
 		da850_trik_lcdc_pdata.screen_height		= 37; //36,72mm
@@ -684,7 +684,7 @@ static __init int da850_trik_lcd_init(void){
 	{
 		da850_trik_lcdc_pdata.xres			= 240;
 		da850_trik_lcdc_pdata.yres			= 320;
-		da850_trik_lcdc_pdata.xflip			= true;
+		da850_trik_lcdc_pdata.xflip			= false;
 		da850_trik_lcdc_pdata.yflip			= false;
 		da850_trik_lcdc_pdata.xyswap			= false;
 		da850_trik_lcdc_pdata.screen_height		= 49; //48,96mm
