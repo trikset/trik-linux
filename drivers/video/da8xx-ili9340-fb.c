@@ -1684,10 +1684,10 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 //TFT_24S_Write_Data(0x0081);  //DDVDH enhance on
 
 
-TFT_24S_Write_Command(0x00E8); //Driver timing control A
-TFT_24S_Write_Data(0x0085);  //non‐overlap
-TFT_24S_Write_Data(0x0000);  //EQ timing
-TFT_24S_Write_Data(0x0078);  //Pre‐charge timing
+//TFT_24S_Write_Command(0x00E8); //Driver timing control A
+//TFT_24S_Write_Data(0x0085);  //non‐overlap
+//TFT_24S_Write_Data(0x0000);  //EQ timing
+//TFT_24S_Write_Data(0x0078);  //Pre‐charge timing
 
 //TFT_24S_Write_Command(0x00CB); //Power Control A
 //TFT_24S_Write_Data(0x0039);  //always 0x39
@@ -1713,15 +1713,17 @@ TFT_24S_Write_Data(0x0009); //3.3V : Set the GVDD level, which is a reference le
 //TFT_24S_Write_Data(0x0028);
 //TFT_24S_Write_Command(0x00C7); //VCOM control 2
 //TFT_24S_Write_Data(0x0086);
-TFT_24S_Write_Command(0x00B6); //display function control
-TFT_24S_Write_Data(0x0008);
-TFT_24S_Write_Data(0x0082);
-TFT_24S_Write_Data(0x27);
 
-TFT_24S_Write_Command(0x00F2); //3 gamma control
-TFT_24S_Write_Data(0x0002);  //disable
+//TFT_24S_Write_Command(0x00B6); //display function control
+//TFT_24S_Write_Data(0x0008); // the only diff from default
+//TFT_24S_Write_Data(0x0082);
+//TFT_24S_Write_Data(0x27);
+
+//TFT_24S_Write_Command(0x00F2); //3 gamma control
+//TFT_24S_Write_Data(0x0002);  //disable, default
 //TFT_24S_Write_Data(0x0003);  //enable
 
+// Positive gamma correction /
 TFT_24S_Write_Command(0xE0);
 TFT_24S_Write_Data(0x0F);
 TFT_24S_Write_Data(0x31);
