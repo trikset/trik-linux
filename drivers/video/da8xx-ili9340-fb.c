@@ -1706,6 +1706,48 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	display_write_cmd(dev, par, ILI9340_CMD_PIXEL_FORMAT);
 //	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_PIXEL_FORMAT__DBI, disp_dbi));
 	display_write_data(dev, par, 0x55);
+#define TFT_24_7789_Write_Command(cmd) display_write_cmd(dev, par, cmd)
+#define TFT_24_7789_Write_Data(cmd) display_write_data(dev, par, cmd)
+TFT_24_7789_Write_Command(0x00B2);
+TFT_24_7789_Write_Data(0x000C);
+TFT_24_7789_Write_Data(0x0C);
+TFT_24_7789_Write_Data(0x00);
+TFT_24_7789_Write_Data(0x33);
+TFT_24_7789_Write_Data(0x33);
+TFT_24_7789_Write_Command(0x00BB);
+TFT_24_7789_Write_Data(0x002B);//VCOMS: VCOM setting
+TFT_24_7789_Write_Command(0x00C3);
+TFT_24_7789_Write_Data(0x0011);//VRHS: VRH Set
+	TFT_24_7789_Write_Command(0x00E0);
+TFT_24_7789_Write_Data(0x00D0);
+TFT_24_7789_Write_Data(0x0000);
+TFT_24_7789_Write_Data(0x0005);
+TFT_24_7789_Write_Data(0x000E);
+TFT_24_7789_Write_Data(0x0015);
+TFT_24_7789_Write_Data(0x000D);
+TFT_24_7789_Write_Data(0x0037);
+TFT_24_7789_Write_Data(0x0043);
+TFT_24_7789_Write_Data(0x0047);
+TFT_24_7789_Write_Data(0x0009);
+TFT_24_7789_Write_Data(0x0015);
+TFT_24_7789_Write_Data(0x0012);
+TFT_24_7789_Write_Data(0x0016);
+TFT_24_7789_Write_Data(0x0019);//PVGAMCTRL: Positive Voltage Gamma control
+TFT_24_7789_Write_Command(0x00E1);
+TFT_24_7789_Write_Data(0x00D0);
+TFT_24_7789_Write_Data(0x0000);
+TFT_24_7789_Write_Data(0x0005);
+TFT_24_7789_Write_Data(0x000D);
+TFT_24_7789_Write_Data(0x000C);
+TFT_24_7789_Write_Data(0x0006);
+TFT_24_7789_Write_Data(0x002D);
+TFT_24_7789_Write_Data(0x0044);
+TFT_24_7789_Write_Data(0x0040);
+TFT_24_7789_Write_Data(0x000E);
+TFT_24_7789_Write_Data(0x001C);
+TFT_24_7789_Write_Data(0x0018);
+TFT_24_7789_Write_Data(0x0016);
+TFT_24_7789_Write_Data(0x0019);//NVGAMCTRL: Negative Voltage Gamma control
 	display_write_cmd(dev, par, ILI9340_CMD_IFACE_CTRL);
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__WEMODE, 0x0)); // ignore extra data
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__MDT, disp_mdt)
