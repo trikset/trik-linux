@@ -209,6 +209,7 @@ struct da8xx_ili9340_par_display_settings {
 	atomic_t			disp_flip;
 	atomic_t			disp_brightness;
 	atomic_t			disp_backlight;
+	atomic_t			disp_vcom;
 };
 
 struct da8xx_ili9340_par {
@@ -343,6 +344,7 @@ static ssize_t		sysfs_perf_count_show(struct device* _fbdev, struct device_attri
 static ssize_t		sysfs_perf_count_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 static ssize_t		sysfs_color_fill_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 
+static ssize_t		sysfs_vcom_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 
 static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(idle,		S_IRUGO|S_IWUSR,	&sysfs_idle_show,		&sysfs_idle_store),
@@ -353,6 +355,7 @@ static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(backlight,	S_IRUGO|S_IWUSR,	&sysfs_backlight_show,		&sysfs_backlight_store),
 	__ATTR(perf_count,	S_IRUSR|S_IWUSR,	&sysfs_perf_count_show,		&sysfs_perf_count_store),
 	__ATTR(color_fill,	S_IWUSR,		NULL,				&sysfs_color_fill_store),
+	__ATTR(vcom,		S_IWUSR,		NULL,				&sysfs_vcom_store),
 };
 
 
@@ -628,6 +631,8 @@ static void display_visibility_settings_update(struct device* _dev, struct da8xx
 		gamma		= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&_par->display_settings.disp_gamma));
 		display_write_cmd(_dev, _par, ILI9340_CMD_GAMMA);
 		display_write_data(_dev, _par, gamma);
+		display_write_cmd(_dev, _par, 0xbb);
+		display_write_data(_dev, _par, atomic_read(&_par->display_settings.disp_vcom));
 
 		brightness	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&_par->display_settings.disp_brightness));
 		display_write_cmd(_dev, _par, ILI9340_CMD_BRIGHTNESS);
@@ -1047,6 +1052,23 @@ static ssize_t sysfs_color_fill_store(struct device* _fbdev, struct device_attri
 }
 
 
+static ssize_t sysfs_vcom_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
+{
+	int ret;
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct device* dev		= info->device;
+	struct da8xx_ili9340_par* par	= info->par;
+	unsigned value;
+
+	ret = kstrtouint(_buf, 16, &value);
+	if (ret)
+		return ret;
+
+	atomic_set(&par->display_settings.disp_vcom, value);
+
+	display_schedule_redraw(dev, par, true);
+	return _count;
+}
 
 
 static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, struct da8xx_ili9340_pdata* _pdata)
@@ -1714,8 +1736,6 @@ TFT_24_7789_Write_Data(0x0C);
 TFT_24_7789_Write_Data(0x00);
 TFT_24_7789_Write_Data(0x33);
 TFT_24_7789_Write_Data(0x33);
-TFT_24_7789_Write_Command(0x00BB);
-TFT_24_7789_Write_Data(0x002B);//VCOMS: VCOM setting
 TFT_24_7789_Write_Command(0x00C3);
 TFT_24_7789_Write_Data(0x0011);//VRHS: VRH Set
 	TFT_24_7789_Write_Command(0x00E0);
@@ -1748,6 +1768,8 @@ TFT_24_7789_Write_Data(0x001C);
 TFT_24_7789_Write_Data(0x0018);
 TFT_24_7789_Write_Data(0x0016);
 TFT_24_7789_Write_Data(0x0019);//NVGAMCTRL: Negative Voltage Gamma control
+	atomic_set(&par->display_settings.disp_vcom, 0x2B);
+
 	display_write_cmd(dev, par, ILI9340_CMD_IFACE_CTRL);
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__WEMODE, 0x0)); // ignore extra data
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__MDT, disp_mdt)
