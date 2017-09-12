@@ -1,3 +1,4 @@
+#define DEBUG
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fb.h>
@@ -128,6 +129,7 @@
 
 
 #define ILI9340_CMD_NOP				0x00
+#define ILI9340_CMD_RESET			0x01
 #define ILI9340_CMD_READID			0x04
 #define ILI9340_CMD_READ_SELFDIAG		0x0f
 #define ILI9340_CMD_SLEEP_IN			0x10
@@ -156,6 +158,7 @@
 #define ILI9340_CMD_ROW_ADDR__LOWBYTE		0, (8)
 #define ILI9340_CMD_ROW_ADDR__HIGHBYTE		0, (8)
 #define ILI9340_CMD_PIXEL_FORMAT__DBI		0, (3)
+#define ILI9340_CMD_MEMORY_ACCESS_CTRL__BGR	3, (1)
 #define ILI9340_CMD_MEMORY_ACCESS_CTRL__MV	5, (1)
 #define ILI9340_CMD_MEMORY_ACCESS_CTRL__MX	6, (1)
 #define ILI9340_CMD_MEMORY_ACCESS_CTRL__MY	7, (1)
@@ -210,6 +213,10 @@ struct da8xx_ili9340_par_display_settings {
 	atomic_t			disp_brightness;
 	atomic_t			disp_backlight;
 	atomic_t			disp_vcom;
+	atomic_t			disp_vcom_offset;
+	atomic_t			disp_vrh;
+	atomic_t			disp_vdv;
+	atomic_t			disp_gctrl;
 };
 
 struct da8xx_ili9340_par {
@@ -345,6 +352,10 @@ static ssize_t		sysfs_perf_count_store(struct device* _fbdev, struct device_attr
 static ssize_t		sysfs_color_fill_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 
 static ssize_t		sysfs_vcom_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
+static ssize_t		sysfs_vcom_offset_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
+static ssize_t		sysfs_vrh_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
+static ssize_t		sysfs_vdv_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
+static ssize_t		sysfs_gctrl_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 
 static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(idle,		S_IRUGO|S_IWUSR,	&sysfs_idle_show,		&sysfs_idle_store),
@@ -356,6 +367,10 @@ static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(perf_count,	S_IRUSR|S_IWUSR,	&sysfs_perf_count_show,		&sysfs_perf_count_store),
 	__ATTR(color_fill,	S_IWUSR,		NULL,				&sysfs_color_fill_store),
 	__ATTR(vcom,		S_IWUSR,		NULL,				&sysfs_vcom_store),
+	__ATTR(vcom_offset,		S_IWUSR,		NULL,				&sysfs_vcom_offset_store),
+	__ATTR(vrh,		S_IWUSR,		NULL,				&sysfs_vrh_store),
+	__ATTR(vdv,		S_IWUSR,		NULL,				&sysfs_vdv_store),
+	__ATTR(gctrl,		S_IWUSR,		NULL,				&sysfs_gctrl_store),
 };
 
 
@@ -468,10 +483,10 @@ static void fbops_imageblit(struct fb_info* _info, const struct fb_image* _image
 	struct device* dev		= _info->device;
 	struct da8xx_ili9340_par* par	= _info->par;
 
-	dev_dbg(dev, "%s: called\n", __func__);
+//	dev_dbg(dev, "%s: called\n", __func__);
 	sys_imageblit(_info, _image);
 	display_schedule_redraw(dev, par, false);
-	dev_dbg(dev, "%s: done\n", __func__);
+//	dev_dbg(dev, "%s: done\n", __func__);
 }
 
 static int fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _info)
@@ -479,16 +494,18 @@ static int fbops_pan_display(struct fb_var_screeninfo* _var, struct fb_info* _in
 	struct device* dev		= _info->device;
 	struct da8xx_ili9340_par* par	= _info->par;
 
-	dev_dbg(dev, "%s: called\n", __func__);
+//	dev_dbg(dev, "%s: called\n", __func__);
 	if (   _info->fix.ypanstep == 0
 	    || _var->yoffset % _info->fix.ypanstep != 0
-	    || _var->yoffset+_info->var.yres > _info->var.yres_virtual)
+	    || _var->yoffset+_info->var.yres > _info->var.yres_virtual) {
+		dev_err(dev, "%s: failed \n", __func__);
 		return -EINVAL;
+	}
 
 	_info->var.yoffset = _var->yoffset;
 
 	display_schedule_redraw(dev, par, true);
-	dev_dbg(dev, "%s: done\n", __func__);
+//	dev_dbg(dev, "%s: done\n", __func__);
 
 	return 0;
 }
@@ -508,6 +525,7 @@ static int fbops_blank(int _blank, struct fb_info* _info)
 			atomic_set(&par->display_settings.disp_on, false);
 			break;
 		default:
+			dev_err(dev, "%s: failed for 0x%04x\n", __func__, _blank);
 			return -EINVAL;
 	}
 
@@ -527,16 +545,17 @@ static int fbops_setcolreg(unsigned _regno, unsigned _red, unsigned _green, unsi
 	struct device* dev		= _info->device;
 	struct da8xx_ili9340_par* par	= _info->par;
 
-	dev_dbg(dev, "%s: called\n", __func__);
 
-	if (_regno >= ARRAY_SIZE(par->pseudo_palette))
-		return -ENOMEM;
+	if (_regno >= ARRAY_SIZE(par->pseudo_palette)) {
+		dev_err(dev, "%s: failed, 0x%04x <- #%04x;%04x;%04x\n", __func__, _regno, _red, _green, _blue);
+		return -EINVAL; 
+	}
 
 	par->pseudo_palette[_regno]	= colreg(_red,	&_info->var.red)
 					| colreg(_green,&_info->var.green)
 					| colreg(_blue,	&_info->var.blue);
 
-	dev_dbg(dev, "%s: done\n", __func__);
+//	dev_dbg(dev, "%s: done\n", __func__);
 
 	return 0;
 }
@@ -572,18 +591,18 @@ static inline void _display_redraw_work_done(struct device* _dev, struct da8xx_i
 
 static void display_schedule_redraw(struct device* _dev, struct da8xx_ili9340_par* _par, bool _disp_settings_changed)
 {
-	dev_dbg(_dev, "%s: called\n", __func__);
+//	dev_dbg(_dev, "%s: called\n", __func__);
 
 	atomic_inc(&_par->display_redraw_requested);
 	if (_disp_settings_changed)
 		atomic_inc(&_par->display_settings.changed);
 
 	if (atomic_inc_return(&_par->display_redraw_ongoing) == 1) { // i.e. it was 0 and no work were ongoing
-		dev_dbg(_dev, "%s: scheduling redraw work\n", __func__);
+//		dev_dbg(_dev, "%s: scheduling redraw work\n", __func__);
 		atomic_set(&_par->display_redraw_requested, 0);
 		schedule_delayed_work(&_par->display_redraw_work, 0);
 	} // otherwise, we already incremented redraw_requested and work should be re-scheduled at completion
-	dev_dbg(_dev, "%s: done\n", __func__);
+//	dev_dbg(_dev, "%s: done\n", __func__);
 }
 
 static int display_start_redraw_locked(struct device* _dev, struct da8xx_ili9340_par* _par)
@@ -610,43 +629,49 @@ static int display_wait_redraw_completion(struct device* _dev, struct da8xx_ili9
 
 static void display_visibility_settings_update(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
+	dev_dbg(_dev, "%s: called\n", __func__);
 	lcdc_assert_locked(_par);
+	bool idle;
+	__u16 gamma;
+	__u16 brightness;
+	// Turn display off before re-configuring
+	display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_OFF);
+	idle = atomic_read(&_par->display_settings.disp_idle);
+	display_write_cmd(_dev, _par, idle?ILI9340_CMD_IDLE_ON:ILI9340_CMD_IDLE_OFF);
 
-	if (atomic_read(&_par->display_settings.disp_on) == 0) {
-		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_OFF);
-		if (_par->cb_backlight_ctrl)
-			_par->cb_backlight_ctrl(false);
-	} else {
-		bool idle;
-		__u16 gamma;
-		__u16 brightness;
+	display_write_cmd(_dev, _par, atomic_read(&_par->display_settings.disp_inversion)?ILI9340_CMD_INVERSION_ON:ILI9340_CMD_INVERSION_OFF);
 
-		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_ON);
+	gamma		= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&_par->display_settings.disp_gamma));
+	display_write_cmd(_dev, _par, ILI9340_CMD_GAMMA);
+	display_write_data(_dev, _par, gamma);
+	display_write_cmd(_dev, _par, 0xbb);
+	display_write_data(_dev, _par, atomic_read(&_par->display_settings.disp_vcom));
+	display_write_cmd(_dev, _par, 0xc5);
+	display_write_data(_dev, _par, atomic_read(&_par->display_settings.disp_vcom_offset));
+	display_write_cmd(_dev, _par, 0xc3);
+	display_write_data(_dev, _par, atomic_read(&_par->display_settings.disp_vrh));
+	display_write_cmd(_dev, _par, 0xc4);
+	display_write_data(_dev, _par, atomic_read(&_par->display_settings.disp_vdv));
+	display_write_cmd(_dev, _par, 0xb7);
+	display_write_data(_dev, _par, atomic_read(&_par->display_settings.disp_gctrl));
 
-		idle = atomic_read(&_par->display_settings.disp_idle);
-		display_write_cmd(_dev, _par, idle?ILI9340_CMD_IDLE_ON:ILI9340_CMD_IDLE_OFF);
 
-		display_write_cmd(_dev, _par, atomic_read(&_par->display_settings.disp_inversion)?ILI9340_CMD_INVERSION_ON:ILI9340_CMD_INVERSION_OFF);
+	brightness	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&_par->display_settings.disp_brightness));
+	display_write_cmd(_dev, _par, ILI9340_CMD_BRIGHTNESS);
+	display_write_data(_dev, _par, brightness);
 
-		gamma		= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_GAMMA, atomic_read(&_par->display_settings.disp_gamma));
-		display_write_cmd(_dev, _par, ILI9340_CMD_GAMMA);
-		display_write_data(_dev, _par, gamma);
-		display_write_cmd(_dev, _par, 0xbb);
-		display_write_data(_dev, _par, atomic_read(&_par->display_settings.disp_vcom));
+	display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_CTRL);
+	display_write_data(_dev, _par,
+			0
+			| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__BCTRL, 1)
+			| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__DD, idle?1:0));
 
-		brightness	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&_par->display_settings.disp_brightness));
-		display_write_cmd(_dev, _par, ILI9340_CMD_BRIGHTNESS);
-		display_write_data(_dev, _par, brightness);
-
-		display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_CTRL);
-		display_write_data(_dev, _par,
-				0
-				| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__BCTRL, 1)
-				| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__DD, idle?1:0));
-
-		if (_par->cb_backlight_ctrl)
-			_par->cb_backlight_ctrl(atomic_read(&_par->display_settings.disp_backlight));
-	}
+	int isOn = atomic_read(&_par->display_settings.disp_on);
+	display_write_cmd(_dev, _par, isOn ? ILI9340_CMD_DISPLAY_ON : ILI9340_CMD_DISPLAY_OFF);
+	if (_par->cb_backlight_ctrl)
+			_par->cb_backlight_ctrl(isOn && atomic_read(&_par->display_settings.disp_backlight));
+	
+	dev_dbg(_dev, "%s: done\n", __func__);
 }
 
 static void display_alignment_settings_update(struct device* _dev, struct da8xx_ili9340_par* _par)
@@ -655,6 +680,7 @@ static void display_alignment_settings_update(struct device* _dev, struct da8xx_
 	__u16 flipx;
 	__u16 flipy;
 
+	dev_dbg(_dev, "%s: called\n", __func__);
 	lcdc_assert_locked(_par);
 
 	flip	= atomic_read(&_par->display_settings.disp_flip);
@@ -671,7 +697,14 @@ static void display_alignment_settings_update(struct device* _dev, struct da8xx_
 			0
 			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MX, flipx)
 			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MY, flipy)
-			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MV, _par->display_swapxy?1:0));
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__MV, _par->display_swapxy?1:0)
+			| REGDEF_SET_VALUE(ILI9340_CMD_MEMORY_ACCESS_CTRL__BGR, 1)
+	);
+
+	display_write_cmd(_dev, _par, 0xc0); //LCMCTRL for ST7789S controller. Default is 0x2C   
+	display_write_data(_dev, _par, 0x28); // Invert X for ST7789S
+			
+	dev_dbg(_dev, "%s: done\n", __func__);
 }
 
 
@@ -682,7 +715,7 @@ static void display_redraw_work(struct work_struct* _work)
 	struct fb_info* info		= par->fb_info;
 	struct device* dev		= info->device;
 
-	dev_dbg(dev, "%s: starting redraw work\n", __func__);
+//	dev_dbg(dev, "%s: starting redraw work\n", __func__);
 	ret = lcdc_lock(par);
 	if (ret) {
 		dev_err(dev, "%s: cannot obtain LCD controller lock: %d\n", __func__, ret);
@@ -744,7 +777,7 @@ static irqreturn_t lcdc_edma_done(int _irq, void* _dev)
 
 static void display_redraw_work_done(struct device* _dev, struct da8xx_ili9340_par* _par)
 {
-	dev_dbg(_dev, "%s: completed redraw work\n", __func__);
+//	dev_dbg(_dev, "%s: completed redraw work\n", __func__);
 	if (atomic_read(&_par->display_redraw_ongoing) == 0) {
 		dev_err(_dev, "%s: redraw work done while not ongoing\n", __func__);
 		return;
@@ -1034,7 +1067,7 @@ static ssize_t sysfs_color_fill_store(struct device* _fbdev, struct device_attri
 	struct fb_info* info		= dev_get_drvdata(_fbdev);
 	int ofs;
 
-	ret = kstrtoul(_buf, 16, &fill_value);
+	ret = kstrtoul(_buf, 0, &fill_value);
 	if (ret)
 		return ret;
 
@@ -1048,6 +1081,8 @@ static ssize_t sysfs_color_fill_store(struct device* _fbdev, struct device_attri
 	for (ofs = 0; ofs < info->screen_size; ofs += fill_size)
 		memcpy(info->screen_base+ofs, fill, fill_size);
 
+	display_schedule_redraw(info->device, info->par, false);
+
 	return _count;
 }
 
@@ -1060,11 +1095,85 @@ static ssize_t sysfs_vcom_store(struct device* _fbdev, struct device_attribute* 
 	struct da8xx_ili9340_par* par	= info->par;
 	unsigned value;
 
-	ret = kstrtouint(_buf, 16, &value);
+	ret = kstrtouint(_buf, 0, &value);
 	if (ret)
 		return ret;
 
 	atomic_set(&par->display_settings.disp_vcom, value);
+
+	display_schedule_redraw(dev, par, true);
+	return _count;
+}
+
+static ssize_t sysfs_vcom_offset_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
+{
+	int ret;
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct device* dev		= info->device;
+	struct da8xx_ili9340_par* par	= info->par;
+	unsigned value;
+
+	ret = kstrtouint(_buf, 0, &value);
+	if (ret)
+		return ret;
+
+	atomic_set(&par->display_settings.disp_vcom_offset, value);
+
+	display_schedule_redraw(dev, par, true);
+	return _count;
+}
+
+static ssize_t sysfs_gctrl_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
+{
+	int ret;
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct device* dev		= info->device;
+	struct da8xx_ili9340_par* par	= info->par;
+	unsigned value;
+
+	ret = kstrtouint(_buf, 0, &value);
+	if (ret)
+		return ret;
+
+	atomic_set(&par->display_settings.disp_gctrl, value);
+
+	display_schedule_redraw(dev, par, true);
+	return _count;
+}
+
+
+
+static ssize_t sysfs_vrh_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
+{
+	int ret;
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct device* dev		= info->device;
+	struct da8xx_ili9340_par* par	= info->par;
+	unsigned value;
+
+	ret = kstrtouint(_buf, 0, &value);
+	if (ret)
+		return ret;
+
+	atomic_set(&par->display_settings.disp_vrh, value);
+
+	display_schedule_redraw(dev, par, true);
+	return _count;
+}
+
+static ssize_t sysfs_vdv_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count)
+{
+	int ret;
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct device* dev		= info->device;
+	struct da8xx_ili9340_par* par	= info->par;
+	unsigned value;
+
+	ret = kstrtouint(_buf, 0, &value);
+	if (ret)
+		return ret;
+
+	atomic_set(&par->display_settings.disp_vdv, value);
 
 	display_schedule_redraw(dev, par, true);
 	return _count;
@@ -1092,6 +1201,8 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 	info->var.yres_virtual	= info->var.yres * (info->fix.ypanstep?2:1);
 	info->var.height	= _pdata->screen_height;
 	info->var.width		= _pdata->screen_width;
+	info->var.transp.length	= 0;
+	info->var.transp.offset = 0;
 
 	switch (_pdata->visual_mode) {
 		case DA8XX_LCDC_VISUAL_565: // RGB565, 16bits
@@ -1116,12 +1227,6 @@ static int __devinit da8xx_ili9340_fb_init(struct platform_device* _pdevice, str
 			dev_err(dev, "%s: unsupported visual mode %u\n", __func__, (unsigned)_pdata->visual_mode);
 			ret = -EINVAL;
 			goto exit;
-	}
-	if (_pdata->visual_mode_red_blue_swap) {
-		struct fb_bitfield tmp;
-		tmp = info->var.red;
-		info->var.red = info->var.blue;
-		info->var.blue = tmp;
 	}
 
 	par->fb_visual_mode = _pdata->visual_mode;
@@ -1728,16 +1833,15 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	display_write_cmd(dev, par, ILI9340_CMD_PIXEL_FORMAT);
 //	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_PIXEL_FORMAT__DBI, disp_dbi));
 	display_write_data(dev, par, 0x55);
-#define TFT_24_7789_Write_Command(cmd) display_write_cmd(dev, par, cmd)
-#define TFT_24_7789_Write_Data(cmd) display_write_data(dev, par, cmd)
+/*
+#define TFT_24_7789_Write_Command(cmd) display_write_cmd(dev, par, cmd) 
+#define TFT_24_7789_Write_Data(cmd) display_write_data(dev, par, cmd) 
 TFT_24_7789_Write_Command(0x00B2);
 TFT_24_7789_Write_Data(0x000C);
 TFT_24_7789_Write_Data(0x0C);
 TFT_24_7789_Write_Data(0x00);
 TFT_24_7789_Write_Data(0x33);
 TFT_24_7789_Write_Data(0x33);
-TFT_24_7789_Write_Command(0x00C3);
-TFT_24_7789_Write_Data(0x0011);//VRHS: VRH Set
 	TFT_24_7789_Write_Command(0x00E0);
 TFT_24_7789_Write_Data(0x00D0);
 TFT_24_7789_Write_Data(0x0000);
@@ -1768,13 +1872,75 @@ TFT_24_7789_Write_Data(0x001C);
 TFT_24_7789_Write_Data(0x0018);
 TFT_24_7789_Write_Data(0x0016);
 TFT_24_7789_Write_Data(0x0019);//NVGAMCTRL: Negative Voltage Gamma control
-	atomic_set(&par->display_settings.disp_vcom, 0x2B);
+*/
+unsigned short st7789_init_11_d5[] = {
+	0xB7, 0x154,
+	0xBA, 0x100, 
+	0xBB, 0x129, 
+	0xC2, 0x100, 
+	0xC3, 0x100, 
+	0xD0, 0x1A4, 0x101, 
+	0xD2, 0x14C, 
+	0xDF, 0x15A, 0x169, 0x102, 0x100, 
+        0xE0, 0x1F0, 0x106, 0x10B, 0x10A, 0x10A, 0x106, 0x133, 0x143, 0x149, 0x137, 0x112, 0x111, 0x12D, 0x132,
+	0xE1, 0x1F0, 0x106, 0x10B, 0x10A, 0x10A, 0x106, 0x133, 0x143, 0x149, 0x137, 0x112, 0x111, 0x12D, 0x132,
+	0xE4, 0x127, 0x100, 0x110, 
+	0xE7, 0x101, 
+	0xE8, 0x193, 
+	0xE9, 0x102, 0x102, 0x100, 
+	0xEC, 0x100, 
+	0xFA, 0x15A, 0x169, 0x1EE, 0x100, 
+	0xFC, 0x100, 0x100, 
+	0xFE, 0x100, 0x100, 
+	0xB8, 0x12A, 0x12B, 0x101, 0x1FF, 
+	0xB1, 0x1C0, 0x104, 0x10A,
+	0xB2, 0x10C, 0x10C, 0x100, 0x133, 0x133,
+	0xB3, 0x100, 0x10F, 0x10F//, 0xB0, 0x111, 0x1F4
+};
 
-	display_write_cmd(dev, par, ILI9340_CMD_IFACE_CTRL);
+unsigned short st7789_init_50_5a[] = {
+//	0xB7, 0x135, 
+//	0xBB, 0x139, 
+//	0xC3, 0x10F,
+	0xE0, 0x1F0, 0x10C, 0x113, 0x10B, 0x10A, 0x126, 0x139, 0x144, 0x14D, 0x108, 0x114, 0x115, 0x12E, 0x134,
+	0xE1, 0x1F0, 0x10C, 0x113, 0x10B, 0x10A, 0x126, 0x139, 0x144, 0x14D, 0x108, 0x114, 0x115, 0x12E, 0x134,
+//	0xE9, 0x108, 0x108, 0x104,
+	0xB8, 0x12A, 0x12B, 0x120,
+};
+
+unsigned short st7789_init_default[] = {
+//	0xB7, 0x120, 
+//	0xBB, 0x13D, 
+//	0xC3, 0x115, 
+	0xE0, 0x1F0, 0x10C, 0x113, 0x10B, 0x10A, 0x126, 0x139, 0x144, 0x14D, 0x108, 0x114, 0x115, 0x12E, 0x134,
+	0xE1, 0x1F0, 0x10C, 0x113, 0x10B, 0x10A, 0x126, 0x139, 0x144, 0x14D, 0x108, 0x114, 0x115, 0x12E, 0x134,
+//	0xE9, 0x108, 0x108, 0x104,
+	0xB8, 0x12A, 0x12B, 0x120, //????
+};
+unsigned short st7789_init_trik[] = {
+	0xB2, 0x10C, 0x10C, 0x100, 0x133, 0x133,	
+	0xE0, 0x1D0, 0x100, 0x105, 0x10E, 0x115, 0x10D, 0x137, 0x143, 0x147, 0x109, 0x115, 0x112, 0x116, 0x119,
+	0xE1, 0x1D0, 0x100, 0x105, 0x10D, 0x10C, 0x106, 0x12D, 0x144, 0x140, 0x10E, 0x11C, 0x118, 0x116, 0x119,
+};
+ 	#define input_init_data st7789_init_trik
+	int i = 0;
+	for (; i < sizeof(input_init_data)/sizeof(unsigned short); ++i) {
+		unsigned short x = input_init_data[i];
+		if ( x & 0x100 ) display_write_data(dev, par, x & 0xff);
+		else display_write_cmd(dev, par, x);
+	}
+	
+	atomic_set(&par->display_settings.disp_vcom, 0x2b); //0xbb
+	atomic_set(&par->display_settings.disp_vcom_offset, 0x20); //0xc5
+	
+	atomic_set(&par->display_settings.disp_vrh, 0x11);  //0xc3, default is 0x0b, but experiments show 0x20 looks nice
+	atomic_set(&par->display_settings.disp_vdv, 0x20);  //0xc4, default is 0x20
+	atomic_set(&par->display_settings.disp_gctrl, 0x77);  //0xb7 default is 0x35
+
+	display_write_cmd(dev, par, 0xb0); // 0xb0 for st778s and must be oxf6 for ili934x
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__WEMODE, 0x0)); // ignore extra data
-	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__MDT, disp_mdt)
+	display_write_data(dev, par, 0xc0 | REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__MDT, disp_mdt)
 					| REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__EPF, 0x0)); // in 565 mode, lowest bit is populated with topmost
-	display_write_data(dev, par, 0);
 
 	display_start_redraw_locked(dev, par);
 	// forget about lock from this point on

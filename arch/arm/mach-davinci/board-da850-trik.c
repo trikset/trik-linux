@@ -602,8 +602,7 @@ static struct resource da850_trik_lcdc_resources[] = {
 
 static struct da8xx_ili9340_pdata da850_trik_lcdc_pdata = {
 	.visual_mode		= DA8XX_LCDC_VISUAL_565,
-	.visual_mode_red_blue_swap	= true, // fix for NewHeaven display with messed red and blue components
-	.fps			= 50, //20ms delay between memory write and redrawing
+	.fps			= 20, //50ms delay between memory write and redrawing
 
 	.lcdc_lidd_mode		= DA8XX_LCDC_LIDD_MODE_8080ASYNC,
 	.lcdc_lidd_cs		= DA8XX_LCDC_LIDD_CS0,
@@ -627,11 +626,11 @@ static struct da8xx_ili9340_pdata da850_trik_lcdc_pdata = {
 	.display_t_reset_to_ready_ms	= 120,
 	.display_t_sleep_in_out_ms	= 120,
 
-	.display_idle			= false,
+	.display_idle			= true,
 	.display_backlight		= true,
 	.display_brightness		= 0x100,
 	.display_inversion		= false,
-	.display_gamma			= DA8XX_LCDC_DISPLAY_GAMMA_DEFAULT,
+	.display_gamma			= DA8XX_LCDC_DISPLAY_GAMMA_2_2,
 
 	.cb_power_ctrl		= &da850_trik_lcd_power_ctrl,
 	.cb_backlight_ctrl	= &da850_trik_lcd_backlight_ctrl,
@@ -674,7 +673,7 @@ static __init int da850_trik_lcd_init(void){
 	if (display_orientation){
 		da850_trik_lcdc_pdata.xres			= 320;
 		da850_trik_lcdc_pdata.yres			= 240;
-		da850_trik_lcdc_pdata.xflip			= true;
+		da850_trik_lcdc_pdata.xflip			= false;
 		da850_trik_lcdc_pdata.yflip			= false;
 		da850_trik_lcdc_pdata.xyswap			= true;
 		da850_trik_lcdc_pdata.screen_height		= 37; //36,72mm
