@@ -220,6 +220,7 @@ struct da8xx_ili9340_par_display_settings {
 };
 
 struct da8xx_ili9340_par {
+	__u32				disp_id;
 	__u32				pseudo_palette[16];
 
 	struct fb_info*					fb_info;
@@ -335,6 +336,7 @@ static void		display_redraw_work_done(struct device* _dev, struct da8xx_ili9340_
 
 
 
+static ssize_t		sysfs_id_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 static ssize_t		sysfs_idle_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
 static ssize_t		sysfs_idle_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 static ssize_t		sysfs_inversion_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf);
@@ -358,6 +360,7 @@ static ssize_t		sysfs_vdv_store(struct device* _fbdev, struct device_attribute* 
 static ssize_t		sysfs_gctrl_store(struct device* _fbdev, struct device_attribute* _attr, const char* _buf, size_t _count);
 
 static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
+	__ATTR(id,		S_IRUGO,	&sysfs_id_show, NULL),
 	__ATTR(idle,		S_IRUGO|S_IWUSR,	&sysfs_idle_show,		&sysfs_idle_store),
 	__ATTR(inversion,	S_IRUGO|S_IWUSR,	&sysfs_inversion_show,		&sysfs_inversion_store),
 	__ATTR(gamma,		S_IRUGO|S_IWUSR,	&sysfs_gamma_show,		&sysfs_gamma_store),
@@ -547,7 +550,7 @@ static int fbops_setcolreg(unsigned _regno, unsigned _red, unsigned _green, unsi
 
 
 	if (_regno >= ARRAY_SIZE(par->pseudo_palette)) {
-		dev_err(dev, "%s: failed, 0x%04x <- #%04x;%04x;%04x\n", __func__, _regno, _red, _green, _blue);
+//		dev_err(dev, "%s: failed, 0x%04x <- #%04x;%04x;%04x\n", __func__, _regno, _red, _green, _blue);
 		return -EINVAL; 
 	}
 
@@ -702,7 +705,7 @@ static void display_alignment_settings_update(struct device* _dev, struct da8xx_
 	);
 
 	display_write_cmd(_dev, _par, 0xc0); //LCMCTRL for ST7789S controller. Default is 0x2C   
-	display_write_data(_dev, _par, 0x28); // Invert X for ST7789S
+	display_write_data(_dev, _par, 0x00); // Invert X for ST7789S
 			
 	dev_dbg(_dev, "%s: done\n", __func__);
 }
@@ -792,6 +795,14 @@ static void display_redraw_work_done(struct device* _dev, struct da8xx_ili9340_p
 
 
 
+
+static ssize_t sysfs_id_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf)
+{
+	struct fb_info* info		= dev_get_drvdata(_fbdev);
+	struct da8xx_ili9340_par* par	= info->par;
+
+	return snprintf(_buf, PAGE_SIZE, "%08X\n",  (unsigned)par->disp_id);
+}
 
 static ssize_t sysfs_idle_show(struct device* _fbdev, struct device_attribute* _attr, char* _buf)
 {
@@ -1779,8 +1790,9 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 	disp_mfc	= display_read_data(dev, par);
 	disp_ver	= display_read_data(dev, par);
 	disp_id		= display_read_data(dev, par);
-	pr_info(NICE_NAME ": detected display: manufacturer 0x%x, version 0x%x, id 0x%x\n",
+	pr_info(NICE_NAME ": detected display: manufacturer 0x%02x, version 0x%02x, id 0x%02x\n",
 			(unsigned)disp_mfc, (unsigned)disp_ver, (unsigned)disp_id);
+	par->disp_id = (unsigned)disp_mfc << 16 | (unsigned) disp_ver << 8 | disp_id;
 
 	// Sleep-out
 	display_write_cmd(dev, par, ILI9340_CMD_READ_SELFDIAG);

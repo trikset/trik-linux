@@ -626,7 +626,7 @@ static struct da8xx_ili9340_pdata da850_trik_lcdc_pdata = {
 	.display_t_reset_to_ready_ms	= 120,
 	.display_t_sleep_in_out_ms	= 120,
 
-	.display_idle			= true,
+	.display_idle			= false,
 	.display_backlight		= true,
 	.display_brightness		= 0x100,
 	.display_inversion		= false,
@@ -683,7 +683,7 @@ static __init int da850_trik_lcd_init(void){
 	{
 		da850_trik_lcdc_pdata.xres			= 240;
 		da850_trik_lcdc_pdata.yres			= 320;
-		da850_trik_lcdc_pdata.xflip			= false;
+		da850_trik_lcdc_pdata.xflip			= true;
 		da850_trik_lcdc_pdata.yflip			= false;
 		da850_trik_lcdc_pdata.xyswap			= false;
 		da850_trik_lcdc_pdata.screen_height		= 49; //48,96mm
