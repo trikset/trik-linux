@@ -471,8 +471,8 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 	vpif_status = regr(VPIF_STATUS);
 	if (vpif_status & ~0xfu)
 	{
-#if 0
-		pr_err("###### %s ######, status %08x, ch0 %08x, ch1 %08x, ec %08x\n",
+#if 1
+		printk(KERN_DEBUG "###### %s ######, status %08x, ch0 %08x, ch1 %08x, ec %08x\n",
 		       __func__, (unsigned)vpif_status,
 		       (unsigned)regr(VPIF_CH0_CTRL), (unsigned)regr(VPIF_CH1_CTRL),
 		       (unsigned)regr(0x14));
