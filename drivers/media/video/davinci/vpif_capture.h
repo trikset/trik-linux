@@ -148,6 +148,12 @@ struct vpif_fh {
 struct vpif_device {
 	struct v4l2_device v4l2_dev;
 	struct channel_obj *dev[VPIF_CAPTURE_NUM_CHANNELS];
+ 
+        // TODO: the flag is systemwide because its value is based
+        // on a trik controller's DISPLAY ID, not an identification
+        // of any videomodule. Moreover it is set from some script
+        // via v4l2 S_CTRL  
+        u8 pclk_invert_hack; 
 //	struct v4l2_subdev **sd;
 };
 

@@ -931,6 +931,7 @@ static int vpif_open(struct file *filep)
 		fh->initialized = 1;
 		ch->initialized = 1;
 		memset(&(ch->vpifparams), 0, sizeof(struct vpif_params));
+                ch->vpifparams.iface.pclk_invert = vpif_obj.pclk_invert_hack;  
 	}
 	/* Increment channel usrs counter */
 	ch->usrs++;
@@ -2029,6 +2030,47 @@ static int vpif_log_status(struct file *filep, void *priv)
 	return 0;
 }
 
+
+int vpif_g_ctrl(struct file *file, void *fh0, struct v4l2_control *a) {
+        struct vpif_fh *fh = fh0;
+        struct channel_obj *ch = fh->channel;
+        if (a -> id == V4L2_CID_PRIVATE_BASE) {
+             a -> value = vpif_obj.pclk_invert_hack; 
+        } else { 
+             return -EINVAL;
+        }
+        return 0; 
+}
+
+
+int vpif_s_ctrl(struct file *file, void *fh0, struct v4l2_control *a) {
+        struct vpif_fh *fh = fh0;
+        struct channel_obj *ch = fh->channel;
+        if (a -> id == V4L2_CID_PRIVATE_BASE) {
+            vpif_obj.pclk_invert_hack = a -> value;
+        } else { 
+            return -EINVAL; 
+        }
+        return 0; 
+}
+
+int vpif_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *a) {
+        if (a -> id == V4L2_CID_PRIVATE_BASE) {
+             a -> type = V4L2_CTRL_TYPE_BOOLEAN;
+	     char* name = "invert pixel clock";
+             strcpy(a -> name, name);
+             a -> minimum = 0; 
+             a -> maximum = 1;
+             a -> step = 1;
+             a -> default_value = 1;
+             a -> reserved[0] = a -> reserved[1] = 0; 
+             a -> flags = 0;     
+        } else {
+            return -EINVAL;
+        }
+        return 0;
+}
+
 /* vpif capture ioctl operations */
 static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 	.vidioc_querycap        	= vpif_querycap,
@@ -2063,6 +2105,9 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 	.vidioc_s_register		= vpif_dbg_s_register,
 #endif
 	.vidioc_log_status		= vpif_log_status,
+        .vidioc_g_ctrl                  = vpif_g_ctrl, 
+        .vidioc_s_ctrl                  = vpif_s_ctrl,
+        .vidioc_queryctrl               = vpif_queryctrl, 
 };
 
 /* vpif file operations */
