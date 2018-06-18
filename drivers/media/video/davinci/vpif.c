@@ -245,6 +245,10 @@ static void config_vpif_params(struct vpif_params *vpifparams,
 		vpif_clr_bit(reg, VPIF_CH_SDR_FMT_BIT);
 		vpif_wr_bit(reg, VPIF_CH_DATA_MODE_BIT, config->capture_format);
 
+	        printk(KERN_DEBUG "setting pclk_invert to %i\n", vpifparams->iface.pclk_invert);
+	                vpif_wr_bit(reg, VPIF_CH_CLK_EDGE_CTRL_BIT, 
+                                        vpifparams->iface.pclk_invert);
+
 		if (channel_id > 1)	/* Set the Pixel enable bit */
 			vpif_set_bit(reg, VPIF_DISPLAY_PIX_EN_BIT);
 		else if (config->capture_format) {
@@ -255,7 +259,6 @@ static void config_vpif_params(struct vpif_params *vpifparams,
 					vpifparams->iface.vd_pol);
 			vpif_wr_bit(reg, VPIF_CH_H_VALID_POLARITY_BIT,
 					vpifparams->iface.hd_pol);
-
 			value = regr(reg);
 			/* Set data width */
 			value &= ~(0x3u <<

@@ -32,6 +32,8 @@ struct vpif_interface {
 	unsigned hd_pol:1;
 	unsigned vd_pol:1;
 	unsigned fid_pol:1;
+        unsigned pclk_invert:1; /* 1 if data must be sampled on 
+                               a falling edge of the pixel clock */
 };
 
 struct vpif_subdev_info {
