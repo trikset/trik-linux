@@ -365,7 +365,7 @@ static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(inversion,	S_IRUGO|S_IWUSR,	&sysfs_inversion_show,		&sysfs_inversion_store),
 	__ATTR(gamma,		S_IRUGO|S_IWUSR,	&sysfs_gamma_show,		&sysfs_gamma_store),
 	__ATTR(flip,		S_IRUGO|S_IWUSR,	&sysfs_flip_show,		&sysfs_flip_store),
-	__ATTR(brightness,	S_IRUGO|S_IWUSR,	&sysfs_brightness_show,		&sysfs_brightness_store),
+/*	__ATTR(brightness,	S_IRUGO|S_IWUSR,	&sysfs_brightness_show,		&sysfs_brightness_store), */ 
 	__ATTR(backlight,	S_IRUGO|S_IWUSR,	&sysfs_backlight_show,		&sysfs_backlight_store),
 	__ATTR(perf_count,	S_IRUSR|S_IWUSR,	&sysfs_perf_count_show,		&sysfs_perf_count_store),
 	__ATTR(color_fill,	S_IWUSR,		NULL,				&sysfs_color_fill_store),
