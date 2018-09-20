@@ -1958,22 +1958,6 @@ unsigned short st7789_init_trik[] = {
 					| REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__EPF, 0x0)); // in 565 mode, lowest bit is populated with topmost
 
 
-printk(KERN_ERR "dispon\n"); 
-display_write_cmd(dev, par, 0x29); 
-#if 0 
-printk(KERN_ERR "write test image \n") ; 
-display_write_cmd(dev, par, 0x2c); 
-int y, x;
-
-  for (y = 0; y < 320; ++y) {
-    for (x = 0; x < 240 ; ++x) {
-      display_write_data(dev, par,  (((x >> 3) & 0x1f) << 11)  | (((x >> 3) & 0x1f) << 6) | ((x >> 3) & 0x1f)  ); 
-    }
-  }
-
-msleep(2000); 
-printk(KERN_ERR "Contintue\n"); 
-#endif 
 	display_start_redraw_locked(dev, par);
 	// forget about lock from this point on
 
