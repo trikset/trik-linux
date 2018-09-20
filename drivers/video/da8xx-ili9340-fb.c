@@ -640,7 +640,7 @@ static void display_visibility_settings_update(struct device* _dev, struct da8xx
 	// Turn display off before re-configuring
 	display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_OFF);
 	idle = atomic_read(&_par->display_settings.disp_idle);
-//	display_write_cmd(_dev, _par, idle?ILI9340_CMD_IDLE_ON:ILI9340_CMD_IDLE_OFF);
+	display_write_cmd(_dev, _par, idle?ILI9340_CMD_IDLE_ON:ILI9340_CMD_IDLE_OFF);
 
 	display_write_cmd(_dev, _par, atomic_read(&_par->display_settings.disp_inversion)?ILI9340_CMD_INVERSION_ON:ILI9340_CMD_INVERSION_OFF);
 
