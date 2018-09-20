@@ -640,7 +640,7 @@ static void display_visibility_settings_update(struct device* _dev, struct da8xx
 	// Turn display off before re-configuring
 	display_write_cmd(_dev, _par, ILI9340_CMD_DISPLAY_OFF);
 	idle = atomic_read(&_par->display_settings.disp_idle);
-	display_write_cmd(_dev, _par, idle?ILI9340_CMD_IDLE_ON:ILI9340_CMD_IDLE_OFF);
+//	display_write_cmd(_dev, _par, idle?ILI9340_CMD_IDLE_ON:ILI9340_CMD_IDLE_OFF);
 
 	display_write_cmd(_dev, _par, atomic_read(&_par->display_settings.disp_inversion)?ILI9340_CMD_INVERSION_ON:ILI9340_CMD_INVERSION_OFF);
 
@@ -659,6 +659,8 @@ static void display_visibility_settings_update(struct device* _dev, struct da8xx
 	display_write_data(_dev, _par, atomic_read(&_par->display_settings.disp_gctrl));
 
 
+#if 0 
+TODO: trying to control brightness breaks those newhaven displays, which are based on the ST7789S LCD controller
 	brightness	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&_par->display_settings.disp_brightness));
 	display_write_cmd(_dev, _par, ILI9340_CMD_BRIGHTNESS);
 	display_write_data(_dev, _par, brightness);
@@ -669,6 +671,7 @@ static void display_visibility_settings_update(struct device* _dev, struct da8xx
 			| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__BCTRL, 1)
 			| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__DD, idle?1:0));
 
+#endif
 	int isOn = atomic_read(&_par->display_settings.disp_on);
 	display_write_cmd(_dev, _par, isOn ? ILI9340_CMD_DISPLAY_ON : ILI9340_CMD_DISPLAY_OFF);
 	if (_par->cb_backlight_ctrl)
@@ -1954,6 +1957,23 @@ unsigned short st7789_init_trik[] = {
 	display_write_data(dev, par, 0xc0 | REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__MDT, disp_mdt)
 					| REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__EPF, 0x0)); // in 565 mode, lowest bit is populated with topmost
 
+
+printk(KERN_ERR "dispon\n"); 
+display_write_cmd(dev, par, 0x29); 
+#if 0 
+printk(KERN_ERR "write test image \n") ; 
+display_write_cmd(dev, par, 0x2c); 
+int y, x;
+
+  for (y = 0; y < 320; ++y) {
+    for (x = 0; x < 240 ; ++x) {
+      display_write_data(dev, par,  (((x >> 3) & 0x1f) << 11)  | (((x >> 3) & 0x1f) << 6) | ((x >> 3) & 0x1f)  ); 
+    }
+  }
+
+msleep(2000); 
+printk(KERN_ERR "Contintue\n"); 
+#endif 
 	display_start_redraw_locked(dev, par);
 	// forget about lock from this point on
 
