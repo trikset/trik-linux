@@ -365,7 +365,7 @@ static struct device_attribute da8xx_ili9340_sysfs_attrs[] = {
 	__ATTR(inversion,	S_IRUGO|S_IWUSR,	&sysfs_inversion_show,		&sysfs_inversion_store),
 	__ATTR(gamma,		S_IRUGO|S_IWUSR,	&sysfs_gamma_show,		&sysfs_gamma_store),
 	__ATTR(flip,		S_IRUGO|S_IWUSR,	&sysfs_flip_show,		&sysfs_flip_store),
-	__ATTR(brightness,	S_IRUGO|S_IWUSR,	&sysfs_brightness_show,		&sysfs_brightness_store),
+/*	__ATTR(brightness,	S_IRUGO|S_IWUSR,	&sysfs_brightness_show,		&sysfs_brightness_store), */ 
 	__ATTR(backlight,	S_IRUGO|S_IWUSR,	&sysfs_backlight_show,		&sysfs_backlight_store),
 	__ATTR(perf_count,	S_IRUSR|S_IWUSR,	&sysfs_perf_count_show,		&sysfs_perf_count_store),
 	__ATTR(color_fill,	S_IWUSR,		NULL,				&sysfs_color_fill_store),
@@ -659,6 +659,8 @@ static void display_visibility_settings_update(struct device* _dev, struct da8xx
 	display_write_data(_dev, _par, atomic_read(&_par->display_settings.disp_gctrl));
 
 
+#if 0 
+TODO: trying to control brightness breaks those newhaven displays, which are based on the ST7789S LCD controller
 	brightness	= REGDEF_GET_VALUE(ILI9340_DISPLAY_CFG_BRIGHTNESS, atomic_read(&_par->display_settings.disp_brightness));
 	display_write_cmd(_dev, _par, ILI9340_CMD_BRIGHTNESS);
 	display_write_data(_dev, _par, brightness);
@@ -669,6 +671,7 @@ static void display_visibility_settings_update(struct device* _dev, struct da8xx
 			| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__BCTRL, 1)
 			| REGDEF_SET_VALUE(ILI9340_CMD_DISPLAY_CTRL__DD, idle?1:0));
 
+#endif
 	int isOn = atomic_read(&_par->display_settings.disp_on);
 	display_write_cmd(_dev, _par, isOn ? ILI9340_CMD_DISPLAY_ON : ILI9340_CMD_DISPLAY_OFF);
 	if (_par->cb_backlight_ctrl)
@@ -1843,104 +1846,8 @@ static int __devinit da8xx_ili9340_display_init(struct platform_device* _pdevice
 			goto exit_sleep_in;
 	}
 	display_write_cmd(dev, par, ILI9340_CMD_PIXEL_FORMAT);
-//	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_PIXEL_FORMAT__DBI, disp_dbi));
-	display_write_data(dev, par, 0x55);
-/*
-#define TFT_24_7789_Write_Command(cmd) display_write_cmd(dev, par, cmd) 
-#define TFT_24_7789_Write_Data(cmd) display_write_data(dev, par, cmd) 
-TFT_24_7789_Write_Command(0x00B2);
-TFT_24_7789_Write_Data(0x000C);
-TFT_24_7789_Write_Data(0x0C);
-TFT_24_7789_Write_Data(0x00);
-TFT_24_7789_Write_Data(0x33);
-TFT_24_7789_Write_Data(0x33);
-	TFT_24_7789_Write_Command(0x00E0);
-TFT_24_7789_Write_Data(0x00D0);
-TFT_24_7789_Write_Data(0x0000);
-TFT_24_7789_Write_Data(0x0005);
-TFT_24_7789_Write_Data(0x000E);
-TFT_24_7789_Write_Data(0x0015);
-TFT_24_7789_Write_Data(0x000D);
-TFT_24_7789_Write_Data(0x0037);
-TFT_24_7789_Write_Data(0x0043);
-TFT_24_7789_Write_Data(0x0047);
-TFT_24_7789_Write_Data(0x0009);
-TFT_24_7789_Write_Data(0x0015);
-TFT_24_7789_Write_Data(0x0012);
-TFT_24_7789_Write_Data(0x0016);
-TFT_24_7789_Write_Data(0x0019);//PVGAMCTRL: Positive Voltage Gamma control
-TFT_24_7789_Write_Command(0x00E1);
-TFT_24_7789_Write_Data(0x00D0);
-TFT_24_7789_Write_Data(0x0000);
-TFT_24_7789_Write_Data(0x0005);
-TFT_24_7789_Write_Data(0x000D);
-TFT_24_7789_Write_Data(0x000C);
-TFT_24_7789_Write_Data(0x0006);
-TFT_24_7789_Write_Data(0x002D);
-TFT_24_7789_Write_Data(0x0044);
-TFT_24_7789_Write_Data(0x0040);
-TFT_24_7789_Write_Data(0x000E);
-TFT_24_7789_Write_Data(0x001C);
-TFT_24_7789_Write_Data(0x0018);
-TFT_24_7789_Write_Data(0x0016);
-TFT_24_7789_Write_Data(0x0019);//NVGAMCTRL: Negative Voltage Gamma control
-*/
-unsigned short st7789_init_11_d5[] = {
-	0xB7, 0x154,
-	0xBA, 0x100, 
-	0xBB, 0x129, 
-	0xC2, 0x100, 
-	0xC3, 0x100, 
-	0xD0, 0x1A4, 0x101, 
-	0xD2, 0x14C, 
-	0xDF, 0x15A, 0x169, 0x102, 0x100, 
-        0xE0, 0x1F0, 0x106, 0x10B, 0x10A, 0x10A, 0x106, 0x133, 0x143, 0x149, 0x137, 0x112, 0x111, 0x12D, 0x132,
-	0xE1, 0x1F0, 0x106, 0x10B, 0x10A, 0x10A, 0x106, 0x133, 0x143, 0x149, 0x137, 0x112, 0x111, 0x12D, 0x132,
-	0xE4, 0x127, 0x100, 0x110, 
-	0xE7, 0x101, 
-	0xE8, 0x193, 
-	0xE9, 0x102, 0x102, 0x100, 
-	0xEC, 0x100, 
-	0xFA, 0x15A, 0x169, 0x1EE, 0x100, 
-	0xFC, 0x100, 0x100, 
-	0xFE, 0x100, 0x100, 
-	0xB8, 0x12A, 0x12B, 0x101, 0x1FF, 
-	0xB1, 0x1C0, 0x104, 0x10A,
-	0xB2, 0x10C, 0x10C, 0x100, 0x133, 0x133,
-	0xB3, 0x100, 0x10F, 0x10F//, 0xB0, 0x111, 0x1F4
-};
-
-unsigned short st7789_init_50_5a[] = {
-//	0xB7, 0x135, 
-//	0xBB, 0x139, 
-//	0xC3, 0x10F,
-	0xE0, 0x1F0, 0x10C, 0x113, 0x10B, 0x10A, 0x126, 0x139, 0x144, 0x14D, 0x108, 0x114, 0x115, 0x12E, 0x134,
-	0xE1, 0x1F0, 0x10C, 0x113, 0x10B, 0x10A, 0x126, 0x139, 0x144, 0x14D, 0x108, 0x114, 0x115, 0x12E, 0x134,
-//	0xE9, 0x108, 0x108, 0x104,
-	0xB8, 0x12A, 0x12B, 0x120,
-};
-
-unsigned short st7789_init_default[] = {
-//	0xB7, 0x120, 
-//	0xBB, 0x13D, 
-//	0xC3, 0x115, 
-	0xE0, 0x1F0, 0x10C, 0x113, 0x10B, 0x10A, 0x126, 0x139, 0x144, 0x14D, 0x108, 0x114, 0x115, 0x12E, 0x134,
-	0xE1, 0x1F0, 0x10C, 0x113, 0x10B, 0x10A, 0x126, 0x139, 0x144, 0x14D, 0x108, 0x114, 0x115, 0x12E, 0x134,
-//	0xE9, 0x108, 0x108, 0x104,
-	0xB8, 0x12A, 0x12B, 0x120, //????
-};
-unsigned short st7789_init_trik[] = {
-	0xB2, 0x10C, 0x10C, 0x100, 0x133, 0x133,	
-	0xE0, 0x1D0, 0x100, 0x105, 0x10E, 0x115, 0x10D, 0x137, 0x143, 0x147, 0x109, 0x115, 0x112, 0x116, 0x119,
-	0xE1, 0x1D0, 0x100, 0x105, 0x10D, 0x10C, 0x106, 0x12D, 0x144, 0x140, 0x10E, 0x11C, 0x118, 0x116, 0x119,
-};
- 	#define input_init_data st7789_init_trik
-	int i = 0;
-	for (; i < sizeof(input_init_data)/sizeof(unsigned short); ++i) {
-		unsigned short x = input_init_data[i];
-		if ( x & 0x100 ) display_write_data(dev, par, x & 0xff);
-		else display_write_cmd(dev, par, x);
-	}
+	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_PIXEL_FORMAT__DBI, disp_dbi));
+        display_write_cmd(dev, par, ILI9340_CMD_IFACE_CTRL);
 	
 	atomic_set(&par->display_settings.disp_vcom, 0x2b); //0xbb
 	atomic_set(&par->display_settings.disp_vcom_offset, 0x20); //0xc5
@@ -1949,10 +1856,11 @@ unsigned short st7789_init_trik[] = {
 	atomic_set(&par->display_settings.disp_vdv, 0x20);  //0xc4, default is 0x20
 	atomic_set(&par->display_settings.disp_gctrl, 0x77);  //0xb7 default is 0x35
 
-	display_write_cmd(dev, par, 0xb0); // 0xb0 for st778s and must be oxf6 for ili934x
+	display_write_cmd(dev, par, 0xb0); 
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__WEMODE, 0x0)); // ignore extra data
 	display_write_data(dev, par, 0xc0 | REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__MDT, disp_mdt)
 					| REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__EPF, 0x0)); // in 565 mode, lowest bit is populated with topmost
+
 
 	display_start_redraw_locked(dev, par);
 	// forget about lock from this point on
