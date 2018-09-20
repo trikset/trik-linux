@@ -1952,7 +1952,7 @@ unsigned short st7789_init_trik[] = {
 	atomic_set(&par->display_settings.disp_vdv, 0x20);  //0xc4, default is 0x20
 	atomic_set(&par->display_settings.disp_gctrl, 0x77);  //0xb7 default is 0x35
 
-	display_write_cmd(dev, par, 0xb0); // 0xb0 for st778s and must be oxf6 for ili934x
+	display_write_cmd(dev, par, 0xb0); 
 	display_write_data(dev, par, REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__WEMODE, 0x0)); // ignore extra data
 	display_write_data(dev, par, 0xc0 | REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__MDT, disp_mdt)
 					| REGDEF_SET_VALUE(ILI9340_CMD_IFACE_CTRL__EPF, 0x0)); // in 565 mode, lowest bit is populated with topmost
