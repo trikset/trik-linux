@@ -241,6 +241,9 @@ static int l3g42xxd_init_chip(struct l3g42xxd_chip* chip){
     err = l3g42xxd_set_sample_rate(chip,L3GD42XXD_ODR_95);
     err = l3g42xxd_set_fs_range(chip,L3GD42XXD_FS_2000);
 
+    // clear the INT1 device line in case it is stuck high after the processor reset
+    chip->read(chip->dev,L3G42XXD_INTERRUPT_SRC);
+
     return 0;
 }
 
