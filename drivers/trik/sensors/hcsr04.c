@@ -248,7 +248,7 @@ static struct platform_device_id hcsr04_ids[] = {
 		.name		= "trik_jd1",
 	}, {
 		.name		= "trik_jd2",
-	}, 
+	}, {    .name           = "trik_jf1" }, 
 	{ }
 };
 #define DRV_NAME 		"hcsr04"
