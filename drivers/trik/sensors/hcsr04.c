@@ -210,7 +210,6 @@ static int hcsr04_probe(struct platform_device *pdev)
         goto exit_register_irq;
 	}
 
-	gpio_set_value(drv_data->data->gpio_d1e,1); //???set omap buffer logic
         udelay(10);
 	return 0;
 exit_register_irq:
