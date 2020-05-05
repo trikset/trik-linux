@@ -21,7 +21,6 @@ static struct platform_device trik_jd2_device = {
 
 static struct trik_jdx_platform_data trik_jd2_pdata = {
 	.gpio_d1a = GPIO_TO_PIN(3,1),
-	.gpio_d1e = GPIO_TO_PIN(0,11),
 	.gpio_d1b = GPIO_TO_PIN(3,5),
 };
 static const struct gpio trik_jd2_gpio_array[] = {

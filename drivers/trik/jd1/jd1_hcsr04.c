@@ -19,9 +19,10 @@ static struct platform_device trik_jd1_device = {
     }
 };
 
+
+
 static struct trik_jdx_platform_data trik_jd1_pdata = {
 	.gpio_d1a = GPIO_TO_PIN(3,3),
-	.gpio_d1e = GPIO_TO_PIN(0,13),
 	.gpio_d1b = GPIO_TO_PIN(3,2),
 };
 
@@ -70,7 +71,6 @@ exit_mux_failed:
 void cleanup_module(void)
 {
 	platform_device_unregister(&trik_jd1_device);
-	gpio_free(trik_jd1_pdata.gpio_d1e);
 	gpio_free_array(trik_jd1_gpio_array, ARRAY_SIZE(trik_jd1_gpio_array));
 
 }
