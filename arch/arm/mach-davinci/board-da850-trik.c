@@ -68,7 +68,7 @@ static const short da850_trik_uart1_pins[] __initconst = {
 };
 
 static const struct gpio da850_trik_uart1_gpio[] __initconst = {
-	{ GPIO_TO_PIN(1,14), GPIOF_OUT_INIT_LOW|GPIOF_EXPORT_DIR_FIXED,  "uart1 power" },
+	{ GPIO_TO_PIN(1,14), GPIOF_OUT_INIT_LOW|GPIOF_EXPORT_DIR_CHANGEABLE,  "uart1 power" },
 };
 
 static __init int da850_trik_uart1_init(void)

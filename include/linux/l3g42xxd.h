@@ -6,6 +6,7 @@
 
 #define L3G42XXD_ID 					0xD3 
 #define L3GD20_ID 						0xD4 
+#define L3GD20H_ID 						0xD7 
 
 
 #define L3G42XXD_IOCTL_BASE 'l'

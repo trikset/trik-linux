@@ -466,6 +466,8 @@ static int l3g42xxd_input_dev_init(struct l3g42xxd_chip* chip)
         break;
         case L3GD20_ID:
         break;
+        case L3GD20H_ID:
+        break;
         default:
             pr_err("%s:Unknown chip :0%02x \n",__func__,device_id);
             return -ENODEV;
