@@ -92,6 +92,10 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 	struct uvc_format *format = NULL;
 	struct uvc_frame *frame = NULL;
 	unsigned int i;
+	
+	// Workaround for TRIK-specific musb implementation
+	// and Logitech c510 webcam
+	ctrl->dwMaxPayloadTransferSize = 600;
 
 	for (i = 0; i < stream->nformats; ++i) {
 		if (stream->format[i].index == ctrl->bFormatIndex) {
