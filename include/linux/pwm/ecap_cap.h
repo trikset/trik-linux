@@ -19,10 +19,18 @@
 #define EC_DELTA_MODE				0x1
 
 #define EC_ONESHOT				0x1
+#include <linux/irqreturn.h>
+#include <linux/pwm/pwm.h>
 
-struct ecap_cap {
-	int edge;
-	int prescale;
-};
+int ecap_cap_config(struct pwm_device *p);
+irqreturn_t ecap_davinci_isr(int this_irq, void *dev_id);
 
+ssize_t duty_ns_show(struct pwm_device *p, char *buf);
+ssize_t duty_percent_show(struct pwm_device *p, char *buf);
+
+ssize_t period_ns_show(struct pwm_device *p, char *buf);
+ssize_t period_freq_show(struct pwm_device *p, char *buf);
+
+ssize_t prescale_show(struct pwm_device *p, char *buf);
+ssize_t prescale_store(struct pwm_device *p, const char *buf, size_t len);
 #endif

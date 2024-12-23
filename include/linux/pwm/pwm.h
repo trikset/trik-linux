@@ -40,6 +40,11 @@ enum {
 	PWM_CONFIG_PERIOD_NS	= 8,
 };
 
+enum pwm_capture {
+	CAP_DISABLED = 0,
+	CAP_ENABLED = 1,
+};
+
 struct pwm_config;
 struct pwm_device;
 
@@ -103,6 +108,26 @@ struct pwm_device {
 	unsigned long duty_ns;
 	struct notifier_block freq_transition;
 	spinlock_t pwm_lock;
+
+	enum pwm_capture pwm_dev_capture;
+};
+
+struct ecap_cap {
+	int edge;
+	int prescale;
+};
+
+struct ecap_pwm {
+  struct pwm_device pwm;
+  struct pwm_device_ops ops;
+  spinlock_t lock;
+  struct clk *clk;
+  int clk_enabled;
+  void __iomem *mmio_base;
+
+  // For PWM capture mode
+  struct completion comp;
+  struct ecap_cap ecap_cap;
 };
 
 struct pwm_device *pwm_request_byname(const char *name, const char *label);
@@ -133,6 +158,8 @@ static inline void *pwm_get_drvdata(const struct pwm_device *p)
 {
 	return p->data;
 }
+
+struct ecap_pwm *to_ecap_pwm(const struct pwm_device *p);
 
 unsigned long pwm_ns_to_ticks(struct pwm_device *p, unsigned long nsecs);
 unsigned long pwm_ticks_to_ns(struct pwm_device *p, unsigned long ticks);
@@ -171,6 +198,4 @@ int pwm_set_period_ticks(struct pwm_device *p,
 unsigned long pwm_get_duty_percent(struct pwm_device *p);
 int pwm_set_duty_ticks(struct pwm_device *p,
 					unsigned long ticks);
-struct device *capture_request_device(char *name);
-struct device *capture_dev_register(struct device *dev);
 #endif
