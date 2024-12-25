@@ -19,6 +19,13 @@
 #ifndef __LINUX_PWM_H
 #define __LINUX_PWM_H
 
+#define CAP1					0x08
+#define CAP2					0x0C
+#define CAP3					0x10
+#define CAP4					0x14
+#define ECCTL1					0x28
+#define ECCTL2					0x2A
+
 enum {
 	FLAG_REGISTERED		= 0,
 	FLAG_REQUESTED		= 1,

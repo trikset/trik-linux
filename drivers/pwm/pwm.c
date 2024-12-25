@@ -32,6 +32,8 @@
 #include <linux/platform_device.h>
 #include <linux/cpufreq.h>
 #include <linux/pwm/ecap_cap.h>
+#include <linux/io.h>
+#include <linux/clk.h>
 
 static const char *REQUEST_SYSFS = "sysfs";
 static LIST_HEAD(pwm_device_list);
@@ -453,6 +455,20 @@ static void __pwm_callback(struct pwm_device *p)
 	queue_work(pwm_handler_workqueue, &p->handler_work);
 }
 
+static void drop_registers(struct pwm_device *p)
+{
+	struct ecap_pwm *ep = to_ecap_pwm(p);
+	clk_enable(ep->clk);
+	__raw_writel(0, ep->mmio_base);
+	__raw_writel(0, ep->mmio_base + CAP1);
+	__raw_writel(0, ep->mmio_base + CAP2);
+	__raw_writel(0, ep->mmio_base + CAP3);
+	__raw_writel(0, ep->mmio_base + CAP4);
+	__raw_writew(0, ep->mmio_base + ECCTL1);
+	__raw_writew(0, ep->mmio_base + ECCTL2);
+	clk_disable(ep->clk);
+}
+
 int pwm_set_handler(struct pwm_device *p, pwm_handler_t handler, void *data)
 {
 	if (p->ops->set_callback) {
@@ -747,6 +763,7 @@ static ssize_t pwm_capture_store(struct device *dev,
 	struct pwm_device *p = dev_get_drvdata(dev);
 
 	if (!kstrtoint(buf, 10, &capture)) {
+		drop_registers(p);
 		if (capture) {
 			if (!strcmp(ECAP0, dev_name(p->dev)) || 
 				!strcmp(ECAP1, dev_name(p->dev)) || 

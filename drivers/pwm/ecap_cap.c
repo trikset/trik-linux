@@ -27,12 +27,6 @@
 #include <linux/pwm/ecap_cap.h>
 
 /* eCAP register offsets */
-#define CAP1					0x08
-#define CAP2					0x0C
-#define CAP3					0x10
-#define CAP4					0x14
-#define ECCTL1					0x28
-#define ECCTL2					0x2A
 #define ECEINT					0x2C
 #define ECFLG					0x2E
 #define ECCLR					0x30
