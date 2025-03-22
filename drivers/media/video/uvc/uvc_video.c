@@ -93,9 +93,11 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 	struct uvc_frame *frame = NULL;
 	unsigned int i;
 	
-	// Workaround for TRIK-specific musb implementation
-	// and Logitech c510 webcam
-	ctrl->dwMaxPayloadTransferSize = 600;
+	//// Uncomment this `quirk`/workaround for TRIK-specific musb implementation
+	//// to fix Logitech c510 webcam. Maybe this should be a module option later.
+	//// But this breaks compatibility with original C920 aka 046D:082D
+	//  Set to 600 for Logitech c510
+	//  ctrl->dwMaxPayloadTransferSize = 600;
 
 	for (i = 0; i < stream->nformats; ++i) {
 		if (stream->format[i].index == ctrl->bFormatIndex) {
