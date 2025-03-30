@@ -92,12 +92,6 @@ static void uvc_fixup_video_ctrl(struct uvc_streaming *stream,
 	struct uvc_format *format = NULL;
 	struct uvc_frame *frame = NULL;
 	unsigned int i;
-	
-	//// Uncomment this `quirk`/workaround for TRIK-specific musb implementation
-	//// to fix Logitech c510 webcam. Maybe this should be a module option later.
-	//// But this breaks compatibility with original C920 aka 046D:082D
-	//  Set to 600 for Logitech c510
-	//  ctrl->dwMaxPayloadTransferSize = 600;
 
 	for (i = 0; i < stream->nformats; ++i) {
 		if (stream->format[i].index == ctrl->bFormatIndex) {
@@ -1578,6 +1572,10 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 		unsigned int uninitialized_var(altsetting);
 		int intfnum = stream->intfnum;
 
+		struct usb_host_endpoint *best_trik_ep = NULL;
+		unsigned int max_trik_psize = 0;
+		unsigned int uninitialized_var(trik_altsetting);
+
 		/* Isochronous endpoint, select the alternate setting. */
 		bandwidth = stream->ctrl.dwMaxPayloadTransferSize;
 
@@ -1602,7 +1600,34 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 
 			/* Check if the bandwidth is high enough. */
 			psize = le16_to_cpu(ep->desc.wMaxPacketSize);
-			psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
+			
+			/* Bits 11 & 12 of wMaxPacketSize encode high bandwidth (HB) multiplier.
+			TRIK musb cores don't support high bandwidth ISO transfers,
+			therefore, we do not consider endpoints on a device that work with HB. */
+			__u8 hb_mult = 1 + ((psize >> 11) & 3);
+			if (hb_mult > 1) {
+				continue;
+			}
+
+			psize = (psize & 0x07ff) * hb_mult;
+			
+			/* Some devices may request an incorrect or too large bandwidth that 
+			does not support TRIK (HB). Therefore, we find the largest 
+			bandwidth that TRIK can support for this device. 
+
+			There is always a supported and worker bandwidth for 320x240 resolution. 
+			For larger sizes, it may no longer be available, 
+			or the maximum possible one will be too slow for.
+
+			For example, 640x480 is not possible for a TRIK, a lower resolution may work.
+			
+			USE 320x240. */
+			if (max_trik_psize < psize) {
+				max_trik_psize = psize;
+				trik_altsetting = alts->desc.bAlternateSetting;
+				best_trik_ep = ep;
+			}
+
 			if (psize >= bandwidth && psize <= best_psize) {
 				altsetting = alts->desc.bAlternateSetting;
 				best_psize = psize;
@@ -1610,10 +1635,16 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 			}
 		}
 
-		if (best_ep == NULL) {
+		if (best_ep == NULL && best_trik_ep == NULL) {
 			uvc_trace(UVC_TRACE_VIDEO, "No fast enough alt setting "
 				"for requested bandwidth.\n");
 			return -EIO;
+		} else if (best_ep == NULL) {
+			altsetting = trik_altsetting;
+			best_psize = max_trik_psize;
+			best_ep = best_trik_ep;
+			uvc_trace(UVC_TRACE_VIDEO, "Use the maximum allowable "
+				"bandwidth for the TRIK, as no suitable one was found.\n");
 		}
 
 		uvc_trace(UVC_TRACE_VIDEO, "Selecting alternate setting %u "
